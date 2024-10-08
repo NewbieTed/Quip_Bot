@@ -1,0 +1,14 @@
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    <!-- Specify Type Aliases -->
+    <typeAliases>
+        <package name="com.quip.backend.model" />
+    </typeAliases>
+
+    <!-- Specify Mapper Files -->
+    <mappers>
+        <package name="com.quip.backend.mapper" />
+    </mappers>
+</configuration>

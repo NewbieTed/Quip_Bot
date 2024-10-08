@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.quip</groupId>
-	<artifactId>Quip_Bot</artifactId>
+	<artifactId>backend</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>Quip_Bot</name>
-	<description>Backend for Quip Bot</description>
+	<name>backend</name>
+	<description>Quip Discord Bot Backend</description>
 	<url/>
 	<licenses>
 		<license/>
@@ -48,6 +48,11 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mybatis.spring.boot</groupId>
+			<artifactId>mybatis-spring-boot-starter</artifactId>
+			<version>2.2.0</version> <!-- or latest version -->
 		</dependency>
 	</dependencies>
 

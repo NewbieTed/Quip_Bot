@@ -1,10 +1,10 @@
-package com.quip.Quip_Bot;
+package com.quip.backend;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class QuipBotApplicationTests {
+class BackendApplicationTests {
 
 	@Test
 	void contextLoads() {
