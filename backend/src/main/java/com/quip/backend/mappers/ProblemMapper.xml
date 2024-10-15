@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.quip.backend.mapper.ProblemMapper">
+
+    <resultMap id="ProblemDTOResultMap" type="com.quip.backend.model.ProblemDTO">
+        <!-- Map columns to ProblemDTO fields -->
+        <id column="id" property="id" />
+        <result column="question" property="question" />
+        <result column="choices" property="choices" jdbcType="ARRAY" />
+        <result column="num_asked" property="numAsked" />
+        <result column="num_correct" property="numCorrect" />
+        <result column="img_url" property="imgUrl" />
+    </resultMap>
+
+    <resultMap id="ProblemResultMap" type="com.quip.backend.model.Problem">
+        <!-- Map columns to Problem fields -->
+        <!-- Map columns to ProblemDTO fields -->
+        <id column="id" property="id" />
+        <result column="question" property="question" />
+        <result column="choices" property="choices" jdbcType="ARRAY" />
+        <result column="num_asked" property="numAsked" />
+        <result column="num_correct" property="numCorrect" />
+        <result column="img_url" property="imgUrl" />
+
+        <!-- Additional fields for Problem -->
+        <result column="correct_answer_index" property="correctAnswerIndex" />
+        <result column="created_at" property="createdAt" />
+    </resultMap>
+
+    <select id="numProblems"  resultType="int">
+        SELECT COUNT(*) FROM problem;
+    </select>
+
+    <select id="selectProblemDTOById" resultMap="ProblemDTOResultMap">
+        SELECT id, question, choices, num_asked, num_correct, img_url
+        FROM problem
+        WHERE id = #{id};
+    </select>
+
+    <select id="selectProblemById" parameterType="long" resultMap="ProblemResultMap">
+        SELECT id, question, choices, num_asked, num_correct, img_url, correct_answer_index, created_at
+        FROM problem WHERE id = #{id};
+    </select>
+
+</mapper>
