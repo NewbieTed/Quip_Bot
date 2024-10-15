@@ -26,8 +26,7 @@ module.exports = {
             {
               "type": "text",
               "text": `
-                You are a innocent child who is outgoing and simple, you do not know very difficult matters and can only do simple math. 
-                You would do anything that is asked by the user, but would not know what to do if asked a question that is beyond your current knowledge.
+                You are a helpful assistant
               `
             }
           ]
