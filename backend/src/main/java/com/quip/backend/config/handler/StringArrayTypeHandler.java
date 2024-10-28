@@ -1,4 +1,4 @@
-package com.quip.backend.handler;
+package com.quip.backend.config.handler;
 
 import org.apache.ibatis.type.BaseTypeHandler;
 import org.apache.ibatis.type.JdbcType;

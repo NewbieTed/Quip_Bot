@@ -1,28 +1,37 @@
-package com.quip.backend.controller;
+package com.quip.backend.problem.controller;
 
-import com.quip.backend.model.ProblemDTO;
-import com.quip.backend.service.ProblemService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.quip.backend.dto.BaseResponse;
+import com.quip.backend.problem.dto.ProblemDTO;
+import com.quip.backend.problem.request.VerifyAnswerRequest;
+import com.quip.backend.problem.service.ProblemService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import lombok.RequiredArgsConstructor;
+
 
 @RestController
 @RequestMapping("/problem")
+@RequiredArgsConstructor
 public class ProblemController {
+
 
     private final ProblemService problemService;
 
-    @Autowired
-    public ProblemController(ProblemService problemService) {
-        this.problemService = problemService;
-    }
-
-    // Handle GET request to retrieve all users
-    @GetMapping
-    public ProblemDTO getProblem() {
+    @GetMapping()
+    public BaseResponse<ProblemDTO> getProblem() {
         return problemService.getProblem();
     }
+
+    @PostMapping("/verify")
+    public BaseResponse<Boolean> verifyAnswer(@Valid @RequestBody VerifyAnswerRequest request) {
+        if (request == null) {
+            return BaseResponse.failure(HttpStatus.BAD_REQUEST.value(), "No data provided");
+        }
+        return problemService.verifyAnswer(request.getProblemId(), request.getAnswer());
+    }
+
 
 //    // Handle GET request to retrieve a user by ID
 //    @GetMapping("/statistics")
