@@ -27,17 +27,22 @@ public class BaseResponse<T> {
         this.timestamp = Instant.now(); // Automatically set timestamp
     }
 
-    // Static factory method for success responses
+    // Static factory method for success responses with no return data
+    public static BaseResponse<Boolean> success() {
+        return new BaseResponse<>(true, HttpStatus.OK.value(), "", null);
+    }
+
+    // Static factory method for success responses with return data
     public static <T> BaseResponse<T> success(T data) {
         return new BaseResponse<>(true, HttpStatus.OK.value(), "", data);
     }
 
-    // Static factory method for success responses
+    // Static factory method for success responses with return message and data
     public static <T> BaseResponse<T> success(String message, T data) {
         return new BaseResponse<>(true,  HttpStatus.OK.value(), message, data);
     }
 
-    // Static factory method for failure responses
+    // Static factory method for failure responses with status code and message
     public static <T> BaseResponse<T> failure(int statusCode, String message) {
         return new BaseResponse<>(false, statusCode, message, null);
     }

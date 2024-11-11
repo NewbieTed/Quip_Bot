@@ -1,0 +1,23 @@
+app:
+  assets:
+    base-url: http://localhost:8080/assets/
+    base-path: static/assets/
+
+spring:
+  application:
+    name: backend
+  datasource:
+    url: ${DB_URL}              # Environment variable for database URL
+    username: ${DB_USERNAME}    # Environment variable for database username
+    password: ${DB_PASSWORD}    # Environment variable for database password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+# MyBatis Configuration
+mybatis:
+  config-location: classpath:mybatis/mybatis-config.xml
+  type-aliases-package: com.quip.backend.model
+  mapper-locations: classpath:mappers/**/*.xml

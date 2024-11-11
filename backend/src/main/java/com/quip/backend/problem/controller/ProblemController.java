@@ -1,7 +1,10 @@
 package com.quip.backend.problem.controller;
 
 import com.quip.backend.dto.BaseResponse;
-import com.quip.backend.problem.dto.ProblemDTO;
+import com.quip.backend.problem.dto.ProblemCreateDto;
+import com.quip.backend.problem.dto.ProblemDto;
+import com.quip.backend.problem.mapper.database.ProblemMapper;
+import com.quip.backend.problem.model.Problem;
 import com.quip.backend.problem.request.VerifyAnswerRequest;
 import com.quip.backend.problem.service.ProblemService;
 import jakarta.validation.Valid;
@@ -10,50 +13,44 @@ import org.springframework.web.bind.annotation.*;
 
 import lombok.RequiredArgsConstructor;
 
-
 @RestController
 @RequestMapping("/problem")
 @RequiredArgsConstructor
 public class ProblemController {
 
-
     private final ProblemService problemService;
+    private final ProblemMapper problemMapper;
 
     @GetMapping()
-    public BaseResponse<ProblemDTO> getProblem() {
-        return problemService.getProblem();
+    public BaseResponse<ProblemDto> getProblem() {
+        return BaseResponse.success("success", problemService.getProblem());
     }
 
-    @PostMapping("/verify")
+    @GetMapping("/verify")
     public BaseResponse<Boolean> verifyAnswer(@Valid @RequestBody VerifyAnswerRequest request) {
         if (request == null) {
             return BaseResponse.failure(HttpStatus.BAD_REQUEST.value(), "No data provided");
         }
-        return problemService.verifyAnswer(request.getProblemId(), request.getAnswer());
+
+        long problemId = request.getProblemId();
+        Problem problem = problemMapper.selectProblemById(problemId);
+
+        if (problem == null) {
+            return BaseResponse.failure(HttpStatus.NOT_FOUND.value(),
+                    "Problem with problem id " + problemId + " is not found");
+        }
+        return BaseResponse.success(problemService.verifyAnswer(problem, request.getAnswer()));
+    }
+
+    @PostMapping("/add")
+    public BaseResponse<Boolean> addProblem(@Valid @RequestBody ProblemCreateDto problemCreateDto) {
+        if (problemCreateDto == null) {
+            return BaseResponse.failure(HttpStatus.BAD_REQUEST.value(), "No problem provided");
+        }
+
+        problemService.addProblem(problemCreateDto);
+        return BaseResponse.success();
     }
 
 
-//    // Handle GET request to retrieve a user by ID
-//    @GetMapping("/statistics")
-//    public Problem getUserById(@PathVariable Long id) {
-//        return problemService.getUserById(id);
-//    }
-//
-//    // Handle POST request to create a new user
-//    @PostMapping
-//    public Problem createUser(@RequestBody Problem problem) {
-//        return problemService.createUser(problem);
-//    }
-//
-//    // Handle PUT request to update an existing user
-//    @PutMapping("/{id}")
-//    public Problem updateUser(@PathVariable Long id, @RequestBody Problem problem) {
-//        return problemService.updateUser(id, problem);
-//    }
-//
-//    // Handle DELETE request to delete a user
-//    @DeleteMapping("/{id}")
-//    public void deleteUser(@PathVariable Long id) {
-//        problemService.deleteUser(id);
-//    }
 }

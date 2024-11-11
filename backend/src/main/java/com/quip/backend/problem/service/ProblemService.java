@@ -1,11 +1,13 @@
 package com.quip.backend.problem.service;
 
+import com.quip.backend.asset.utils.AssetUtils;
 import com.quip.backend.dto.BaseResponse;
-import com.quip.backend.problem.mapper.ProblemMapper;
-import com.quip.backend.problem.dto.ProblemDTO;
+import com.quip.backend.problem.dto.ProblemCreateDto;
+import com.quip.backend.problem.mapper.database.ProblemMapper;
+import com.quip.backend.problem.dto.ProblemDto;
+import com.quip.backend.problem.mapper.dto.ProblemDtoMapper;
 import com.quip.backend.problem.model.Problem;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,43 +18,46 @@ import java.util.Random;
 public class ProblemService {
 
     private final ProblemMapper problemMapper;
+    private final ProblemDtoMapper problemDtoMapper;
+    private final AssetUtils assetUtils;
 
     // Retrieve a random question
-    public BaseResponse<ProblemDTO> getProblem() {
-        int num = problemMapper.numProblems();
-        if (num == 0) {
+    public ProblemDto getProblem() {
+        Problem problem = problemMapper.selectRandomProblem();
+
+        if (problem == null) {
             return null;
         }
-        Random rand = new Random();
-        long problemId = (long) (rand.nextInt(num) + 1);
 
-        ProblemDTO problem = problemMapper.selectProblemDTOById(problemId);
-        problem.shuffleChoices();
+        ProblemDto problemDto = problemDtoMapper.toProblemDto(problem);
+        problemDto.shuffleChoices();
+
+        long problemId = problemDto.getProblemId();
 
         problemMapper.updateProblemNumAskedById(problemId, problem.getNumAsked() + 1);
 
-        return BaseResponse.success("success", problem);
+        String mediaUrl = problemDto.getMediaUrl();
+        problemDto.setMediaUrl(assetUtils.getBaseUrl() + mediaUrl);
+
+        return problemDto;
     }
 
-    public BaseResponse<Boolean> verifyAnswer(long problemId, String answer) {
-        Problem problem = problemMapper.selectProblemById(problemId);
-
-        if (problem == null) {
-            return BaseResponse.failure(HttpStatus.NOT_FOUND.value(), "Problem with problem id " + problemId +
-                                                                               " is not found");
-        }
-
+    public boolean verifyAnswer(Problem problem, String answer) {
+        long problemId = problem.getProblemId();
         List<String> choices = problem.getChoices();
         int correctAnswerIndex = problem.getCorrectAnswerIndex();
 
         if (choices.get(correctAnswerIndex).equals(answer)) {
             problemMapper.updateProblemNumCorrectById(problemId, problem.getNumCorrect() + 1);
-            return BaseResponse.success(true);
+            return true;
         }
 
-        return BaseResponse.success(false);
+        return false;
     }
 
+    public void addProblem(ProblemCreateDto problemCreateDto) {
+        problemMapper.addProblem(problemCreateDto);
+    }
 
 
 //    // Retrieve all users
