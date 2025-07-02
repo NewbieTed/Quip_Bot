@@ -58,7 +58,7 @@ public class AssetService {
     /**
      * Saves a media file to the server and returns its URL.
      *
-     * @param file     The media file to save.
+     * @param file     The file to save.
      * @param fileType The type of file (e.g., "image", "video").
      * @param folder   The folder to store the file in.
      * @return The URL to access the saved file.

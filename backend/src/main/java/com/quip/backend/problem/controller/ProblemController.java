@@ -8,10 +8,9 @@ import com.quip.backend.problem.model.Problem;
 import com.quip.backend.problem.request.VerifyAnswerRequest;
 import com.quip.backend.problem.service.ProblemService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-
-import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/problem")
@@ -51,6 +50,4 @@ public class ProblemController {
         problemService.addProblem(problemCreateDto);
         return BaseResponse.success();
     }
-
-
 }

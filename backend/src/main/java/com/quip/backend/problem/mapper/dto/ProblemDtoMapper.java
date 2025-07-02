@@ -1,7 +1,7 @@
 package com.quip.backend.problem.mapper.dto;
 
-import com.quip.backend.problem.dto.ProblemDto;
 import com.quip.backend.problem.dto.ProblemCreateDto;
+import com.quip.backend.problem.dto.ProblemDto;
 import com.quip.backend.problem.model.Problem;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -12,9 +12,6 @@ public interface ProblemDtoMapper {
     /**
      * Maps the domain model Problem to ProblemDto for GET requests.
      */
-    @Mapping(target = "correctAnswerIndex", ignore = true)
-    @Mapping(target = "created_at", ignore = true)
-    @Mapping(target = "updated_at", ignore = true)
     ProblemDto toProblemDto(Problem problem);
 
     /**

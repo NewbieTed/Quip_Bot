@@ -1,17 +1,15 @@
 package com.quip.backend.problem.service;
 
 import com.quip.backend.asset.utils.AssetUtils;
-import com.quip.backend.dto.BaseResponse;
 import com.quip.backend.problem.dto.ProblemCreateDto;
-import com.quip.backend.problem.mapper.database.ProblemMapper;
 import com.quip.backend.problem.dto.ProblemDto;
+import com.quip.backend.problem.mapper.database.ProblemMapper;
 import com.quip.backend.problem.mapper.dto.ProblemDtoMapper;
 import com.quip.backend.problem.model.Problem;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -58,36 +56,4 @@ public class ProblemService {
     public void addProblem(ProblemCreateDto problemCreateDto) {
         problemMapper.addProblem(problemCreateDto);
     }
-
-
-//    // Retrieve all users
-//    public List<Problem> getAllUsers() {Ï
-//        return problems;
-//    }
-
-//    // Retrieve a user by ID
-//    public Problem getUserById(Long id) {
-//        return problemMapper.findById(id);
-//    }
-//
-//    // Create a new user
-//    public Problem createUser(Problem problem) {
-//        problems.add(problem);
-//        return problem;
-//    }
-//
-//    // Update an existing user
-//    public Problem updateUser(Long id, Problem updatedProblem) {
-//        Problem problem = getUserById(id);
-//        if (problem != null) {
-//            problem.setUsername(updatedProblem.getUsername());
-//            problem.setEmail(updatedProblem.getEmail());
-//        }
-//        return problem;
-//    }
-//
-//    // Delete a user
-//    public void deleteUser(Long id) {
-//        problems.removeIf(problem -> problem.getId().equals(id));
-//    }
 }

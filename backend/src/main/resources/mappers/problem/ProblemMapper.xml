@@ -1,85 +1,80 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE mapper
-        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.quip.backend.problem.mapper.database.ProblemMapper">
 
-    <resultMap id="ProblemDTOResultMap" type="com.quip.backend.problem.dto.ProblemDto">
-        <!-- Map columns to ProblemDTO fields -->
-        <id column="id" property="problemId" />
-        <result column="question" property="question" />
-        <result column="choices" property="choices" jdbcType="ARRAY" />
-        <result column="num_asked" property="numAsked" />
-        <result column="num_correct" property="numCorrect" />
-        <result column="media_url" property="mediaUrl" />
-    </resultMap>
-
     <resultMap id="ProblemResultMap" type="com.quip.backend.problem.model.Problem">
-        <!-- Map columns to Problem fields -->
-        <!-- Map columns to ProblemDTO fields -->
-        <id column="problem_id" property="problemId" />
-        <result column="question" property="question" />
-        <result column="choices" property="choices" jdbcType="ARRAY" />
-        <result column="num_asked" property="numAsked" />
-        <result column="num_correct" property="numCorrect" />
-        <result column="media_url" property="mediaUrl" />
-
-        <!-- Additional fields for Problem -->
-        <result column="contributor_id" property="contributorId" />
-        <result column="correct_answer_index" property="correctAnswerIndex" />
-        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP" />
-        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP" />
+        <id property="problemId" column="problem_id"/>
+        <result property="question" column="question"/>
+        <result property="choices" column="choices" typeHandler="com.quip.backend.config.handler.StringArrayTypeHandler"/>
+        <result property="correctAnswerIndex" column="correct_answer_index"/>
+        <result property="numAsked" column="num_asked"/>
+        <result property="numCorrect" column="num_correct"/>
+        <result property="mediaUrl" column="media_url"/>
+        <result property="contributorId" column="contributor_id"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <select id="numProblems"  resultType="int">
-        SELECT COUNT(*) FROM problem;
+    <resultMap id="ProblemDtoResultMap" type="com.quip.backend.problem.dto.ProblemDto">
+        <id property="problemId" column="problem_id"/>
+        <result property="question" column="question"/>
+        <result property="choices" column="choices" typeHandler="com.quip.backend.config.handler.StringArrayTypeHandler"/>
+        <result property="numAsked" column="num_asked"/>
+        <result property="numCorrect" column="num_correct"/>
+        <result property="mediaUrl" column="media_url"/>
+    </resultMap>
+
+    <select id="numProblems" resultType="int">
+        SELECT COUNT(*) FROM problems
     </select>
 
-    <select id="selectProblemDtoById" resultMap="ProblemDTOResultMap">
+    <select id="selectProblemDtoById" resultMap="ProblemDtoResultMap">
         SELECT problem_id, question, choices, num_asked, num_correct, media_url
-        FROM problem
+        FROM problems
         WHERE problem_id = #{problemId}
     </select>
 
-    <select id="selectRandomProblem" parameterType="long" resultMap="ProblemResultMap">
-        SELECT
-        problem_id, question, choices, correct_answer_index, num_asked, num_correct,
-        media_url, contributor_id, created_at, updated_at
-        FROM problem ORDER BY RANDOM() LIMIT 1
+    <select id="selectRandomProblem" resultMap="ProblemResultMap">
+        SELECT *
+        FROM problems
+        ORDER BY RANDOM()
+        LIMIT 1
     </select>
 
-    <select id="selectProblemById" parameterType="long" resultMap="ProblemResultMap">
-        SELECT
-        problem_id, question, choices, correct_answer_index, num_asked, num_correct,
-        media_url, contributor_id, created_at, updated_at
-        FROM problem WHERE problem_id = #{problemId}
-    </select>
-
-    <select id="updateProblemChoicesById" resultMap="ProblemResultMap">
-        UPDATE problem
-        SET choices = #{problem.choices}, correct_answer_index = #{correct_answer_index}
+    <select id="selectProblemById" resultMap="ProblemResultMap">
+        SELECT *
+        FROM problems
         WHERE problem_id = #{problemId}
     </select>
 
-    <select id="updateProblemNumCorrectById" resultMap="ProblemResultMap">
-        UPDATE problem
+    <update id="updateProblemChoicesById">
+        UPDATE problems
+        SET choices = #{problem.choices, typeHandler=com.quip.backend.config.handler.StringArrayTypeHandler}
+        WHERE problem_id = #{problemId}
+    </update>
+
+    <update id="updateProblemNumCorrectById">
+        UPDATE problems
         SET num_correct = #{numCorrect}
         WHERE problem_id = #{problemId}
-    </select>
+    </update>
 
-    <select id="updateProblemNumAskedById" resultMap="ProblemResultMap">
-        UPDATE problem
+    <update id="updateProblemNumAskedById">
+        UPDATE problems
         SET num_asked = #{numAsked}
         WHERE problem_id = #{problemId}
-    </select>
+    </update>
 
-    <insert id="addProblem" parameterType="com.quip.backend.problem.dto.ProblemCreateDto">
-        INSERT INTO problem
-        (question, choices, correct_answer_index, num_asked, num_correct, created_at, media_url)
-        VALUES (
-        #{question}, #{choices, jdbcType=ARRAY}, #{correctAnswerIndex}, #{numAsked},
-        #{numCorrect}, #{createdAt, jdbcType=TIMESTAMP}, #{updatedAt, jdbcType=TIMESTAMP}, #{mediaUrl}
-        )
+    <insert id="addProblem" parameterType="com.quip.backend.problem.dto.ProblemCreateDto" useGeneratedKeys="true" keyProperty="problemId">
+        INSERT INTO problems (question, choices, correct_answer_index, num_asked, num_correct, media_url, contributor_id, created_at, updated_at)
+        VALUES (#{problemCreateDto.question},
+                #{problemCreateDto.choices, typeHandler=com.quip.backend.config.handler.StringArrayTypeHandler},
+                #{problemCreateDto.correctAnswerIndex},
+                #{problemCreateDto.numAsked},
+                #{problemCreateDto.numCorrect},
+                #{problemCreateDto.mediaUrl},
+                #{problemCreateDto.contributorId},
+                NOW(),
+                NOW())
     </insert>
 </mapper>

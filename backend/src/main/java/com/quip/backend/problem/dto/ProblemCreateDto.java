@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -17,4 +18,7 @@ public class ProblemCreateDto {
     private int numAsked;
     private int numCorrect;
     private String mediaUrl;
+    private long contributorId;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

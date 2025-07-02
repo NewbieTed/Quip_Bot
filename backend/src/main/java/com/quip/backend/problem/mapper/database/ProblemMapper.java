@@ -1,8 +1,8 @@
 package com.quip.backend.problem.mapper.database;
 
 import com.quip.backend.problem.dto.ProblemCreateDto;
-import com.quip.backend.problem.model.Problem;
 import com.quip.backend.problem.dto.ProblemDto;
+import com.quip.backend.problem.model.Problem;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
