@@ -2,8 +2,11 @@
   "name": "quip_bot",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -11,9 +14,18 @@
   "license": "ISC",
   "dependencies": {
     "discord.js": "^14.16.3",
+    "dotenv": "^17.0.0",
+    "ioredis": "^5.6.1",
     "node-fetch": "^3.3.2",
     "openai": "^4.67.1",
     "redis": "^4.7.0",
     "undici": "^6.19.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.2",
+    "@types/node-fetch": "^2.6.12",
+    "@types/ws": "^8.18.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
   }
 }

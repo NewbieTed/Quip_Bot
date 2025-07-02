@@ -1,10 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE configuration
         PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
-        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+        "https://mybatis.org/dtd/mybatis-3-config.dtd">
 <configuration>
-
+    <settings>
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+    </settings>
     <typeHandlers>
-        <typeHandler handler="com.quip.backend.config.handler.StringArrayTypeHandler" javaType="java.util.List" jdbcType="ARRAY" />
+        <typeHandler handler="com.quip.backend.config.handler.StringArrayTypeHandler"/>
     </typeHandlers>
-
 </configuration>
