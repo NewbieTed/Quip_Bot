@@ -15,9 +15,6 @@ build/
 .build/
 
 # Gradle lock files that should not be committed
-**/checksums.lock
-**/buildOutputCleanup.lock
-**/executionHistory.lock
 *.bin
 *.lock
 
