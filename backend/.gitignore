@@ -12,12 +12,14 @@ build/
 
 # Gradle local state
 .gradle/
-build/
+.build/
 
 # Gradle lock files that should not be committed
 **/checksums.lock
 **/buildOutputCleanup.lock
 **/executionHistory.lock
+*.bin
+*.lock
 
 # Environment files
 .env
@@ -49,5 +51,3 @@ src/main/resources/static/
 
 ### Visual Studio Code ###
 .vscode/
-
-*.bin
