@@ -12,5 +12,8 @@ RUN ./gradlew bootJar
 FROM eclipse-temurin:17-jre-jammy AS runtime
 WORKDIR /app
 COPY --from=build /app/build/libs/*.jar app.jar
+
+# Copy migration resources explicitly for Flyway
+COPY --from=build /app/build/resources/main/db/migration /app/db/migration
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

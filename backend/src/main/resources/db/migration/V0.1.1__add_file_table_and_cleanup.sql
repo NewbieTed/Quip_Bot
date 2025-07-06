@@ -19,11 +19,7 @@ CREATE TABLE file_path (
 
 -- 3. Rename plural tables to singular
 ALTER TABLE problems RENAME TO problem;
-ALTER TABLE summaries RENAME TO summary;
-ALTER TABLE announcements RENAME TO announcement;
-ALTER TABLE reminders RENAME TO reminder;
 ALTER TABLE warnings RENAME TO warning;
-ALTER TABLE bans RENAME TO ban;
 
 -- 4. Modify `problem` table
 ALTER TABLE problem
