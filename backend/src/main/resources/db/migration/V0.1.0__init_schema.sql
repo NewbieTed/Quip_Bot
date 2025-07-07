@@ -1,266 +1,736 @@
+-- V0.1.0 init schema
+
+-- ===========================
+-- set_updated_at() function
+-- ===========================
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TABLE member (
-    member_id BIGINT PRIMARY KEY,
-    username TEXT,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+    id BIGINT PRIMARY KEY,
+    member_name TEXT NOT NULL,
+
+    created_by BIGINT DEFAULT 0,
+    updated_by BIGINT DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE server (
-    server_id BIGINT PRIMARY KEY,
-    server_name TEXT,
-    join_date TIMESTAMP,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+    id BIGINT PRIMARY KEY,
+    server_name TEXT NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE channel (
+    id BIGINT PRIMARY KEY,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    channel_name TEXT NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE user_server_stat (
-    member_id BIGINT REFERENCES member(member_id) ON DELETE CASCADE,
-    server_id BIGINT REFERENCES server(server_id) ON DELETE CASCADE,
-    join_date TIMESTAMP,
-    level INTEGER DEFAULT 0,
-    last_active TIMESTAMP,
-    total_messages BIGINT DEFAULT 0,
-    participation_streak INTEGER DEFAULT 0,
-    experience INTEGER DEFAULT 0,
-    warnings INTEGER DEFAULT 0,
-    bans INTEGER DEFAULT 0,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+    member_id BIGINT NOT NULL REFERENCES member(id)ON DELETE CASCADE,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    join_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    level INTEGER DEFAULT 0 NOT NULL,
+    last_active TIMESTAMP WITH TIME ZONE NOT NULL,
+    total_messages BIGINT DEFAULT 0 NOT NULL,
+    participation_streak INTEGER DEFAULT 0 NOT NULL,
+    experience INTEGER DEFAULT 0 NOT NULL,
+    num_warnings INTEGER DEFAULT 0 NOT NULL,
+    num_bans INTEGER DEFAULT 0 NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (member_id, server_id)
 );
 
-CREATE TABLE warnings (
-    id SERIAL PRIMARY KEY,
-    member_id BIGINT REFERENCES member(member_id) ON DELETE CASCADE,
-    server_id BIGINT REFERENCES server(server_id) ON DELETE CASCADE,
-    moderator_id BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+CREATE TABLE warning (
+    id BIGSERIAL PRIMARY KEY,
+    member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    moderator_id BIGINT REFERENCES member(id) ON DELETE SET NULL,
     reason TEXT,
-    issued_at TIMESTAMP,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+    issued_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE ban (
-    id SERIAL PRIMARY KEY,
-    member_id BIGINT REFERENCES member(member_id) ON DELETE CASCADE,
-    server_id BIGINT REFERENCES server(server_id) ON DELETE CASCADE,
-    moderator_id BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+    id BIGSERIAL PRIMARY KEY,
+    member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    moderator_id BIGINT REFERENCES member(id) ON DELETE SET NULL,
     reason TEXT,
-    issued_at TIMESTAMP,
-    duration INTERVAL,
-    unbanned BOOLEAN DEFAULT FALSE,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+    issued_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    duration INTERVAL,  -- Null for indefinitely
+    unbanned BOOLEAN DEFAULT FALSE NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE server_rule (
-    id SERIAL PRIMARY KEY,
-    server_id BIGINT REFERENCES server(server_id) ON DELETE CASCADE,
-    "order" INTEGER,
-    content TEXT,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+    id BIGSERIAL PRIMARY KEY,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    rule_index INTEGER NOT NULL,
+    content TEXT NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (server_id, rule_index)
 );
 
 CREATE TABLE reminder (
-    id SERIAL PRIMARY KEY,
-    member_id BIGINT REFERENCES member(member_id) ON DELETE CASCADE,
-    server_id BIGINT REFERENCES server(server_id) ON DELETE CASCADE,
-    content TEXT,
-    remind_at TIMESTAMP,
+    id BIGSERIAL PRIMARY KEY,
+    member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    remind_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    completed BOOLEAN DEFAULT FALSE NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    completed BOOLEAN DEFAULT FALSE,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE announcement (
-    id SERIAL PRIMARY KEY,
-    server_id BIGINT REFERENCES server(server_id) ON DELETE CASCADE,
-    content TEXT,
-    scheduled_at TIMESTAMP,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+    id BIGSERIAL PRIMARY KEY,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    channel_id BIGINT NOT NULL REFERENCES channel(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    send_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    sent BOOLEAN DEFAULT FALSE NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    sent BOOLEAN DEFAULT FALSE
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+
 );
 
 CREATE TABLE server_role (
     id BIGINT PRIMARY KEY,
-    server_id BIGINT REFERENCES server(server_id) ON DELETE CASCADE,
-    name TEXT,
-    is_auto_assignable BOOLEAN DEFAULT FALSE,
-    is_self_assignable BOOLEAN DEFAULT FALSE,
-    level_required INTEGER DEFAULT 0,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    role_name TEXT NOT NULL,
+    is_auto_assignable BOOLEAN DEFAULT FALSE NOT NULL,
+    is_self_assignable BOOLEAN DEFAULT FALSE NOT NULL,
+    level_required INTEGER DEFAULT 0 NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE user_role (
-    member_id BIGINT REFERENCES member(member_id) ON DELETE CASCADE,
-    role_id BIGINT REFERENCES server_role(id) ON DELETE CASCADE,
-    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+    member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
+    role_id BIGINT NOT NULL REFERENCES server_role(id) ON DELETE CASCADE,
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
     PRIMARY KEY (member_id, role_id)
 );
 
 CREATE TABLE poll (
     id BIGSERIAL PRIMARY KEY,
-    server_id BIGINT REFERENCES server(server_id) ON DELETE CASCADE,
-    question TEXT,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    ends_at TIMESTAMP
-);
-
-CREATE TABLE poll_vote (
-    poll_id BIGINT REFERENCES poll(id) ON DELETE CASCADE,
-    member_id BIGINT REFERENCES member(member_id) ON DELETE CASCADE,
-    option_index INTEGER,
-    voted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (poll_id, member_id)
-);
-
-CREATE TABLE filtered_message (
-    id BIGINT PRIMARY KEY,
-    member_id BIGINT REFERENCES member(member_id) ON DELETE CASCADE,
-    server_id BIGINT REFERENCES server(server_id) ON DELETE CASCADE,
-    channel_id BIGINT,
-    content TEXT,
-    flagged_at TIMESTAMP,
-    reason BIGINT,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE flag_reason (
-    id BIGSERIAL PRIMARY KEY,
-    reason TEXT,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE problems (
-    problem_id BIGSERIAL PRIMARY KEY,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
     question TEXT NOT NULL,
-    correct_answer_index INTEGER NOT NULL,
-    media_url TEXT,
-    contributor_id BIGINT,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+    allow_multiple_votes BOOLEAN DEFAULT 0 NOT NULL,
+    ends_at TIMESTAMP WITH TIME ZONE NOT NULL,
 
-CREATE TABLE problem_choice (
-    choice_id BIGSERIAL PRIMARY KEY,
-    problem_id BIGINT REFERENCES problems(problem_id) ON DELETE CASCADE,
-    choice_text TEXT NOT NULL,
-    choice_index INTEGER NOT NULL,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE achievement (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    hidden BOOLEAN DEFAULT TRUE,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE user_achievement (
-    member_id BIGINT NOT NULL,
-    server_id BIGINT NOT NULL,
-    achievement_id INTEGER NOT NULL REFERENCES achievement(id) ON DELETE CASCADE,
-    achieved_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (member_id, server_id, achievement_id)
-);
-
-CREATE TABLE summary (
-    id SERIAL PRIMARY KEY,
-    member_id BIGINT NOT NULL,
-    server_id BIGINT NOT NULL,
-    channel_id BIGINT,
-    summary_text TEXT NOT NULL,
-    source_message_ids BIGINT[],
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE poll_option (
-    id SERIAL PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     poll_id BIGINT NOT NULL REFERENCES poll(id) ON DELETE CASCADE,
     option_text TEXT NOT NULL,
     option_index INTEGER NOT NULL,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE poll_vote (
+    member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
+    poll_id BIGINT NOT NULL REFERENCES poll(id) ON DELETE CASCADE,
+    poll_option_id BIGINT REFERENCES poll_option(id) ON DELETE SET NULL,
+    voted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (member_id, poll_id, poll_option_id)
+);
+
+CREATE TABLE flag_reason (
+    id BIGSERIAL PRIMARY KEY,
+    reason TEXT NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE filtered_message (
+    id BIGINT PRIMARY KEY,
+    member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    channel_id BIGINT NOT NULL REFERENCES channel(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    flagged_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    reason BIGINT NOT NULL REFERENCES flag_reason(id) ON DELETE CASCADE,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE problem (
+    id BIGSERIAL PRIMARY KEY,
+    question TEXT NOT NULL,
+    correct_choice_id BIGINT,
+    media_file_id BIGINT REFERENCES file(id) ON DELETE SET NULL,
+    contributor_id BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    is_valid BOOLEAN DEFAULT 1 NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE problem_choice (
+    id BIGSERIAL PRIMARY KEY,
+    problem_id BIGINT NOT NULL REFERENCES problem(id) ON DELETE CASCADE,
+    choice_text TEXT NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add foreign key constraint for problem and problem_choice to avoid cycle during init
+ALTER TABLE problem
+ADD CONSTRAINT fk_correct_choice
+FOREIGN KEY (correct_choice_id) REFERENCES problem_choice(id) ON DELETE SET NULL;
+
+-- Quiz answer history
+CREATE TABLE problem_answer_history (
+    id BIGSERIAL PRIMARY KEY,
+    member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
+    problem_id BIGINT NOT NULL REFERENCES problem(_id) ON DELETE CASCADE,
+    selected_choice_id BIGINT REFERENCES problem_choice(id) ON DELETE SET NULL,
+    is_correct BOOLEAN NOT NULL,
+    answered_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- File management tables
+CREATE TABLE file_path (
+    id BIGSERIAL PRIMARY KEY,
+    path_name TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE file_type (
+    id BIGSERIAL PRIMARY KEY,
+    file_path_id BIGINT REFERENCES file_path(id) ON DELETE SET NULL,
+    type TEXT NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE file (
+    id BIGSERIAL PRIMARY KEY,
+    file_name TEXT NOT NULL,
+    file_type_id BIGINT REFERENCES file_type(id) ON DELETE SET NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE achievement (
+    id BIGSERIAL PRIMARY KEY,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    channel_id BIGINT REFERENCES channel(id) ON DELETE CASCADE, -- null means applies to all channels in server
+    achievement_name TEXT NOT NULL,
+    description TEXT,
+    hidden BOOLEAN DEFAULT TRUE NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE user_achievement (
+    member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    achievement_id BIGINT NOT NULL REFERENCES achievement(id) ON DELETE CASCADE,
+    achieved_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (member_id, server_id, achievement_id)
+);
+
+--CREATE TABLE summary (
+--    id SERIAL PRIMARY KEY,
+--    member_id BIGINT NOT NULL,
+--    server_id BIGINT NOT NULL,
+--    channel_id BIGINT,
+--    summary_text TEXT NOT NULL,
+--    source_message_ids BIGINT[],
+--    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+--    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+--    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+--    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+--);
+
+
+
 CREATE TABLE server_setting (
     server_id BIGINT PRIMARY KEY,
-    chatgpt_memory_enabled BOOLEAN DEFAULT FALSE,
-    auto_mod_enabled BOOLEAN DEFAULT TRUE,
-    level_system_enabled BOOLEAN DEFAULT TRUE,
-    level_multiplier FLOAT DEFAULT 1.0,
-    announcement_channel BIGINT,
+    chatgpt_memory_enabled BOOLEAN DEFAULT FALSE NOT NULL,
+    auto_mod_enabled BOOLEAN DEFAULT TRUE NOT NULL,
+    level_system_enabled BOOLEAN DEFAULT TRUE NOT NULL,
+    level_multiplier DOUBLE_PRECISION DEFAULT 1.0 NOT NULL,
+    announcement_channel_id BIGINT REFERENCES channel(id) ON DELETE SET NULL,
     additional_settings JSONB,
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE reaction_role (
     id SERIAL PRIMARY KEY,
-    server_id BIGINT NOT NULL,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    channel_id BIGINT NOT NULL REFERENCES channel(id) ON DELETE CASCADE,
+    role_id BIGINT NOT NULL REFERENCES server_role(id),
     message_id BIGINT NOT NULL,
     emoji TEXT NOT NULL,
-    role_id BIGINT NOT NULL REFERENCES server_role(id),
-    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ===========================
+-- Documentation Comments
+-- ===========================
+COMMENT ON TABLE member IS 'Stores member information and references for Discord users.';
+COMMENT ON TABLE server IS 'Stores Discord server (guild) information.';
+COMMENT ON TABLE user_server_stat IS 'Tracks member statistics per server for leveling and activity.';
+COMMENT ON TABLE warning IS 'Stores warnings issued to members by moderators.';
+COMMENT ON TABLE ban IS 'Stores ban records issued to members by moderators.';
+COMMENT ON TABLE server_rule IS 'Stores server-specific rules.';
+COMMENT ON TABLE reminder IS 'Stores member reminders.';
+COMMENT ON TABLE announcement IS 'Stores server announcements.';
+COMMENT ON TABLE server_role IS 'Stores server-specific roles, including auto/self-assignable roles.';
+COMMENT ON TABLE user_role IS 'Stores member-role assignments.';
+COMMENT ON TABLE poll IS 'Stores polls created within servers.';
+COMMENT ON TABLE poll_vote IS 'Stores member votes on polls.';
+COMMENT ON TABLE filtered_message IS 'Stores messages flagged by auto-moderation.';
+COMMENT ON TABLE flag_reason IS 'Stores flag reasons for moderation.';
+COMMENT ON TABLE problem IS 'Stores quiz problems/questions.';
+COMMENT ON TABLE problem_choice IS 'Stores choices for quiz problems.';
+COMMENT ON TABLE achievement IS 'Stores achievements members can earn.';
+COMMENT ON TABLE user_achievement IS 'Tracks member achievements per server.';
+COMMENT ON TABLE summary IS 'Stores summaries generated for channels.';
+COMMENT ON TABLE poll_option IS 'Stores poll options for polls.';
+COMMENT ON TABLE server_setting IS 'Stores server-level settings.';
+COMMENT ON TABLE reaction_role IS 'Stores reaction-role mapping for self-assignment.';
+COMMENT ON TABLE file IS 'Stores uploaded files metadata.';
+COMMENT ON TABLE file_path IS 'Stores various storage paths for files.';
+COMMENT ON TABLE quiz_answer_history IS 'Tracks member quiz answer submissions and correctness.';
+
+-- ===========================
+-- Indexes
+-- ===========================
+-- user_server_stat
+CREATE INDEX idx_user_server_stat_member_id ON user_server_stat(member_id);
+CREATE INDEX idx_user_server_stat_server_id ON user_server_stat(server_id);
+
+-- warning
+CREATE INDEX idx_warning_member_id ON warning(member_id);
+CREATE INDEX idx_warning_server_id ON warning(server_id);
+
+-- ban
+CREATE INDEX idx_ban_member_id ON ban(member_id);
+CREATE INDEX idx_ban_server_id ON ban(server_id);
+
+-- reminder
+CREATE INDEX idx_reminder_member_id ON reminder(member_id);
+CREATE INDEX idx_reminder_server_id ON reminder(server_id);
+
+-- announcement
+CREATE INDEX idx_announcement_server_id ON announcement(server_id);
+
+-- user_role
+CREATE INDEX idx_user_role_member_id ON user_role(member_id);
+CREATE INDEX idx_user_role_role_id ON user_role(role_id);
+
+-- poll_vote
+CREATE INDEX idx_poll_vote_poll_id ON poll_vote(poll_id);
+CREATE INDEX idx_poll_vote_member_id ON poll_vote(member_id);
+
+-- filtered_message
+CREATE INDEX idx_filtered_message_server_id ON filtered_message(server_id);
+CREATE INDEX idx_filtered_message_member_id ON filtered_message(member_id);
+
+-- problem_choice
+CREATE INDEX idx_problem_choice_problem_id ON problem_choice(problem_id);
+
+-- user_achievement
+CREATE INDEX idx_user_achievement_member_id ON user_achievement(member_id);
+CREATE INDEX idx_user_achievement_server_id ON user_achievement(server_id);
+
+---- summary
+--CREATE INDEX idx_summary_server_id ON summary(server_id);
+
+-- poll_option
+CREATE INDEX idx_poll_option_poll_id ON poll_option(poll_id);
+
+-- reaction_role
+CREATE INDEX idx_reaction_role_server_id ON reaction_role(server_id);
+
+-- file_path
+CREATE INDEX idx_file_path_file_id ON file_path(id);
+
+-- quiz_answer_history
+CREATE INDEX idx_problem_answer_history_member_id ON problem_answer_history(member_id);
+CREATE INDEX idx_problem_answer_history_problem_id ON problem_answer_history(problem_id);
+
+-- ===========================
+-- Triggers to auto-update updated_at columns
+-- ===========================
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_member'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_member
+        BEFORE UPDATE ON member
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_server'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_server
+        BEFORE UPDATE ON server
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_channel'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_channel
+        BEFORE UPDATE ON channel
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_user_server_stat'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_user_server_stat
+        BEFORE UPDATE ON user_server_stat
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_warning'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_warning
+        BEFORE UPDATE ON warning
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_ban'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_ban
+        BEFORE UPDATE ON ban
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_server_rule'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_server_rule
+        BEFORE UPDATE ON server_rule
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_reminder'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_reminder
+        BEFORE UPDATE ON reminder
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_announcement'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_announcement
+        BEFORE UPDATE ON announcement
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_server_role'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_server_role
+        BEFORE UPDATE ON server_role
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_user_role'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_user_role
+        BEFORE UPDATE ON user_role
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_poll'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_poll
+        BEFORE UPDATE ON poll
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_poll_option'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_poll_option
+        BEFORE UPDATE ON poll_option
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_poll_vote'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_poll_vote
+        BEFORE UPDATE ON poll_vote
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_flag_reason'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_flag_reason
+        BEFORE UPDATE ON flag_reason
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_filtered_message'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_filtered_message
+        BEFORE UPDATE ON filtered_message
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_problem'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_problem
+        BEFORE UPDATE ON problem
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_problem_choice'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_problem_choice
+        BEFORE UPDATE ON problem_choice
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_file_path'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_file_path
+        BEFORE UPDATE ON file_path
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_file_type'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_file_type
+        BEFORE UPDATE ON file_type
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_file'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_file
+        BEFORE UPDATE ON file
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_achievement'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_achievement
+        BEFORE UPDATE ON achievement
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_user_achievement'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_user_achievement
+        BEFORE UPDATE ON user_achievement
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_server_setting'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_server_setting
+        BEFORE UPDATE ON server_setting
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_reaction_role'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_reaction_role
+        BEFORE UPDATE ON reaction_role
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
