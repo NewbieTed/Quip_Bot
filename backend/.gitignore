@@ -1,5 +1,6 @@
 # Help documentation
 HELP.md
+.DS_Store
 
 # Maven and build directories
 target/
@@ -8,6 +9,14 @@ target/
 build/
 !**/src/main/**/build/
 !**/src/test/**/build/
+
+# Gradle local state
+.gradle/
+.build/
+
+# Gradle lock files that should not be committed
+*.bin
+*.lock
 
 # Environment files
 .env

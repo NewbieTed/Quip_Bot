@@ -5,7 +5,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.mybatis.spring.annotation.MapperScan;
 
 @SpringBootApplication
-@MapperScan("com.quip.backend.problem.mapper.database") // Scan MyBatis mappers
+@MapperScan({
+		"com.quip.backend.member.mapper.database",
+		"com.quip.backend.problem.mapper.database",
+		"com.quip.backend.file.mapper.database"
+})
 public class BackendApplication {
 
 	public static void main(String[] args) {
