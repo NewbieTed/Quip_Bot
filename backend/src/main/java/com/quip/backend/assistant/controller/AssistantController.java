@@ -21,8 +21,7 @@ public class AssistantController {
     private final AssistantService assistantService;
 
     @PostMapping("/invoke")
-    public BaseResponse<String> invokeAssistant(@Valid @RequestBody AssistantRequestDto assistantRequestDto) {
-        String result = assistantService.invokeAssistant(assistantRequestDto.getMessage());
-        return BaseResponse.success(result);
+    public Flux<String> invokeAssistant(@Valid @RequestBody AssistantRequestDto assistantRequestDto) {
+        return assistantService.invokeAssistant(assistantRequestDto);
     }
 }
