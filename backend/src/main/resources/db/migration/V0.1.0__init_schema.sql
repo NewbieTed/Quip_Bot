@@ -42,6 +42,43 @@ CREATE TABLE channel (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- File management tables
+CREATE TABLE file_path (
+    id BIGSERIAL PRIMARY KEY,
+    path_name TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE file_type (
+    id BIGSERIAL PRIMARY KEY,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,  -- server-scoped customization
+    type_name TEXT NOT NULL,              -- e.g., 'quiz_image', 'project_doc'
+    description TEXT,
+    file_path_id BIGINT NOT NULL REFERENCES file_path(id) ON DELETE RESTRICT,
+    created_by BIGINT REFERENCES member(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (server_id, type_name)         -- ensures unique type name per server
+);
+
+CREATE TABLE file (
+    id BIGSERIAL PRIMARY KEY,
+    file_name TEXT NOT NULL,
+    file_type_id BIGINT NOT NULL REFERENCES file_type(id) ON DELETE RESTRICT,
+    size BIGINT,
+    mime_type TEXT,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE user_server_stat (
     member_id BIGINT NOT NULL REFERENCES member(id)ON DELETE CASCADE,
     server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
@@ -165,7 +202,7 @@ CREATE TABLE poll (
     id BIGSERIAL PRIMARY KEY,
     server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
     question TEXT NOT NULL,
-    allow_multiple_votes BOOLEAN DEFAULT 0 NOT NULL,
+    allow_multiple_votes BOOLEAN DEFAULT FALSE NOT NULL,
     ends_at TIMESTAMP WITH TIME ZONE NOT NULL,
 
     created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
@@ -227,10 +264,9 @@ CREATE TABLE filtered_message (
 CREATE TABLE problem (
     id BIGSERIAL PRIMARY KEY,
     question TEXT NOT NULL,
-    correct_choice_id BIGINT,
     media_file_id BIGINT REFERENCES file(id) ON DELETE SET NULL,
     contributor_id BIGINT REFERENCES member(id) ON DELETE SET NULL,
-    is_valid BOOLEAN DEFAULT 1 NOT NULL,
+    is_valid BOOLEAN DEFAULT TRUE NOT NULL,
 
     created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
@@ -241,61 +277,28 @@ CREATE TABLE problem (
 CREATE TABLE problem_choice (
     id BIGSERIAL PRIMARY KEY,
     problem_id BIGINT NOT NULL REFERENCES problem(id) ON DELETE CASCADE,
-    choice_text TEXT NOT NULL,
+    choice_text TEXT,
+    media_file_id BIGINT REFERENCES file(id) ON DELETE SET NULL,
+    is_correct BOOLEAN NOT NULL,
 
     created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
--- Add foreign key constraint for problem and problem_choice to avoid cycle during init
-ALTER TABLE problem
-ADD CONSTRAINT fk_correct_choice
-FOREIGN KEY (correct_choice_id) REFERENCES problem_choice(id) ON DELETE SET NULL;
+    CHECK (
+        choice_text IS NOT NULL OR media_file_id IS NOT NULL
+    )
+);
 
 -- Quiz answer history
 CREATE TABLE problem_answer_history (
     id BIGSERIAL PRIMARY KEY,
     member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
-    problem_id BIGINT NOT NULL REFERENCES problem(_id) ON DELETE CASCADE,
+    problem_id BIGINT NOT NULL REFERENCES problem(id) ON DELETE CASCADE,
     selected_choice_id BIGINT REFERENCES problem_choice(id) ON DELETE SET NULL,
     is_correct BOOLEAN NOT NULL,
     answered_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- File management tables
-CREATE TABLE file_path (
-    id BIGSERIAL PRIMARY KEY,
-    path_name TEXT NOT NULL,
-    file_path TEXT NOT NULL,
-
-    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE file_type (
-    id BIGSERIAL PRIMARY KEY,
-    file_path_id BIGINT REFERENCES file_path(id) ON DELETE SET NULL,
-    type TEXT NOT NULL,
-
-    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE file (
-    id BIGSERIAL PRIMARY KEY,
-    file_name TEXT NOT NULL,
-    file_type_id BIGINT REFERENCES file_type(id) ON DELETE SET NULL,
-
-    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -341,13 +344,12 @@ CREATE TABLE user_achievement (
 --);
 
 
-
 CREATE TABLE server_setting (
     server_id BIGINT PRIMARY KEY,
     chatgpt_memory_enabled BOOLEAN DEFAULT FALSE NOT NULL,
     auto_mod_enabled BOOLEAN DEFAULT TRUE NOT NULL,
     level_system_enabled BOOLEAN DEFAULT TRUE NOT NULL,
-    level_multiplier DOUBLE_PRECISION DEFAULT 1.0 NOT NULL,
+    level_multiplier DOUBLE PRECISION DEFAULT 1.0 NOT NULL,
     announcement_channel_id BIGINT REFERENCES channel(id) ON DELETE SET NULL,
     additional_settings JSONB,
 
@@ -392,7 +394,7 @@ COMMENT ON TABLE problem IS 'Stores quiz problems/questions.';
 COMMENT ON TABLE problem_choice IS 'Stores choices for quiz problems.';
 COMMENT ON TABLE achievement IS 'Stores achievements members can earn.';
 COMMENT ON TABLE user_achievement IS 'Tracks member achievements per server.';
-COMMENT ON TABLE summary IS 'Stores summaries generated for channels.';
+--COMMENT ON TABLE summary IS 'Stores summaries generated for channels.';
 COMMENT ON TABLE poll_option IS 'Stores poll options for polls.';
 COMMENT ON TABLE server_setting IS 'Stores server-level settings.';
 COMMENT ON TABLE reaction_role IS 'Stores reaction-role mapping for self-assignment.';
