@@ -400,7 +400,7 @@ COMMENT ON TABLE server_setting IS 'Stores server-level settings.';
 COMMENT ON TABLE reaction_role IS 'Stores reaction-role mapping for self-assignment.';
 COMMENT ON TABLE file IS 'Stores uploaded files metadata.';
 COMMENT ON TABLE file_path IS 'Stores various storage paths for files.';
-COMMENT ON TABLE quiz_answer_history IS 'Tracks member quiz answer submissions and correctness.';
+COMMENT ON TABLE problem_answer_history IS 'Tracks member quiz answer submissions and correctness.';
 
 -- ===========================
 -- Indexes
@@ -455,7 +455,7 @@ CREATE INDEX idx_reaction_role_server_id ON reaction_role(server_id);
 -- file_path
 CREATE INDEX idx_file_path_file_id ON file_path(id);
 
--- quiz_answer_history
+-- problem_answer_history
 CREATE INDEX idx_problem_answer_history_member_id ON problem_answer_history(member_id);
 CREATE INDEX idx_problem_answer_history_problem_id ON problem_answer_history(problem_id);
 
