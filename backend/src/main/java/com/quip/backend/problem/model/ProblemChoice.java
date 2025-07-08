@@ -1,3 +1,4 @@
+
 package com.quip.backend.problem.model;
 
 import com.baomidou.mybatisplus.annotation.IdType;
@@ -15,22 +16,22 @@ import java.time.OffsetDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("problem")
-public class Problem {
+@TableName("problem_choice")
+public class ProblemChoice {
     @TableId(type = IdType.AUTO, value = "id")
     private Long id;
 
-    @TableField("question")
-    private String question;
+    @TableField("problem_id")
+    private Long problemId;
+
+    @TableField("choice_text")
+    private String choiceText;
 
     @TableField("media_file_id")
     private Long mediaFileId;
 
-    @TableField("contributor_id")
-    private Long contributorId;
-
-    @TableField("is_valid")
-    private Boolean isValid;
+    @TableField("is_correct")
+    private Boolean isCorrect;
 
     @TableField("created_by")
     private Long createdBy;

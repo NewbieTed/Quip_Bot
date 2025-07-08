@@ -2,25 +2,15 @@ package com.quip.backend.problem.dto;
 
 import lombok.*;
 
-import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProblemDto {
-    private long problemId;
+    private Long id;
     private String question;
-    private List<String> choices;
-    private int correctAnswerIndex;
-    private int numAsked;
-    private int numCorrect;
+    private List<ProblemChoiceDto> choices;
     private String mediaUrl;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-
-    public void shuffleChoices() {
-        Collections.shuffle(choices);
-    }
 }

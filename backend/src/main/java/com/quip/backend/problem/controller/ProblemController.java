@@ -20,33 +20,29 @@ public class ProblemController {
     private final ProblemService problemService;
     private final ProblemMapper problemMapper;
 
-    @GetMapping()
-    public BaseResponse<ProblemDto> getProblem() {
-        return BaseResponse.success("success", problemService.getProblem());
-    }
+//    @GetMapping()
+//    public BaseResponse<ProblemDto> getProblem() {
+//        return BaseResponse.success("success", problemService.getProblem());
+//    }
+//
+//    @GetMapping("/verify")
+//    public BaseResponse<Boolean> verifyAnswer(@Valid @RequestBody VerifyAnswerRequest request) {
+//        if (request == null) {
+//            return BaseResponse.failure(HttpStatus.BAD_REQUEST.value(), "No data provided");
+//        }
+//
+//        long problemId = request.getProblemId();
+//        Problem problem = problemMapper.selectProblemById(problemId);
+//
+//        if (problem == null) {
+//            return BaseResponse.failure(HttpStatus.NOT_FOUND.value(),
+//                    "Problem with problem id " + problemId + " is not found");
+//        }
+//        return BaseResponse.success(problemService.verifyAnswer(problem, request.getAnswer()));
+//    }
 
-    @GetMapping("/verify")
-    public BaseResponse<Boolean> verifyAnswer(@Valid @RequestBody VerifyAnswerRequest request) {
-        if (request == null) {
-            return BaseResponse.failure(HttpStatus.BAD_REQUEST.value(), "No data provided");
-        }
-
-        long problemId = request.getProblemId();
-        Problem problem = problemMapper.selectProblemById(problemId);
-
-        if (problem == null) {
-            return BaseResponse.failure(HttpStatus.NOT_FOUND.value(),
-                    "Problem with problem id " + problemId + " is not found");
-        }
-        return BaseResponse.success(problemService.verifyAnswer(problem, request.getAnswer()));
-    }
-
-    @PostMapping("/add")
+    @PostMapping("/create")
     public BaseResponse<Boolean> addProblem(@Valid @RequestBody ProblemCreateDto problemCreateDto) {
-        if (problemCreateDto == null) {
-            return BaseResponse.failure(HttpStatus.BAD_REQUEST.value(), "No problem provided");
-        }
-
         problemService.addProblem(problemCreateDto);
         return BaseResponse.success();
     }
