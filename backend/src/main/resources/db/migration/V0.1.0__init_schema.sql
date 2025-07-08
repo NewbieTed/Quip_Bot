@@ -79,7 +79,7 @@ CREATE TABLE file (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE user_server_stat (
+CREATE TABLE member_server_stat (
     member_id BIGINT NOT NULL REFERENCES member(id)ON DELETE CASCADE,
     server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
     join_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -185,7 +185,7 @@ CREATE TABLE server_role (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE user_role (
+CREATE TABLE member_role (
     member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
     role_id BIGINT NOT NULL REFERENCES server_role(id) ON DELETE CASCADE,
     assigned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -316,7 +316,7 @@ CREATE TABLE achievement (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE user_achievement (
+CREATE TABLE member_achievement (
     member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
     server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
     achievement_id BIGINT NOT NULL REFERENCES achievement(id) ON DELETE CASCADE,
@@ -376,16 +376,16 @@ CREATE TABLE reaction_role (
 -- ===========================
 -- Documentation Comments
 -- ===========================
-COMMENT ON TABLE member IS 'Stores member information and references for Discord users.';
+COMMENT ON TABLE member IS 'Stores member information and references for Discord members.';
 COMMENT ON TABLE server IS 'Stores Discord server (guild) information.';
-COMMENT ON TABLE user_server_stat IS 'Tracks member statistics per server for leveling and activity.';
+COMMENT ON TABLE member_server_stat IS 'Tracks member statistics per server for leveling and activity.';
 COMMENT ON TABLE warning IS 'Stores warnings issued to members by moderators.';
 COMMENT ON TABLE ban IS 'Stores ban records issued to members by moderators.';
 COMMENT ON TABLE server_rule IS 'Stores server-specific rules.';
 COMMENT ON TABLE reminder IS 'Stores member reminders.';
 COMMENT ON TABLE announcement IS 'Stores server announcements.';
 COMMENT ON TABLE server_role IS 'Stores server-specific roles, including auto/self-assignable roles.';
-COMMENT ON TABLE user_role IS 'Stores member-role assignments.';
+COMMENT ON TABLE member_role IS 'Stores member-role assignments.';
 COMMENT ON TABLE poll IS 'Stores polls created within servers.';
 COMMENT ON TABLE poll_vote IS 'Stores member votes on polls.';
 COMMENT ON TABLE filtered_message IS 'Stores messages flagged by auto-moderation.';
@@ -393,7 +393,7 @@ COMMENT ON TABLE flag_reason IS 'Stores flag reasons for moderation.';
 COMMENT ON TABLE problem IS 'Stores quiz problems/questions.';
 COMMENT ON TABLE problem_choice IS 'Stores choices for quiz problems.';
 COMMENT ON TABLE achievement IS 'Stores achievements members can earn.';
-COMMENT ON TABLE user_achievement IS 'Tracks member achievements per server.';
+COMMENT ON TABLE member_achievement IS 'Tracks member achievements per server.';
 --COMMENT ON TABLE summary IS 'Stores summaries generated for channels.';
 COMMENT ON TABLE poll_option IS 'Stores poll options for polls.';
 COMMENT ON TABLE server_setting IS 'Stores server-level settings.';
@@ -405,9 +405,9 @@ COMMENT ON TABLE problem_answer_history IS 'Tracks member quiz answer submission
 -- ===========================
 -- Indexes
 -- ===========================
--- user_server_stat
-CREATE INDEX idx_user_server_stat_member_id ON user_server_stat(member_id);
-CREATE INDEX idx_user_server_stat_server_id ON user_server_stat(server_id);
+-- member_server_stat
+CREATE INDEX idx_member_server_stat_member_id ON member_server_stat(member_id);
+CREATE INDEX idx_member_server_stat_server_id ON member_server_stat(server_id);
 
 -- warning
 CREATE INDEX idx_warning_member_id ON warning(member_id);
@@ -424,9 +424,9 @@ CREATE INDEX idx_reminder_server_id ON reminder(server_id);
 -- announcement
 CREATE INDEX idx_announcement_server_id ON announcement(server_id);
 
--- user_role
-CREATE INDEX idx_user_role_member_id ON user_role(member_id);
-CREATE INDEX idx_user_role_role_id ON user_role(role_id);
+-- member_role
+CREATE INDEX idx_member_role_member_id ON member_role(member_id);
+CREATE INDEX idx_member_role_role_id ON member_role(role_id);
 
 -- poll_vote
 CREATE INDEX idx_poll_vote_poll_id ON poll_vote(poll_id);
@@ -439,9 +439,9 @@ CREATE INDEX idx_filtered_message_member_id ON filtered_message(member_id);
 -- problem_choice
 CREATE INDEX idx_problem_choice_problem_id ON problem_choice(problem_id);
 
--- user_achievement
-CREATE INDEX idx_user_achievement_member_id ON user_achievement(member_id);
-CREATE INDEX idx_user_achievement_server_id ON user_achievement(server_id);
+-- member_achievement
+CREATE INDEX idx_member_achievement_member_id ON member_achievement(member_id);
+CREATE INDEX idx_member_achievement_server_id ON member_achievement(server_id);
 
 ---- summary
 --CREATE INDEX idx_summary_server_id ON summary(server_id);
@@ -498,10 +498,10 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_user_server_stat'
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_member_server_stat'
     ) THEN
-        CREATE TRIGGER trigger_set_updated_at_user_server_stat
-        BEFORE UPDATE ON user_server_stat
+        CREATE TRIGGER trigger_set_updated_at_member_server_stat
+        BEFORE UPDATE ON member_server_stat
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
 END$$;
@@ -575,10 +575,10 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_user_role'
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_member_role'
     ) THEN
-        CREATE TRIGGER trigger_set_updated_at_user_role
-        BEFORE UPDATE ON user_role
+        CREATE TRIGGER trigger_set_updated_at_member_role
+        BEFORE UPDATE ON member_role
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
 END$$;
@@ -707,10 +707,10 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_user_achievement'
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_member_achievement'
     ) THEN
-        CREATE TRIGGER trigger_set_updated_at_user_achievement
-        BEFORE UPDATE ON user_achievement
+        CREATE TRIGGER trigger_set_updated_at_member_achievement
+        BEFORE UPDATE ON member_achievement
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
 END$$;
