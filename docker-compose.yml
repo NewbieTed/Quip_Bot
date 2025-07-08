@@ -1,7 +1,7 @@
 services:
-  db:
+  quip-backend-db:
     image: postgres:16
-    container_name: quip-postgres-db
+    container_name: quip-backend-db
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
@@ -9,28 +9,43 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - quip_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - quip-network
 
-  app:
-    build: .
+  quip-backend-app:
+    build: ./backend
     container_name: quip-backend-app
     ports:
       - "8080:8080"
     environment:
-      DB_HOST: db
+      DB_HOST: quip-backend-db
       DB_PORT: ${DB_PORT}
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
     depends_on:
-      db:
+      quip-backend-db:
         condition: service_healthy
-    command: java -jar /app/build/libs/app.jar # Use built JAR for production
+    command: java -jar /app/build/libs/app.jar
+    networks:
+      - quip-network
+
+  quip-ai-backend:
+    build: ./ai-backend
+    container_name: quip-flask-backend
+    ports:
+      - "5001:5000"
+    networks:
+      - quip-network
 
 volumes:
-  postgres_data:
+  quip_postgres_data:
+
+networks:
+  quip-network: {}
