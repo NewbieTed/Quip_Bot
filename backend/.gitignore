@@ -1,6 +1,6 @@
 # Help documentation
 HELP.md
-.DS_STORE
+.DS_Store
 
 # Maven and build directories
 target/
