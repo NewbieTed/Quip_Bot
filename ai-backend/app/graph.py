@@ -1,11 +1,9 @@
 import os
-from typing import Annotated
 
 from langchain_openai import ChatOpenAI
-from typing_extensions import TypedDict
 from langgraph.checkpoint.memory import MemorySaver
-from tools import weather_tool, create_problem_tool
-from config import Config
+from app.tools import weather_tool, create_problem_tool
+from app.config import Config
 from langgraph.prebuilt import create_react_agent
 
 

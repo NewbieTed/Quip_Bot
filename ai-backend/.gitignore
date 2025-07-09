@@ -13,4 +13,4 @@ ENV/
 .idea/
 *.iml
 
-config.py
+*/config.py

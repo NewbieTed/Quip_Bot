@@ -13,5 +13,5 @@ COPY . .
 # Expose Flask's port
 EXPOSE 5000
 
-# Run Flask with host and port configured for Docker
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"]
+# Run FastAPI with host and port configured for Docker
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5000"]

@@ -1,5 +1,5 @@
 import logging
-from graph import graph
+from app.graph import graph
 
 def run_agent(member_message: str, member_id: int):
     if not isinstance(member_message, str) or not member_message.strip():
