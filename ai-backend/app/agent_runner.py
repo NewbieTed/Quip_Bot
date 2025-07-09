@@ -1,7 +1,7 @@
-import logging
 from app.graph import graph
 
-def run_agent(member_message: str, member_id: int):
+
+async def run_agent(member_message: str, member_id: int):
     if not isinstance(member_message, str) or not member_message.strip():
         yield "Error: Provided message must be a non-empty string."
         return
@@ -24,20 +24,23 @@ def run_agent(member_message: str, member_id: int):
 
     last_content = None
     try:
-        for mode, event in graph.stream({"messages": messages}, config, stream_mode=["updates", "custom"]):
+        async for mode, chunk in graph.astream({"messages": messages}, config, stream_mode=["updates", "messages", "custom"]):
             print(f"[STREAM MODE] {mode}", flush=True)
             if mode == "messages":
-                print(f"[MESSAGE STREAM] {event}", flush=True)
+                print(f"[MESSAGE STREAM] {chunk}", flush=True)
+                if isinstance(chunk, dict) and "messages" in chunk:
+                    partial_message = chunk["messages"][-1].content
+                    yield partial_message
                 continue
             if mode == "custom":
-                if isinstance(event, dict):
-                    message = event['progress']
+                if isinstance(chunk, dict):
+                    message = chunk.get('progress', chunk)
                 else:
-                    message = event
+                    message = chunk
                 print(f"[CUSTOM STREAM] {message}", flush=True)
                 yield message
                 continue
-            for value in event.values():
+            for value in chunk.values():
                 if isinstance(value, dict) and "messages" in value:
                     last_content = value["messages"][-1].content
     except Exception as e:

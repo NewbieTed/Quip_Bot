@@ -1,27 +1,32 @@
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from fastapi import APIRouter
 import json
 from app.agent_runner import run_agent
+from fastapi import WebSocket, WebSocketDisconnect
 
 router = APIRouter()
 
-class AssistantRequest(BaseModel):
-    message: str
-    memberId: int
-
-def generate_response(message: str, member_id: int):
-    for chunk in run_agent(message, member_id):
-        yield json.dumps({"response": chunk}) + "\n"
 
 @router.get("/health")
 def health_check():
-    return {"status": "ok"}
+    return {
+        "status": "OK",
+        "message": "Yeah yeah yeah I'm fine stop checking if I'm fine"
+    }
 
 
-@router.post("/assistant")
-async def invoke_agent(request: AssistantRequest):
+@router.websocket("/assistant")
+async def invoke_agent(websocket: WebSocket):
+    await websocket.accept()
     try:
-        return StreamingResponse(generate_response(request.message, request.memberId), media_type="application/json")
+        data = await websocket.receive_json()
+        message = data.get("message")
+        member_id = data.get("memberId")
+
+        async for chunk in run_agent(message, member_id):
+            await websocket.send_text(json.dumps({"response": chunk}))
+        await websocket.close()
+    except WebSocketDisconnect:
+        print("WebSocket disconnected")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        await websocket.send_text(json.dumps({"error": str(e)}))
+        await websocket.close()
