@@ -1,32 +1,27 @@
-import sys
-
-from flask import Blueprint, request, jsonify, Response
-from agent_runner import run_agent
+from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 import json
+from agent_runner import run_agent
 
-bp = Blueprint("routes", __name__)
+router = APIRouter()
 
-def generate_response(message, member_id):
+class AssistantRequest(BaseModel):
+    message: str
+    memberId: int
+
+def generate_response(message: str, member_id: int):
     for chunk in run_agent(message, member_id):
         yield json.dumps({"response": chunk}) + "\n"
 
-@bp.route("/health", methods=["GET"])
+@router.get("/health")
 def health_check():
-    return jsonify({"status": "ok"}), 200
+    return {"status": "ok"}
 
 
-@bp.route("/assistant", methods=["POST"])
-def invoke_agent():
-    data = request.json
-    if not data or "message" not in data:
-        return jsonify({"error": "Missing 'message' field in request."}), 400
-
-    if "memberId" not in data:
-        return jsonify({"error": "Missing 'memberId' field in request."}), 400
+@router.post("/assistant")
+async def invoke_agent(request: AssistantRequest):
     try:
-        message: str = data["message"]
-        member_id: int = data["memberId"]
-
-        return Response(generate_response(message, member_id), mimetype="application/json")
+        return StreamingResponse(generate_response(request.message, request.memberId), media_type="application/json")
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))

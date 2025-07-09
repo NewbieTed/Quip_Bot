@@ -38,7 +38,7 @@ services:
 
   quip-ai-backend:
     build: ./ai-backend
-    container_name: quip-flask-backend
+    container_name: quip-ai-backend
     ports:
       - "5001:5000"
     networks:
