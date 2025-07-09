@@ -12,3 +12,5 @@ ENV/
 ### PyCharm ###
 .idea/
 *.iml
+
+config.py
