@@ -3,52 +3,60 @@ package com.quip.backend.assistant.service;
 import com.quip.backend.assistant.dto.AssistantRequestDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
-import java.util.Map;
-import java.util.HashMap;
 import reactor.core.publisher.Flux;
-import com.fasterxml.jackson.databind.JsonNode;
+import reactor.core.publisher.Mono;
+import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClient;
+import org.springframework.web.reactive.socket.WebSocketMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
+import java.util.Map;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AssistantService {
 
-    private final WebClient webClient = WebClient.builder()
-            .baseUrl("http://host.docker.internal:5001")
-            .build();
-
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public Flux<String> invokeAssistant(AssistantRequestDto assistantRequestDto) {
-        String message = assistantRequestDto.getMessage();
-        Long memberId = assistantRequestDto.getMemberId();
+        ReactorNettyWebSocketClient client = new ReactorNettyWebSocketClient();
 
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("message", message);
-        requestBody.put("memberId", memberId);
-
-        return webClient.post()
-                .uri("/assistant")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(requestBody)
-                .accept(MediaType.APPLICATION_NDJSON)
-                .retrieve()
-                .bodyToFlux(String.class)
-                .map(chunk -> {
+        return Flux.create(sink ->
+            client.execute(
+                URI.create("ws://host.docker.internal:5001/assistant"),
+                session -> {
                     try {
-                        JsonNode node = objectMapper.readTree(chunk);
-                        return node.has("response") ? node.get("response").asText() : chunk;
+                        String payload = objectMapper.writeValueAsString(
+                            Map.of(
+                                "message", assistantRequestDto.getMessage(),
+                                "memberId", assistantRequestDto.getMemberId()
+                            )
+                        );
+                        return session.send(Mono.just(session.textMessage(payload)))
+                            .thenMany(session.receive()
+                                .map(WebSocketMessage::getPayloadAsText)
+                                .doOnNext(message -> {
+                                    log.info("Received chunk: {}", message);
+                                    sink.next(message);
+                                })
+                                .doOnError(e -> {
+                                    log.error("WebSocket receive error: {}", e.getMessage(), e);
+                                    sink.error(e);
+                                })
+                                .then())
+                            .doFinally(signal -> {
+                                log.info("WebSocket session closed with signal: {}", signal);
+                                sink.complete();
+                            })
+                            .then();
                     } catch (Exception e) {
-                        log.error("Error parsing assistant chunk: {}", e.getMessage(), e);
-                        return chunk;
+                        log.error("WebSocket initialization error: {}", e.getMessage(), e);
+                        sink.error(e);
+                        return Mono.empty();
                     }
-                })
-                .doOnNext(chunk -> log.info("Assistant result extracted: {}", chunk))
-                .doOnError(e -> log.error("Error invoking assistant: {}", e.getMessage(), e));
+                }
+            ).subscribe()
+        );
     }
 }

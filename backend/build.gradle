@@ -33,8 +33,12 @@ dependencies {
     // Utilities
     implementation 'me.paulschwarz:spring-dotenv:3.0.0' // For .env file support
 
-    // Web
+    // Web Flux
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+    // Websockets
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    implementation 'io.projectreactor.netty:reactor-netty'
 
     // Code Generation & Mappers
     compileOnly 'org.projectlombok:lombok:1.18.34'
@@ -49,7 +53,8 @@ dependencies {
 
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation platform('org.junit.platform:junit-platform-bom:1.10.2')
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
 }
 
 // MapStruct annotation processor configuration
