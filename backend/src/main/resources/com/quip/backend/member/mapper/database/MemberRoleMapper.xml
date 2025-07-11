@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.quip.backend.member.mapper.database.MemberRoleMapper">
+
+    <resultMap id="MemberRoleResultMap" type="com.quip.backend.member.model.MemberRole">
+        <result property="memberId" column="member_id"/>
+        <result property="serverRoleId" column="server_role_id"/>
+        <result property="assignedAt" column="assigned_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+</mapper>
