@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # Set working directory inside the container
 WORKDIR /app
@@ -13,5 +13,5 @@ COPY . .
 # Expose Flask's port
 EXPOSE 5000
 
-# Run Flask with host and port configured for Docker
-CMD ["python", "app.py"]
+# Run FastAPI with host and port configured for Docker
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5000"]

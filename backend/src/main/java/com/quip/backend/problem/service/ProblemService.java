@@ -28,86 +28,92 @@ public class ProblemService {
     private final ProblemChoiceMapper problemChoiceMapper;
     private final ProblemDtoMapper problemDtoMapper;
     private final ProblemChoiceDtoMapper problemChoiceDtoMapper;
-    private final AssetUtils assetUtils;
+    private final AssetUtils assetUtils; // selected line
     private final MemberService memberService;
 
-    // Retrieve a random question
     public ProblemDto getProblem() {
-        return null;
+        return null; // Placeholder for future implementation
     }
 
     public boolean verifyAnswer(Problem problem, String answer) {
-        return false;
+        return false; // Placeholder for future implementation
     }
 
     @Transactional
     public void addProblem(ProblemCreateDto problemCreateDto) {
-        if (problemCreateDto == null) {
-            throw new ValidationException("problem", "body", "must not be null");
+        validateProblemCreateDto(problemCreateDto);
+        validateContributor(problemCreateDto.getContributorId());
+        validateProblemChoices(problemCreateDto.getChoices());
+        validateProblemMedia(problemCreateDto.getMediaFileId());
+
+        Problem problem = problemDtoMapper.toProblem(problemCreateDto);
+        problemMapper.insert(problem);
+
+        if (problem.getId() == null) {
+            throw new IllegalStateException("Problem insertion failed, no ID returned.");
         }
+        log.info("Inserted problem with ID: {}", problem.getId());
 
-        log.info("Adding new problem with question: '{}', contributorId: {}, choices count: {}",
-                 problemCreateDto.getQuestion(), problemCreateDto.getContributorId(),
-                 problemCreateDto.getChoices() != null ? problemCreateDto.getChoices().size() : 0);
-
-        String question = problemCreateDto.getQuestion().trim();
-        Long contributorId = problemCreateDto.getContributorId();
         List<ProblemChoiceCreateDto> choices = problemCreateDto.getChoices();
-
-        // Verify if fields are valid
-        if (question.isEmpty()) {
-            // TODO: Make a more comprehensive message
-            throw new ValidationException("Problem Creation", "question", "must not be empty");
-        }
-        log.info("Question validation passed.");
-
-        boolean isContributorValid = memberService.isMemberExists(contributorId);
-        if (!isContributorValid) {
-            log.warn("Contributor validation not passed for contributorId: {}", contributorId);
-            throw new ValidationException("Problem Creation", "contributorId", "must refer to an existing member");
-        }
-        log.info("Contributor validation passed for contributorId: {}", contributorId);
-
-        for (ProblemChoiceCreateDto choice : choices) {
-            if ((choice.getChoiceText() == null || choice.getChoiceText().trim().isEmpty())
-                    && choice.getMediaFileId() == null) {
-                throw new ValidationException(
-                        "Problem Choice Creation",
-                        "choiceText/mediaFileId",
-                        "each choice must have non-empty text or a valid media file ID"
-                );
+        if (choices != null) {
+            for (ProblemChoiceCreateDto choiceDto : choices) {
+                ProblemChoice problemChoice = problemChoiceDtoMapper.toProblemChoice(choiceDto);
+                problemChoice.setProblemId(problem.getId());
+                problemChoiceMapper.insert(problemChoice);
+                log.info("Inserted problem choice for problemId: {}", problem.getId());
             }
         }
+    }
 
-        if (problemCreateDto.getMediaFileId() != null) {
-            // TODO: Check if file exists
-            // TODO: Check if choice file exists
+    private void validateProblemCreateDto(ProblemCreateDto dto) {
+        if (dto == null) {
+            throw new ValidationException("problem", "body", "must not be null");
         }
-
-
-        // All validations done, continue to adding phase
-        Problem problem = problemDtoMapper.toProblem(problemCreateDto);
-
-        // TODO: Remove this
-        problem.setMediaFileId(null);
-
-        log.info("Inserting problem into database...");
-        problemMapper.insert(problem);
-        Long problemId = problem.getId();
-        log.info("Problem inserted with generated ID: {}", problemId);
-
-        if (problemId == null) {
-            throw new IllegalStateException("Insertion failed!");
+        if (dto.getQuestion() == null || dto.getQuestion().trim().isEmpty()) {
+            throw new ValidationException("Problem Creation", "question", "must not be empty");
         }
+        log.info("Validated problem creation DTO with question: '{}'", dto.getQuestion().trim());
+    }
 
-        // Add problem choices
-        for (ProblemChoiceCreateDto choice : choices) {
-            log.info("Inserting problem choice: {}", choice);
-            ProblemChoice problemChoice = problemChoiceDtoMapper.toProblemChoice(choice);
-            problemChoice.setProblemId(problemId);
+    private void validateContributor(Long contributorId) {
+        if (!memberService.isMemberExists(contributorId)) {
+            throw new ValidationException("Problem Creation", "contributorId", "must refer to an existing member");
+        }
+        log.info("Validated contributorId: {}", contributorId);
+    }
 
-            problemChoiceMapper.insert(problemChoice);
-            log.info("Problem choice inserted for problemId: {}", problemId);
+    private void validateProblemChoices(List<ProblemChoiceCreateDto> choices) {
+        if (choices != null) {
+            for (ProblemChoiceCreateDto choice : choices) {
+                boolean isTextValid = choice.getChoiceText() != null && !choice.getChoiceText().trim().isEmpty();
+                boolean isMediaValid = choice.getMediaFileId() != null;
+                if (!isTextValid && !isMediaValid) {
+                    throw new ValidationException(
+                            "Problem Choice Creation",
+                            "choiceText/mediaFileId",
+                            "each choice must have non-empty text or a valid media file ID"
+                    );
+                }
+//                if (choice.getMediaFileId() != null && !assetUtils.fileExists(choice.getMediaFileId())) {
+//                    throw new ValidationException(
+//                            "Problem Choice Creation",
+//                            "mediaFileId",
+//                            "specified media file does not exist"
+//                    );
+//                }
+            }
+            log.info("Validated {} problem choices.", choices.size());
         }
     }
+
+    private void validateProblemMedia(Long mediaFileId) {
+//        if (mediaFileId != null && !assetUtils.fileExists(mediaFileId)) {
+//            throw new ValidationException(
+//                    "Problem Creation",
+//                    "mediaFileId",
+//                    "specified media file does not exist"
+//            );
+//        }
+    }
+
 }

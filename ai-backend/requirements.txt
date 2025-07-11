@@ -1,7 +1,11 @@
-flask
-flask-cors
-requests
+requests~=2.32.4
 langchain-openai
 langchain-core
-langgraph
+langgraph~=0.5.1
 python-dotenv
+langchain
+fastapi~=0.116.0
+uvicorn~=0.35.0
+pydantic~=2.11.7
+uvicorn[standard]
+httpx~=0.28.1
