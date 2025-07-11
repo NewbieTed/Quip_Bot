@@ -1,6 +1,7 @@
 package com.quip.backend.problem.dto;
 
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,10 +18,19 @@ public class ProblemCreateDto {
     @NotBlank(message = "Question cannot be blank")
     private String question;
 
+    @Valid
     @NotEmpty(message = "Choices cannot be empty")
     private List<@NotNull(message = "Each choice cannot be null") ProblemChoiceCreateDto> choices;
 
     private Long mediaFileId;
+
+    @NotNull(message = "Server ID cannot be null")
+    @PositiveOrZero(message = "Server ID must be a non negative number")
+    private Long serverId;
+
+    @NotNull(message = "Problem category ID cannot be null")
+    @PositiveOrZero(message = "Problem category ID must be a non negative number")
+    private Long problemCategoryId;
 
     @NotNull(message = "Contributor ID cannot be null")
     @PositiveOrZero(message = "Contributor ID must be a non negative number")

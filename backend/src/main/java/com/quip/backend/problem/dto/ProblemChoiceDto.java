@@ -1,5 +1,7 @@
 package com.quip.backend.problem.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,4 +21,7 @@ public class ProblemChoiceDto {
      * Media file ID, nullable if choiceText is provided.
      */
     private String mediaUrl;
+
+
+    private Boolean isCorrect;
 }

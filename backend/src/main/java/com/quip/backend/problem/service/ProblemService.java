@@ -8,10 +8,11 @@ import com.quip.backend.problem.dto.ProblemCreateDto;
 import com.quip.backend.problem.dto.ProblemDto;
 import com.quip.backend.problem.mapper.database.ProblemChoiceMapper;
 import com.quip.backend.problem.mapper.database.ProblemMapper;
-import com.quip.backend.problem.mapper.dto.ProblemChoiceDtoMapper;
-import com.quip.backend.problem.mapper.dto.ProblemDtoMapper;
+import com.quip.backend.problem.mapper.dto.ProblemChoiceCreateDtoMapper;
+import com.quip.backend.problem.mapper.dto.ProblemCreateDtoMapper;
 import com.quip.backend.problem.model.Problem;
 import com.quip.backend.problem.model.ProblemChoice;
+import com.quip.backend.server.service.ServerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,10 +27,11 @@ public class ProblemService {
 
     private final ProblemMapper problemMapper;
     private final ProblemChoiceMapper problemChoiceMapper;
-    private final ProblemDtoMapper problemDtoMapper;
-    private final ProblemChoiceDtoMapper problemChoiceDtoMapper;
+    private final ProblemCreateDtoMapper problemCreateDtoMapper;
+    private final ProblemChoiceCreateDtoMapper problemChoiceCreateDtoMapper;
     private final AssetUtils assetUtils; // selected line
     private final MemberService memberService;
+    private final ServerService serverService;
 
     public ProblemDto getProblem() {
         return null; // Placeholder for future implementation
@@ -45,8 +47,9 @@ public class ProblemService {
         validateContributor(problemCreateDto.getContributorId());
         validateProblemChoices(problemCreateDto.getChoices());
         validateProblemMedia(problemCreateDto.getMediaFileId());
+        // TODO: validate problem category
 
-        Problem problem = problemDtoMapper.toProblem(problemCreateDto);
+        Problem problem = problemCreateDtoMapper.toProblem(problemCreateDto);
         problemMapper.insert(problem);
 
         if (problem.getId() == null) {
@@ -57,7 +60,7 @@ public class ProblemService {
         List<ProblemChoiceCreateDto> choices = problemCreateDto.getChoices();
         if (choices != null) {
             for (ProblemChoiceCreateDto choiceDto : choices) {
-                ProblemChoice problemChoice = problemChoiceDtoMapper.toProblemChoice(choiceDto);
+                ProblemChoice problemChoice = problemChoiceCreateDtoMapper.toProblemChoice(choiceDto);
                 problemChoice.setProblemId(problem.getId());
                 problemChoiceMapper.insert(problemChoice);
                 log.info("Inserted problem choice for problemId: {}", problem.getId());
@@ -73,6 +76,18 @@ public class ProblemService {
             throw new ValidationException("Problem Creation", "question", "must not be empty");
         }
         log.info("Validated problem creation DTO with question: '{}'", dto.getQuestion().trim());
+    }
+
+    private void validateServer(Long serverId) {
+        if (!serverService.isServerExists(serverId)) {
+            throw new ValidationException("Problem Creation", "serverId", "must refer to an existing member");
+        }
+        log.info("Validated serverId: {}", serverId);
+
+    }
+
+    private void validateProblemCategory(Long categoryId) {
+
     }
 
     private void validateContributor(Long contributorId) {

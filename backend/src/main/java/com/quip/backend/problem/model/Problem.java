@@ -17,8 +17,15 @@ import java.time.OffsetDateTime;
 @AllArgsConstructor
 @TableName("problem")
 public class Problem {
+    // TODO: P2 Feature: Make public?
     @TableId(type = IdType.AUTO, value = "id")
     private Long id;
+
+    @TableField("server_id")
+    private Long serverId;
+
+    @TableField("problem_category_id")
+    private Long problemCategoryId;
 
     @TableField("question")
     private String question;
