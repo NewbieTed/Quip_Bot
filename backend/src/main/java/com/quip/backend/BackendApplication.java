@@ -8,7 +8,9 @@ import org.mybatis.spring.annotation.MapperScan;
 @MapperScan({
 		"com.quip.backend.member.mapper.database",
 		"com.quip.backend.problem.mapper.database",
-		"com.quip.backend.file.mapper.database"
+		"com.quip.backend.file.mapper.database",
+		"com.quip.backend.server.mapper.database",
+		"com.quip.backend.authorization.mapper.database"
 })
 public class BackendApplication {
 
