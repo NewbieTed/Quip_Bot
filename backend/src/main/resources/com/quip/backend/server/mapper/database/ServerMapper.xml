@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.quip.backend.server.mapper.database.ServerMapper">
+
+    <resultMap id="ServerResultMap" type="com.quip.backend.server.model.Server">
+        <id property="id" column="id"/>
+        <result property="serverName" column="server_name"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findById" parameterType="long" resultType="com.quip.backend.server.model.Server">
+        SELECT id, server_name, created_by, updated_by, created_at, updated_at
+        FROM server
+        WHERE id = #{id}
+    </select>
+</mapper>
