@@ -31,15 +31,50 @@ CREATE TABLE server (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE server_category (
+    id BIGINT PRIMARY KEY,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    category_name TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    UNIQUE (server_id, category_name)
+);
+
+
 CREATE TABLE channel (
     id BIGINT PRIMARY KEY,
     server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    server_category_id BIGINT REFERENCES server_category(id) on DELETE SET NULL,
     channel_name TEXT NOT NULL,
 
     created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE permission_type (
+    id BIGSERIAL PRIMARY KEY,
+    permission_name TEXT NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE(permission_name)
+);
+
+CREATE TABLE member_channel_permission (
+    member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
+    channel_id BIGINT NOT NULL REFERENCES channel(id) ON DELETE CASCADE,
+    permission_type_id BIGINT NOT NULL REFERENCES permission_type(id) ON DELETE RESTRICT,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY(member_id, channel_id, permission_type_id)
 );
 
 -- File management tables
@@ -187,7 +222,7 @@ CREATE TABLE server_role (
 
 CREATE TABLE member_role (
     member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
-    role_id BIGINT NOT NULL REFERENCES server_role(id) ON DELETE CASCADE,
+    server_role_id BIGINT NOT NULL REFERENCES server_role(id) ON DELETE CASCADE,
     assigned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
     created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
@@ -261,8 +296,26 @@ CREATE TABLE filtered_message (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE problem_category (
+    id BIGSERIAL PRIMARY KEY,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    category_name TEXT NOT NULL,
+    description TEXT NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (server_id, category_name),
+    UNIQUE (server_id, id)
+);
+
+
 CREATE TABLE problem (
     id BIGSERIAL PRIMARY KEY,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    problem_category_id BIGINT NOT NULL REFERENCES problem_category(id) ON DELETE CASCADE,
     question TEXT NOT NULL,
     media_file_id BIGINT REFERENCES file(id) ON DELETE SET NULL,
     contributor_id BIGINT REFERENCES member(id) ON DELETE SET NULL,
@@ -271,7 +324,9 @@ CREATE TABLE problem (
     created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (server_id, problem_category_id) REFERENCES problem_category(server_id, id) ON DELETE CASCADE
 );
 
 CREATE TABLE problem_choice (
@@ -330,23 +385,10 @@ CREATE TABLE member_achievement (
     PRIMARY KEY (member_id, server_id, achievement_id)
 );
 
---CREATE TABLE summary (
---    id SERIAL PRIMARY KEY,
---    member_id BIGINT NOT NULL,
---    server_id BIGINT NOT NULL,
---    channel_id BIGINT,
---    summary_text TEXT NOT NULL,
---    source_message_ids BIGINT[],
---    created_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
---    updated_by BIGINT REFERENCES member(member_id) ON DELETE SET NULL,
---    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
---    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
---);
 
 
 CREATE TABLE server_setting (
     server_id BIGINT PRIMARY KEY,
-    chatgpt_memory_enabled BOOLEAN DEFAULT FALSE NOT NULL,
     auto_mod_enabled BOOLEAN DEFAULT TRUE NOT NULL,
     level_system_enabled BOOLEAN DEFAULT TRUE NOT NULL,
     level_multiplier DOUBLE PRECISION DEFAULT 1.0 NOT NULL,
@@ -378,6 +420,10 @@ CREATE TABLE reaction_role (
 -- ===========================
 COMMENT ON TABLE member IS 'Stores member information and references for Discord members.';
 COMMENT ON TABLE server IS 'Stores Discord server (guild) information.';
+COMMENT ON TABLE channel IS 'Stores Discord channel information within servers, including category association.';
+COMMENT ON TABLE permission_type IS 'Stores permission types for member-channel permissions.';
+COMMENT ON TABLE member_channel_permission IS 'Stores fine-grained permissions each member has on a specific channel.';
+COMMENT ON TABLE server_category IS 'Stores Discord server category/channel grouping information.';
 COMMENT ON TABLE member_server_stat IS 'Tracks member statistics per server for leveling and activity.';
 COMMENT ON TABLE warning IS 'Stores warnings issued to members by moderators.';
 COMMENT ON TABLE ban IS 'Stores ban records issued to members by moderators.';
@@ -390,15 +436,16 @@ COMMENT ON TABLE poll IS 'Stores polls created within servers.';
 COMMENT ON TABLE poll_vote IS 'Stores member votes on polls.';
 COMMENT ON TABLE filtered_message IS 'Stores messages flagged by auto-moderation.';
 COMMENT ON TABLE flag_reason IS 'Stores flag reasons for moderation.';
+COMMENT ON TABLE problem_category IS 'Stores quiz problem categories per server.';
 COMMENT ON TABLE problem IS 'Stores quiz problems/questions.';
 COMMENT ON TABLE problem_choice IS 'Stores choices for quiz problems.';
 COMMENT ON TABLE achievement IS 'Stores achievements members can earn.';
 COMMENT ON TABLE member_achievement IS 'Tracks member achievements per server.';
---COMMENT ON TABLE summary IS 'Stores summaries generated for channels.';
-COMMENT ON TABLE poll_option IS 'Stores poll options for polls.';
+COMMENT ON TABLE poll_option IS 'Stores individual options associated with polls.';
 COMMENT ON TABLE server_setting IS 'Stores server-level settings.';
 COMMENT ON TABLE reaction_role IS 'Stores reaction-role mapping for self-assignment.';
 COMMENT ON TABLE file IS 'Stores uploaded files metadata.';
+COMMENT ON TABLE file_type IS 'Stores server-scoped file type definitions for uploaded files.';
 COMMENT ON TABLE file_path IS 'Stores various storage paths for files.';
 COMMENT ON TABLE problem_answer_history IS 'Tracks member quiz answer submissions and correctness.';
 
@@ -439,12 +486,12 @@ CREATE INDEX idx_filtered_message_member_id ON filtered_message(member_id);
 -- problem_choice
 CREATE INDEX idx_problem_choice_problem_id ON problem_choice(problem_id);
 
+-- problem_category
+CREATE INDEX idx_problem_category_id ON problem_category(id);
+
 -- member_achievement
 CREATE INDEX idx_member_achievement_member_id ON member_achievement(member_id);
 CREATE INDEX idx_member_achievement_server_id ON member_achievement(server_id);
-
----- summary
---CREATE INDEX idx_summary_server_id ON summary(server_id);
 
 -- poll_option
 CREATE INDEX idx_poll_option_poll_id ON poll_option(poll_id);
@@ -458,6 +505,20 @@ CREATE INDEX idx_file_path_file_id ON file_path(id);
 -- problem_answer_history
 CREATE INDEX idx_problem_answer_history_member_id ON problem_answer_history(member_id);
 CREATE INDEX idx_problem_answer_history_problem_id ON problem_answer_history(problem_id);
+
+-- server_category
+CREATE INDEX idx_server_category_server_id ON server_category(server_id);
+CREATE INDEX idx_server_category_category_name ON server_category(category_name);
+CREATE INDEX idx_server_category_position ON server_category(position);
+
+-- permission_type
+CREATE INDEX idx_permission_type_permission_name ON permission_type(permission_name);
+
+-- member_channel_permission
+CREATE INDEX idx_member_channel_permission_member_id ON member_channel_permission(member_id);
+CREATE INDEX idx_member_channel_permission_channel_id ON member_channel_permission(channel_id);
+CREATE INDEX idx_member_channel_permission_permission_type_id ON member_channel_permission(permission_type_id);
+
 
 -- ===========================
 -- Triggers to auto-update updated_at columns
@@ -487,10 +548,43 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_server_category'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_server_category
+        BEFORE UPDATE ON server_category
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
         SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_channel'
     ) THEN
         CREATE TRIGGER trigger_set_updated_at_channel
         BEFORE UPDATE ON channel
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_permission_type'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_permission_type
+        BEFORE UPDATE ON permission_type
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_member_channel_permission'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_member_channel_permission
+        BEFORE UPDATE ON member_channel_permission
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
 END$$;
@@ -634,6 +728,17 @@ BEGIN
     ) THEN
         CREATE TRIGGER trigger_set_updated_at_filtered_message
         BEFORE UPDATE ON filtered_message
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_problem_category'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_problem_category
+        BEFORE UPDATE ON problem_category
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
 END$$;
