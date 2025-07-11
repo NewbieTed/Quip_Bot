@@ -1,5 +1,6 @@
 package com.quip.backend.problem.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,6 +19,7 @@ public class ProblemChoiceCreateDto {
     /**
      * Choice text, nullable if mediaFileId is provided.
      */
+    @NotBlank(message = "Problem choice cannot be empty")
     private String choiceText;
 
     /**
@@ -25,6 +27,6 @@ public class ProblemChoiceCreateDto {
      */
     private Long mediaFileId;
 
-    @NotNull
+    @NotNull(message = "Problem choice have to specify whether it is correct or not")
     private Boolean isCorrect;
 }

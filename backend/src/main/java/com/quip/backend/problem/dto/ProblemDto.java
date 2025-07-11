@@ -9,7 +9,6 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProblemDto {
-    private Long id;
     private String question;
     private List<ProblemChoiceDto> choices;
     private String mediaUrl;
