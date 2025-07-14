@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.quip.backend.channel.mapper.database.ChannelMapper">
+
+    <resultMap id="MemberResultMap" type="com.quip.backend.channel.model.Channel">
+        <id property="id" column="id"/>
+        <result property="serverId" column="server_id"/>
+        <result property="serverCategoryId" column="server_category_name"/>
+        <result property="channelName" column="channel_name"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+
+</mapper>
