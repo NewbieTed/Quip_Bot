@@ -15,14 +15,5 @@ dependencyResolutionManagement {
     }
 }
 
-toolchainManagement {
-    jvm {
-        javaRepositories {
-            repository('foojay') {
-                resolverClass = org.gradle.toolchains.foojay.FoojayToolchainResolver
-            }
-        }
-    }
-}
 
 rootProject.name = 'backend'
