@@ -5,8 +5,10 @@
     <resultMap id="ProblemResultMap" type="com.quip.backend.problem.model.Problem">
         <id property="id" column="id"/>
         <result property="question" column="question"/>
+        <result property="serverId" column="server_id"/>
         <result property="mediaFileId" column="media_file_id"/>
         <result property="contributorId" column="contributor_id"/>
+        <result property="problemCategoryId" column="problem_category_id"/>
         <result property="isValid" column="is_valid"/>
         <result property="createdBy" column="created_by"/>
         <result property="updatedBy" column="updated_by"/>
@@ -14,6 +16,11 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
+    <select id="selectByProblemCategoryId" resultMap="ProblemResultMap">
+        SELECT id, question, server_id, media_file_id, contributor_id, problem_category_id, is_valid, created_by, updated_by, created_at, updated_at
+        FROM problem
+        WHERE problem_category_id = #{problemCategoryId}
+    </select>
 
 
 </mapper>

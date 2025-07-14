@@ -8,12 +8,15 @@ import com.quip.backend.common.exception.ValidationException;
 import com.quip.backend.member.service.MemberService;
 import com.quip.backend.problem.dto.request.CreateProblemChoiceRequestDto;
 import com.quip.backend.problem.dto.request.CreateProblemRequestDto;
+import com.quip.backend.problem.dto.request.GetProblemRequestDto;
+import com.quip.backend.problem.dto.response.GetProblemListItemResponseDto;
 import com.quip.backend.problem.dto.response.GetProblemResponseDto;
 import com.quip.backend.problem.mapper.database.ProblemCategoryMapper;
 import com.quip.backend.problem.mapper.database.ProblemChoiceMapper;
 import com.quip.backend.problem.mapper.database.ProblemMapper;
 import com.quip.backend.problem.mapper.dto.request.CreateProblemChoiceRequestDtoMapper;
 import com.quip.backend.problem.mapper.dto.request.CreateProblemRequestDtoMapper;
+import com.quip.backend.problem.mapper.dto.response.GetProblemListItemResponseDtoMapper;
 import com.quip.backend.problem.model.Problem;
 import com.quip.backend.problem.model.ProblemChoice;
 import com.quip.backend.server.service.ServerService;
@@ -22,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -47,9 +51,11 @@ public class ProblemService {
     // Mapstruct mappers
     private final CreateProblemRequestDtoMapper createProblemRequestDtoMapper;
     private final CreateProblemChoiceRequestDtoMapper createProblemChoiceRequestDtoMapper;
+    private final GetProblemListItemResponseDtoMapper getProblemListItemResponseDtoMapper;
 
-    private static final String PROBLEM_CREATE = "Problem Creation";
-    private static final String PROBLEM_CHOICE_CREATE = "Problem Choice Creation";
+    private static final String CREATE_PROBLEM = "Problem Creation";
+    private static final String CREATE_PROBLEM_CHOICE = "Problem Choice Creation";
+    private static final String RETRIEVE_PROBLEM = "Problem Retrieval";
 
     public GetProblemResponseDto getProblem() {
         return null; // Placeholder for future implementation
@@ -57,32 +63,60 @@ public class ProblemService {
 
     // TODO: Change other feature's file structure on DTOs as well as naming
 
+    public List<GetProblemListItemResponseDto> getProblemsByCategory(GetProblemRequestDto getProblemRequestDto) {
+        Long memberId = getProblemRequestDto.getMemberId();
+        Long problemCategoryId = getProblemRequestDto.getProblemCategoryId();
+        Long channelId = getProblemRequestDto.getChannelId();
+
+        memberService.validateMember(memberId, RETRIEVE_PROBLEM);
+        channelService.validateChannel(channelId, RETRIEVE_PROBLEM);
+        problemCategoryService.validateProblemCategory(problemCategoryId, RETRIEVE_PROBLEM);
+        authorizationService.validateAuthorization(
+                memberId,
+                channelId,
+                AuthorizationConstants.VIEW_PROBLEM,
+                RETRIEVE_PROBLEM
+        );
+
+        List<Problem> problems = problemMapper.selectByProblemCategoryId(problemCategoryId);
+        List<GetProblemListItemResponseDto> getProblemResponseDtos = new ArrayList<>();
+
+        for (Problem problem : problems) {
+            getProblemResponseDtos.add(getProblemListItemResponseDtoMapper.toGetProblemListResponseDto(problem));
+        }
+
+        return getProblemResponseDtos;
+    }
+
     @Transactional
     public void addProblem(CreateProblemRequestDto problemCreateDto) {
         if (problemCreateDto == null) {
-            throw new ValidationException(PROBLEM_CREATE, "body", "must not be null");
+            throw new ValidationException(CREATE_PROBLEM, "body", "must not be null");
         }
 
         // Validate authorization
-        memberService.validateMember(problemCreateDto.getMemberId(), PROBLEM_CREATE);
-        channelService.validateChannel(problemCreateDto.getChannelId(), PROBLEM_CREATE);
+        memberService.validateMember(problemCreateDto.getMemberId(), CREATE_PROBLEM);
+        channelService.validateChannel(problemCreateDto.getChannelId(), CREATE_PROBLEM);
         Long serverId = channelService.findServerId(problemCreateDto.getChannelId());
-        serverService.validateServer(serverId, PROBLEM_CREATE);
+        serverService.validateServer(serverId, CREATE_PROBLEM);
         authorizationService.validateAuthorization(
                 problemCreateDto.getMemberId(),
                 problemCreateDto.getChannelId(),
-                AuthorizationConstants.PROBLEM_MANAGE,
-                PROBLEM_CREATE
+                AuthorizationConstants.MANAGE_PROBLEM,
+                CREATE_PROBLEM
         );
 
         // Validate fields
-        problemCategoryService.validateExists(problemCreateDto.getProblemCategoryId(), PROBLEM_CREATE);
-        this.validateProblem(problemCreateDto.getQuestion(), PROBLEM_CREATE);
-        problemChoiceService.validateProblemChoices(problemCreateDto.getChoices(), PROBLEM_CHOICE_CREATE);
-        validateProblemMedia(problemCreateDto.getMediaFileId());
+        problemCategoryService.validateProblemCategory(problemCreateDto.getProblemCategoryId(), CREATE_PROBLEM);
+        this.validateProblem(problemCreateDto.getQuestion(), CREATE_PROBLEM);
+        problemChoiceService.validateProblemChoices(problemCreateDto.getChoices(), CREATE_PROBLEM_CHOICE);
+
+        // TODO: Move this to files
+        this.validateProblemMedia(problemCreateDto.getMediaFileId());
 
         // Insert problem
         Problem problem = createProblemRequestDtoMapper.toProblem(problemCreateDto);
+        problem.setServerId(serverId);
         problemMapper.insert(problem);
 
         if (problem.getId() == null) {

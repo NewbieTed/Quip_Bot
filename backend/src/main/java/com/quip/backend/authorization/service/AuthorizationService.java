@@ -13,14 +13,14 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AuthorizationService {
 
-    private AuthorizationTypeMapper authorizationTypeMapper;
-    private MemberChannelAuthorizationMapper memberChannelAuthorizationMapper;
+    private final AuthorizationTypeMapper authorizationTypeMapper;
+    private final MemberChannelAuthorizationMapper memberChannelAuthorizationMapper;
 
 
     public long getPermissionTypeId(String authorizationTypeName) {
         AuthorizationType authorizationType = authorizationTypeMapper.selectByAuthorizationTypeName(authorizationTypeName);
         if (authorizationType == null) {
-            throw new EntityNotFoundException("PermissionType not found for name: " + authorizationTypeName);
+            throw new EntityNotFoundException("AuthorizationType not found for name: " + authorizationTypeName);
         }
         return authorizationType.getId();
     }

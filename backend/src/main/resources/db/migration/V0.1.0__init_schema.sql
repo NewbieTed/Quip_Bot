@@ -230,7 +230,7 @@ CREATE TABLE member_role (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
-    PRIMARY KEY (member_id, role_id)
+    PRIMARY KEY (member_id, server_role_id)
 );
 
 CREATE TABLE poll (
@@ -403,7 +403,7 @@ CREATE TABLE reaction_role (
     id SERIAL PRIMARY KEY,
     server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
     channel_id BIGINT NOT NULL REFERENCES channel(id) ON DELETE CASCADE,
-    role_id BIGINT NOT NULL REFERENCES server_role(id),
+    server_role_id BIGINT NOT NULL REFERENCES server_role(id),
     message_id BIGINT NOT NULL,
     emoji TEXT NOT NULL,
 
@@ -471,7 +471,7 @@ CREATE INDEX idx_announcement_server_id ON announcement(server_id);
 
 -- member_role
 CREATE INDEX idx_member_role_member_id ON member_role(member_id);
-CREATE INDEX idx_member_role_role_id ON member_role(role_id);
+CREATE INDEX idx_member_role_server_role_id ON member_role(server_role_id);
 
 -- poll_vote
 CREATE INDEX idx_poll_vote_poll_id ON poll_vote(poll_id);

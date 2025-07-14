@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class ChannelService {
-    private ChannelMapper channelMapper;
+    private final ChannelMapper channelMapper;
 
     public Long findServerId(Long channelId) {
         Channel channel = channelMapper.selectById(channelId);

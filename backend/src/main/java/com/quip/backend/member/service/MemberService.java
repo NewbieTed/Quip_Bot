@@ -13,10 +13,8 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class MemberService {
-    private AuthorizationService authorizationService;
 
     private final MemberMapper memberMapper;
-
 
     public void validateMember(Long memberId, String operation) {
         if (!this.isMemberExists(memberId)) {

@@ -19,7 +19,6 @@ import java.time.OffsetDateTime;
 @TableName("server")
 public class Server {
     @TableId(value = "id", type = IdType.INPUT)
-    @TableField("id")
     private Long id;
 
     @TableField("server_name")

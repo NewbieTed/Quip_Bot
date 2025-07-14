@@ -15,10 +15,9 @@ import java.time.OffsetDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@TableName("authorization_type")
+@TableName("channel")
 public class Channel {
     @TableId(value = "id", type = IdType.INPUT)
-    @TableField("id")
     private Long id;
 
     @TableField("server_id")

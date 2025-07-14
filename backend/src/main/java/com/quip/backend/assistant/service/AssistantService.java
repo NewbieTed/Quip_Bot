@@ -21,10 +21,10 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class AssistantService {
-    private MemberService memberService;
-    private ChannelService channelService;
-    private ServerService serverService;
-    private AuthorizationService authorizationService;
+    private final MemberService memberService;
+    private final ChannelService channelService;
+    private final ServerService serverService;
+    private final AuthorizationService authorizationService;
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 

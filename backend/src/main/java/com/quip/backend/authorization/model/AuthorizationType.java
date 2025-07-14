@@ -18,7 +18,6 @@ import java.time.OffsetDateTime;
 @TableName("authorization_type")
 public class AuthorizationType {
     @TableId(value = "id", type = IdType.INPUT)
-    @TableField("id")
     private Long id;
 
     @TableField("authorization_type_name")

@@ -9,8 +9,6 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class GetProblemCategoryResponseDto {
-    private Long problemCategoryId;
-    private String categoryName;
-    private String description;
+public class GetProblemListItemResponseDto {
+    private String question;
 }
