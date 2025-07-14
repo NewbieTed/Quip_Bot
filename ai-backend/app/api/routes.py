@@ -21,8 +21,9 @@ async def invoke_agent(websocket: WebSocket):
         data = await websocket.receive_json()
         message = data.get("message")
         member_id = data.get("memberId")
+        channel_id = data.get("channelId")
 
-        async for chunk in run_agent(message, member_id):
+        async for chunk in run_agent(message, member_id, channel_id):
             await websocket.send_text(json.dumps({"response": chunk}))
         await websocket.close()
     except WebSocketDisconnect:

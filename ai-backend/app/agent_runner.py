@@ -1,20 +1,23 @@
 from app.graph import graph
 
+from pathlib import Path
+SYSTEM_PROMPT_PATH = Path("app/prompts/system_prompt.txt")
 
-async def run_agent(member_message: str, member_id: int):
+def load_system_prompt() -> str:
+    return SYSTEM_PROMPT_PATH.read_text(encoding="utf-8").strip()
+
+async def run_agent(member_message: str, member_id: int, channel_id: int):
     if not isinstance(member_message, str) or not member_message.strip():
         yield "Error: Provided message must be a non-empty string."
         return
 
     config = {"configurable": {"thread_id": member_id}}
-
+    system_message: str = load_system_prompt()
+    system_user_data: str = f"Member ID: {member_id}, \nChannel ID: {channel_id}"
     messages = [
         {
             "role": "system",
-            "content": (
-                "You are a helpful assistant for a Discord bot service. Perform the user's request and report the results clearly. "
-                "If you cannot accomplish the task, inform the user politely. Always provide a final clear response to the user summarizing what you did."
-            )
+            "content": system_message + "\n" + system_user_data
         },
         {
             "role": "user",
@@ -25,9 +28,9 @@ async def run_agent(member_message: str, member_id: int):
     last_content = None
     try:
         async for mode, chunk in graph.astream({"messages": messages}, config, stream_mode=["updates", "messages", "custom"]):
-            print(f"[STREAM MODE] {mode}", flush=True)
+            # print(f"[STREAM MODE] {mode}", flush=True)
             if mode == "messages":
-                print(f"[MESSAGE STREAM] {chunk}", flush=True)
+                # print(f"[MESSAGE STREAM] {chunk}", flush=True)
                 if isinstance(chunk, dict) and "messages" in chunk:
                     partial_message = chunk["messages"][-1].content
                     yield partial_message
