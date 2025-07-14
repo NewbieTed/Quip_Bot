@@ -4,6 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = 'quip-backend-app'
         IMAGE_TAG = 'latest'
+        SPRING_PATH = 'backend'
     }
 
     stages {
@@ -17,13 +18,18 @@ pipeline {
 
         stage('Build JAR') {
             steps {
-                sh './gradlew clean build -x test'
+                dir("${SPRING_PATH}") {
+                    sh 'chmod +x ./gradlew'
+                    sh './gradlew clean build -x test'
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                dir("${SPRING_PATH}") {
+                    sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                }
             }
         }
 
