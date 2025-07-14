@@ -20,7 +20,7 @@ pipeline {
             steps {
                 dir("${SPRING_PATH}") {
                     sh 'chmod +x ./gradlew'
-                    sh './gradlew clean build -x test'
+                    sh './gradlew clean build -x test -Dorg.gradle.java.installations.auto-download=true'
                 }
             }
         }
