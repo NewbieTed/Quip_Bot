@@ -1,6 +1,11 @@
 package com.quip.backend.assistant.service;
 
-import com.quip.backend.assistant.dto.AssistantRequestDto;
+import com.quip.backend.assistant.dto.request.AssistantRequestDto;
+import com.quip.backend.authorization.constants.AuthorizationConstants;
+import com.quip.backend.authorization.service.AuthorizationService;
+import com.quip.backend.channel.service.ChannelService;
+import com.quip.backend.member.service.MemberService;
+import com.quip.backend.server.service.ServerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,10 +21,32 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class AssistantService {
+    private MemberService memberService;
+    private ChannelService channelService;
+    private ServerService serverService;
+    private AuthorizationService authorizationService;
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
+    private static final String INVOKE_ASSISTANT = "Invoke Assistant";
+
     public Flux<String> invokeAssistant(AssistantRequestDto assistantRequestDto) {
+        // Validate authorization
+        Long memberId = assistantRequestDto.getMemberId();
+        Long channelId = assistantRequestDto.getChannelId();
+        memberService.validateMember(memberId, INVOKE_ASSISTANT);
+        channelService.validateChannel(channelId, INVOKE_ASSISTANT);
+
+        Long serverId = channelService.findServerId(channelId);
+        serverService.validateServer(serverId, INVOKE_ASSISTANT);
+
+        authorizationService.validateAuthorization(
+                memberId,
+                channelId,
+                AuthorizationConstants.INVOKE_ASSISTANT,
+                INVOKE_ASSISTANT
+        );
+
         ReactorNettyWebSocketClient client = new ReactorNettyWebSocketClient();
 
         return Flux.create(sink ->
@@ -29,8 +56,10 @@ public class AssistantService {
                     try {
                         String payload = objectMapper.writeValueAsString(
                             Map.of(
-                                "message", assistantRequestDto.getMessage(),
-                                "memberId", assistantRequestDto.getMemberId()
+                                    "message", assistantRequestDto.getMessage(),
+                                    "serverId", serverId,
+                                    "channelId", channelId,
+                                    "memberId", memberId
                             )
                         );
                         return session.send(Mono.just(session.textMessage(payload)))

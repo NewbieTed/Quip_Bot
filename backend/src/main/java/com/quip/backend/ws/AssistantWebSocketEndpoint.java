@@ -1,15 +1,21 @@
 package com.quip.backend.ws;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.quip.backend.assistant.dto.AssistantRequestDto;
+import com.quip.backend.assistant.dto.request.AssistantRequestDto;
 import com.quip.backend.assistant.service.AssistantService;
-import jakarta.annotation.PostConstruct;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
+import jakarta.validation.ConstraintViolation;
 import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
+
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -29,6 +35,19 @@ public class AssistantWebSocketEndpoint {
     public void onMessage(String message, Session session) {
         try {
             AssistantRequestDto dto = objectMapper.readValue(message, AssistantRequestDto.class);
+            ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
+            Validator validator = factory.getValidator();
+            Set<ConstraintViolation<AssistantRequestDto>> violations = validator.validate(dto);
+
+            if (!violations.isEmpty()) {
+                String errorMessage = violations.stream()
+                        .map(ConstraintViolation::getMessage)
+                        .collect(Collectors.joining("; "));
+                session.getBasicRemote().sendText("Validation error: " + errorMessage);
+                session.close();
+                return;
+            }
+
             Flux<String> flux = assistantService.invokeAssistant(dto);
             flux.doOnComplete(() -> {
                 try {
