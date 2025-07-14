@@ -1,0 +1,50 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'quip-backend-app'
+        IMAGE_TAG = 'latest'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git url: 'https://github.com/NewbieTed/Quip_Bot',
+                    branch: 'dev',
+                    credentialsId: 'github-pat'
+            }
+        }
+
+        stage('Build JAR') {
+            steps {
+                sh './gradlew clean build -x test'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+            }
+        }
+
+        stage('Run Container (optional)') {
+            steps {
+                script {
+                    try {
+                        sh "docker run -d --name quip-test -p 8080:8080 ${IMAGE_NAME}:${IMAGE_TAG}"
+                        sh "sleep 10 && curl -f localhost:8080 || echo 'App not responding'"
+                    } finally {
+                        sh "docker stop quip-test || true"
+                    }
+                }
+            }
+        }
+
+        stage('Archive Docker Image') {
+            steps {
+                sh "docker save ${IMAGE_NAME}:${IMAGE_TAG} -o ${IMAGE_NAME}.tar"
+                archiveArtifacts artifacts: "${IMAGE_NAME}.tar"
+            }
+        }
+    }
+}
