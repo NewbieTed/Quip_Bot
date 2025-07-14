@@ -13,16 +13,16 @@ import java.time.OffsetDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@TableName("member_channel_permission")
-public class MemberChannelPermission {
+@TableName("member_channel_authorization")
+public class MemberChannelAuthorization {
     @TableField("member_id")
     private Long memberId;
 
     @TableField("channel_id")
     private Long channelId;
 
-    @TableField("permission_type_id")
-    private Long permissionTypeId;
+    @TableField("authorization_type_id")
+    private Long authorizationTypeId;
 
     @TableField("created_by")
     private Long createdBy;

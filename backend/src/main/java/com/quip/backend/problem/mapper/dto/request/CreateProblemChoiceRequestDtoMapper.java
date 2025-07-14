@@ -1,7 +1,6 @@
-package com.quip.backend.problem.mapper.dto;
+package com.quip.backend.problem.mapper.dto.request;
 
-import com.quip.backend.problem.dto.ProblemChoiceCreateDto;
-import com.quip.backend.problem.dto.ProblemChoiceDto;
+import com.quip.backend.problem.dto.request.CreateProblemChoiceRequestDto;
 import com.quip.backend.problem.model.ProblemChoice;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -9,12 +8,7 @@ import org.mapstruct.Mappings;
 
 
 @Mapper(componentModel = "spring")
-public interface ProblemChoiceCreateDtoMapper {
-
-    @Mappings({
-            @Mapping(target = "mediaUrl", ignore = true)
-    })
-    ProblemChoiceDto toProblemChoiceDto(ProblemChoice problemChoice);
+public interface CreateProblemChoiceRequestDtoMapper {
 
     @Mappings({
             @Mapping(target = "id", ignore = true),
@@ -24,5 +18,5 @@ public interface ProblemChoiceCreateDtoMapper {
             @Mapping(target = "updatedBy", ignore = true),
             @Mapping(target = "problemId", ignore = true) // will be set explicitly in service
     })
-    ProblemChoice toProblemChoice(ProblemChoiceCreateDto dto);
+    ProblemChoice toProblemChoice(CreateProblemChoiceRequestDto dto);
 }

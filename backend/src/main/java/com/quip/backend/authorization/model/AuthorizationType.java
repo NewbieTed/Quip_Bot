@@ -15,14 +15,14 @@ import java.time.OffsetDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@TableName("permission_type")
-public class PermissionType {
+@TableName("authorization_type")
+public class AuthorizationType {
     @TableId(value = "id", type = IdType.INPUT)
     @TableField("id")
     private Long id;
 
-    @TableField("permission_name")
-    private String permissionName;
+    @TableField("authorization_type_name")
+    private String authorizationTypeName;
 
     @TableField("created_by")
     private Long createdBy;

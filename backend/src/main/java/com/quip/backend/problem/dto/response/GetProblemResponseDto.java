@@ -1,4 +1,4 @@
-package com.quip.backend.problem.dto;
+package com.quip.backend.problem.dto.response;
 
 import lombok.*;
 
@@ -8,8 +8,8 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProblemDto {
+public class GetProblemResponseDto {
     private String question;
-    private List<ProblemChoiceDto> choices;
+    private List<GetProblemChoiceResponseDto> choices;
     private String mediaUrl;
 }

@@ -1,4 +1,4 @@
-package com.quip.backend.problem.dto;
+package com.quip.backend.problem.dto.request;
 
 
 import jakarta.validation.Valid;
@@ -14,25 +14,25 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProblemCreateDto {
+public class CreateProblemRequestDto {
     @NotBlank(message = "Question cannot be blank")
     private String question;
 
     @Valid
     @NotEmpty(message = "Choices cannot be empty")
-    private List<@NotNull(message = "Each choice cannot be null") ProblemChoiceCreateDto> choices;
+    private List<@NotNull(message = "Each choice cannot be null") CreateProblemChoiceRequestDto> choices;
 
     private Long mediaFileId;
 
-    @NotNull(message = "Server ID cannot be null")
-    @PositiveOrZero(message = "Server ID must be a non negative number")
-    private Long serverId;
+    @NotNull(message = "Channel ID cannot be null")
+    @PositiveOrZero(message = "Channel ID must be a non negative number")
+    private Long channelId;
 
     @NotNull(message = "Problem category ID cannot be null")
     @PositiveOrZero(message = "Problem category ID must be a non negative number")
     private Long problemCategoryId;
 
-    @NotNull(message = "Contributor ID cannot be null")
-    @PositiveOrZero(message = "Contributor ID must be a non negative number")
-    private Long contributorId;
+    @NotNull(message = "Member ID cannot be null")
+    @PositiveOrZero(message = "Member ID must be a non negative number")
+    private Long memberId;
 }

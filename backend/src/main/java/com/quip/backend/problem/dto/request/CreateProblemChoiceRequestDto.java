@@ -1,4 +1,4 @@
-package com.quip.backend.problem.dto;
+package com.quip.backend.problem.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProblemChoiceCreateDto {
+public class CreateProblemChoiceRequestDto {
 
     /**
      * Choice text, nullable if mediaFileId is provided.

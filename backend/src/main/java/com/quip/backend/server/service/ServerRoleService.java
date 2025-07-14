@@ -1,9 +1,9 @@
-package com.quip.backend.authorization.service;
+package com.quip.backend.server.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class PermissionService {
+public class ServerRoleService {
 }
