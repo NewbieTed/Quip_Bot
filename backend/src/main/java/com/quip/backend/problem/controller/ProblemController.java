@@ -1,7 +1,7 @@
 package com.quip.backend.problem.controller;
 
 import com.quip.backend.dto.BaseResponse;
-import com.quip.backend.problem.dto.ProblemCreateDto;
+import com.quip.backend.problem.dto.request.CreateProblemRequestDto;
 import com.quip.backend.problem.mapper.database.ProblemMapper;
 import com.quip.backend.problem.service.ProblemService;
 import jakarta.validation.Valid;
@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/problem")
+@RequestMapping("/problems")
 @RequiredArgsConstructor
 public class ProblemController {
 
@@ -24,7 +24,7 @@ public class ProblemController {
 
 
     @PostMapping("/create")
-    public BaseResponse<Boolean> addProblem(@Valid @RequestBody ProblemCreateDto problemCreateDto) {
+    public BaseResponse<Boolean> addProblem(@Valid @RequestBody CreateProblemRequestDto problemCreateDto) {
         problemService.addProblem(problemCreateDto);
         return BaseResponse.success();
     }

@@ -1,15 +1,19 @@
 package com.quip.backend.problem.service;
 
 import com.quip.backend.asset.utils.AssetUtils;
+import com.quip.backend.authorization.constants.AuthorizationConstants;
+import com.quip.backend.authorization.service.AuthorizationService;
+import com.quip.backend.channel.service.ChannelService;
 import com.quip.backend.common.exception.ValidationException;
 import com.quip.backend.member.service.MemberService;
-import com.quip.backend.problem.dto.ProblemChoiceCreateDto;
-import com.quip.backend.problem.dto.ProblemCreateDto;
-import com.quip.backend.problem.dto.ProblemDto;
+import com.quip.backend.problem.dto.request.CreateProblemChoiceRequestDto;
+import com.quip.backend.problem.dto.request.CreateProblemRequestDto;
+import com.quip.backend.problem.dto.response.GetProblemResponseDto;
+import com.quip.backend.problem.mapper.database.ProblemCategoryMapper;
 import com.quip.backend.problem.mapper.database.ProblemChoiceMapper;
 import com.quip.backend.problem.mapper.database.ProblemMapper;
-import com.quip.backend.problem.mapper.dto.ProblemChoiceCreateDtoMapper;
-import com.quip.backend.problem.mapper.dto.ProblemCreateDtoMapper;
+import com.quip.backend.problem.mapper.dto.request.CreateProblemChoiceRequestDtoMapper;
+import com.quip.backend.problem.mapper.dto.request.CreateProblemRequestDtoMapper;
 import com.quip.backend.problem.model.Problem;
 import com.quip.backend.problem.model.ProblemChoice;
 import com.quip.backend.server.service.ServerService;
@@ -25,31 +29,60 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProblemService {
 
+    private final AssetUtils assetUtils;
+
+    // Service modules
+    private final ProblemCategoryService problemCategoryService;
+    private final ProblemChoiceService problemChoiceService;
+    private final MemberService memberService;
+    private final ChannelService channelService;
+    private final ServerService serverService;
+    private final AuthorizationService authorizationService;
+
+    // Mybatis mappers
     private final ProblemMapper problemMapper;
     private final ProblemChoiceMapper problemChoiceMapper;
-    private final ProblemCreateDtoMapper problemCreateDtoMapper;
-    private final ProblemChoiceCreateDtoMapper problemChoiceCreateDtoMapper;
-    private final AssetUtils assetUtils; // selected line
-    private final MemberService memberService;
-    private final ServerService serverService;
+    private final ProblemCategoryMapper problemCategoryMapper;
 
-    public ProblemDto getProblem() {
+    // Mapstruct mappers
+    private final CreateProblemRequestDtoMapper createProblemRequestDtoMapper;
+    private final CreateProblemChoiceRequestDtoMapper createProblemChoiceRequestDtoMapper;
+
+    private static final String PROBLEM_CREATE = "Problem Creation";
+    private static final String PROBLEM_CHOICE_CREATE = "Problem Choice Creation";
+
+    public GetProblemResponseDto getProblem() {
         return null; // Placeholder for future implementation
     }
 
-    public boolean verifyAnswer(Problem problem, String answer) {
-        return false; // Placeholder for future implementation
-    }
+    // TODO: Change other feature's file structure on DTOs as well as naming
 
     @Transactional
-    public void addProblem(ProblemCreateDto problemCreateDto) {
-        validateProblemCreateDto(problemCreateDto);
-        validateContributor(problemCreateDto.getContributorId());
-        validateProblemChoices(problemCreateDto.getChoices());
-        validateProblemMedia(problemCreateDto.getMediaFileId());
-        // TODO: validate problem category
+    public void addProblem(CreateProblemRequestDto problemCreateDto) {
+        if (problemCreateDto == null) {
+            throw new ValidationException(PROBLEM_CREATE, "body", "must not be null");
+        }
 
-        Problem problem = problemCreateDtoMapper.toProblem(problemCreateDto);
+        // Validate authorization
+        memberService.validateMember(problemCreateDto.getMemberId(), PROBLEM_CREATE);
+        channelService.validateChannel(problemCreateDto.getChannelId(), PROBLEM_CREATE);
+        Long serverId = channelService.findServerId(problemCreateDto.getChannelId());
+        serverService.validateServer(serverId, PROBLEM_CREATE);
+        authorizationService.validateAuthorization(
+                problemCreateDto.getMemberId(),
+                problemCreateDto.getChannelId(),
+                AuthorizationConstants.PROBLEM_MANAGE,
+                PROBLEM_CREATE
+        );
+
+        // Validate fields
+        problemCategoryService.validateExists(problemCreateDto.getProblemCategoryId(), PROBLEM_CREATE);
+        this.validateProblem(problemCreateDto.getQuestion(), PROBLEM_CREATE);
+        problemChoiceService.validateProblemChoices(problemCreateDto.getChoices(), PROBLEM_CHOICE_CREATE);
+        validateProblemMedia(problemCreateDto.getMediaFileId());
+
+        // Insert problem
+        Problem problem = createProblemRequestDtoMapper.toProblem(problemCreateDto);
         problemMapper.insert(problem);
 
         if (problem.getId() == null) {
@@ -57,10 +90,11 @@ public class ProblemService {
         }
         log.info("Inserted problem with ID: {}", problem.getId());
 
-        List<ProblemChoiceCreateDto> choices = problemCreateDto.getChoices();
+        // Insert choices
+        List<CreateProblemChoiceRequestDto> choices = problemCreateDto.getChoices();
         if (choices != null) {
-            for (ProblemChoiceCreateDto choiceDto : choices) {
-                ProblemChoice problemChoice = problemChoiceCreateDtoMapper.toProblemChoice(choiceDto);
+            for (CreateProblemChoiceRequestDto choiceDto : choices) {
+                ProblemChoice problemChoice = createProblemChoiceRequestDtoMapper.toProblemChoice(choiceDto);
                 problemChoice.setProblemId(problem.getId());
                 problemChoiceMapper.insert(problemChoice);
                 log.info("Inserted problem choice for problemId: {}", problem.getId());
@@ -68,59 +102,16 @@ public class ProblemService {
         }
     }
 
-    private void validateProblemCreateDto(ProblemCreateDto dto) {
-        if (dto == null) {
-            throw new ValidationException("problem", "body", "must not be null");
+    public void validateProblem(String question, String operation) {
+        if (question == null || question.trim().isEmpty()) {
+            throw new ValidationException(operation, "question", "must not be empty");
         }
-        if (dto.getQuestion() == null || dto.getQuestion().trim().isEmpty()) {
-            throw new ValidationException("Problem Creation", "question", "must not be empty");
-        }
-        log.info("Validated problem creation DTO with question: '{}'", dto.getQuestion().trim());
+        // TODO Validate duplicates
+        log.info("Validated problem creation DTO with question: '{}'", question.trim());
     }
 
-    private void validateServer(Long serverId) {
-        if (!serverService.isServerExists(serverId)) {
-            throw new ValidationException("Problem Creation", "serverId", "must refer to an existing member");
-        }
-        log.info("Validated serverId: {}", serverId);
 
-    }
-
-    private void validateProblemCategory(Long categoryId) {
-
-    }
-
-    private void validateContributor(Long contributorId) {
-        if (!memberService.isMemberExists(contributorId)) {
-            throw new ValidationException("Problem Creation", "contributorId", "must refer to an existing member");
-        }
-        log.info("Validated contributorId: {}", contributorId);
-    }
-
-    private void validateProblemChoices(List<ProblemChoiceCreateDto> choices) {
-        if (choices != null) {
-            for (ProblemChoiceCreateDto choice : choices) {
-                boolean isTextValid = choice.getChoiceText() != null && !choice.getChoiceText().trim().isEmpty();
-                boolean isMediaValid = choice.getMediaFileId() != null;
-                if (!isTextValid && !isMediaValid) {
-                    throw new ValidationException(
-                            "Problem Choice Creation",
-                            "choiceText/mediaFileId",
-                            "each choice must have non-empty text or a valid media file ID"
-                    );
-                }
-//                if (choice.getMediaFileId() != null && !assetUtils.fileExists(choice.getMediaFileId())) {
-//                    throw new ValidationException(
-//                            "Problem Choice Creation",
-//                            "mediaFileId",
-//                            "specified media file does not exist"
-//                    );
-//                }
-            }
-            log.info("Validated {} problem choices.", choices.size());
-        }
-    }
-
+    // TODO: Move to fileService
     private void validateProblemMedia(Long mediaFileId) {
 //        if (mediaFileId != null && !assetUtils.fileExists(mediaFileId)) {
 //            throw new ValidationException(
