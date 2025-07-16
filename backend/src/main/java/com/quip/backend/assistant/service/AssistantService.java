@@ -22,9 +22,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class AssistantService {
-    private final MemberService memberService;
-    private final ChannelService channelService;
-    private final ServerService serverService;
     private final AuthorizationService authorizationService;
     private final ReactorNettyWebSocketClient webSocketClient;
 

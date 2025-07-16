@@ -77,7 +77,13 @@ tasks.named('test') {
 pitest {
     junit5PluginVersion = '1.2.1'
     targetClasses = ['com.quip.backend.**']  // where your logic lives
-    targetTests = ['com.quip.backend.**']    // your test classes
+    targetTests = ['com.quip.backend.**']
+    excludedClasses = [
+            '**.*MapperImpl',         // exclude all mappers
+            "com.quip.backend.common.exception.*",
+            "com.quip.backend.ws.*",
+            "com.quip.backend.BackendApplication"
+    ]
     threads = 4
     outputFormats = ['XML', 'HTML']
     timestampedReports = false

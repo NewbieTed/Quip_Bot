@@ -1,5 +1,6 @@
 package com.quip.backend.assistant.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quip.backend.assistant.dto.request.AssistantRequestDto;
 import com.quip.backend.authorization.constants.AuthorizationConstants;
 import com.quip.backend.authorization.context.AuthorizationContext;
@@ -29,6 +30,7 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.time.Duration;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.*;
