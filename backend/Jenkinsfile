@@ -25,6 +25,14 @@ pipeline {
             }
         }
 
+        stage('Test') {
+            steps {
+                dir("${SPRING_PATH}") {
+                    sh './gradlew test'
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 dir("${SPRING_PATH}") {
