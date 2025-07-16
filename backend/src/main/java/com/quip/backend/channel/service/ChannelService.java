@@ -23,13 +23,13 @@ public class ChannelService {
 
 
     public void validateChannel(Long channelId, String operation) {
-        if (!this.isChannelExists(channelId)) {
+        if (!this.isChannelExist(channelId)) {
             throw new ValidationException(operation, "channelId", "must refer to an existing channel");
         }
         log.info("Validated channelId: {}", channelId);
     }
 
-    private boolean isChannelExists(Long channelId) {
+    private boolean isChannelExist(Long channelId) {
         Channel channel = channelMapper.selectById(channelId);
         return channel != null;
     }

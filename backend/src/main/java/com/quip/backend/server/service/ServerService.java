@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 public class ServerService {
     private final ServerMapper serverMapper;
 
-    public boolean isServerExists(Long id) {
+    public boolean isServerExist(Long id) {
         Server server = serverMapper.selectById(id);
         return server != null;
     }
@@ -24,7 +24,7 @@ public class ServerService {
         if (serverId == null) {
             throw new ValidationException(operation, "serverId", "must not be null");
         }
-        if (!isServerExists(serverId)) {
+        if (!isServerExist(serverId)) {
             throw new ValidationException(operation, "serverId", "must refer to an existing server");
         }
         log.info("Validated serverId: {}", serverId);

@@ -101,13 +101,13 @@ public class ProblemCategoryService {
     }
 
 
-    public boolean isProblemCategoryExists(Long problemCategoryId) {
+    public boolean isProblemCategoryExist(Long problemCategoryId) {
         ProblemCategory problemCategory = problemCategoryMapper.selectById(problemCategoryId);
         return problemCategory != null;
     }
 
     public void validateProblemCategory(Long problemCategoryId, String operation) {
-        if (!this.isProblemCategoryExists(problemCategoryId)) {
+        if (!this.isProblemCategoryExist(problemCategoryId)) {
             throw new ValidationException(operation, "problemCategoryId", "must refer to an existing problem category");
         }
         log.info("Validated problemCategoryId: {}", problemCategoryId);

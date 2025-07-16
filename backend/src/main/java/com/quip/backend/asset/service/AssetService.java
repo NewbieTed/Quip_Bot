@@ -33,27 +33,27 @@ public class AssetService {
     /**
      * Retrieves an asset based on file type, folder, and filename.
      */
-    public ResponseEntity<?> getAsset(String fileType, String folder, String filename) {
-        try {
-            String assetPath = assetUtils.buildPathForAsset(fileType, folder, filename);
-            Resource resource = new ClassPathResource(assetPath);
-
-            if (resource.exists() && resource.isReadable()) {
-                MediaType mediaType = assetUtils
-                        .determineMediaType(filename)
-                        .orElse(MediaType.APPLICATION_OCTET_STREAM);
-
-                return ResponseEntity.ok()
-                        .contentType(mediaType)
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
-                        .body(resource);
-            } else {
-                return buildErrorResponse(HttpStatus.NOT_FOUND, "Asset " + filename + " is not found.");
-            }
-        } catch (Exception e) {
-            return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to load asset: " + filename + ".");
-        }
-    }
+//    public ResponseEntity<?> getAsset(String fileType, String folder, String filename) {
+//        try {
+//            String assetPath = assetUtils.buildPathForAsset(fileType, folder, filename);
+//            Resource resource = new ClassPathResource(assetPath);
+//
+//            if (resource.exists() && resource.isReadable()) {
+//                MediaType mediaType = assetUtils
+//                        .determineMediaType(filename)
+//                        .orElse(MediaType.APPLICATION_OCTET_STREAM);
+//
+//                return ResponseEntity.ok()
+//                        .contentType(mediaType)
+//                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+//                        .body(resource);
+//            } else {
+//                return buildErrorResponse(HttpStatus.NOT_FOUND, "Asset " + filename + " is not found.");
+//            }
+//        } catch (Exception e) {
+//            return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to load asset: " + filename + ".");
+//        }
+//    }
 
     /**
      * Saves a media file to the server and returns its URL.
@@ -64,39 +64,39 @@ public class AssetService {
      * @return The URL to access the saved file.
      * @throws IOException if there's an issue saving the file.
      */
-    public String saveAsset(MultipartFile file, String fileType, String folder) throws IOException {
-
-
-        // Use AssetUtils to build the storage path for the file
-        String folderPath = assetUtils.buildPathForFolder(fileType, folder);
-        Path uploadPath = Paths.get(folderPath);
-
-        // Ensure the directory exists
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-        }
-
-        // Generate a unique file name
-        String timestamp = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'")
-                .withZone(ZoneOffset.UTC)
-                .format(Instant.now());
-
-        String fileName = String.format("%s_%s_%s", fileType, timestamp, file.getOriginalFilename());
-
-        Path filePath = uploadPath.resolve(fileName);
-
-        // Save the file to the specified directory
-        Files.copy(file.getInputStream(), filePath);
-
-        // Log the file save operation
-        logger.info("Saved asset at path: {}", filePath);
-
-        // Generate and return the URL to access the file
-        return assetUtils.buildUrlFor(fileType, folder, fileName);
-    }
-
-    private ResponseEntity<BaseResponse<String>> buildErrorResponse(HttpStatus status, String message) {
-        BaseResponse<String> errorResponse = BaseResponse.failure(status.value(), message);
-        return ResponseEntity.status(status).body(errorResponse);
-    }
+//    public String saveAsset(MultipartFile file, String fileType, String folder) throws IOException {
+//
+//
+//        // Use AssetUtils to build the storage path for the file
+//        String folderPath = assetUtils.buildPathForFolder(fileType, folder);
+//        Path uploadPath = Paths.get(folderPath);
+//
+//        // Ensure the directory exists
+//        if (!Files.exists(uploadPath)) {
+//            Files.createDirectories(uploadPath);
+//        }
+//
+//        // Generate a unique file name
+//        String timestamp = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'")
+//                .withZone(ZoneOffset.UTC)
+//                .format(Instant.now());
+//
+//        String fileName = String.format("%s_%s_%s", fileType, timestamp, file.getOriginalFilename());
+//
+//        Path filePath = uploadPath.resolve(fileName);
+//
+//        // Save the file to the specified directory
+//        Files.copy(file.getInputStream(), filePath);
+//
+//        // Log the file save operation
+//        logger.info("Saved asset at path: {}", filePath);
+//
+//        // Generate and return the URL to access the file
+//        return assetUtils.buildUrlFor(fileType, folder, fileName);
+//    }
+//
+//    private ResponseEntity<BaseResponse<String>> buildErrorResponse(HttpStatus status, String message) {
+//        BaseResponse<String> errorResponse = BaseResponse.failure(status.value(), message);
+//        return ResponseEntity.status(status).body(errorResponse);
+//    }
 }
