@@ -37,10 +37,11 @@ pipeline {
             steps {
                 script {
                     try {
+                        sh "docker rm -f quip-test || true"
                         sh "docker run -d --name quip-test -p 8080:8080 ${IMAGE_NAME}:${IMAGE_TAG}"
                         sh "sleep 10 && curl -f localhost:8080 || echo 'App not responding'"
                     } finally {
-                        sh "docker stop quip-test || true"
+                        sh "docker rm -f quip-test || true"
                     }
                 }
             }
@@ -50,6 +51,13 @@ pipeline {
             steps {
                 sh "docker save ${IMAGE_NAME}:${IMAGE_TAG} -o ${IMAGE_NAME}.tar"
                 archiveArtifacts artifacts: "${IMAGE_NAME}.tar"
+            }
+        }
+
+        stage('Cleanup Docker Resources') {
+            steps {
+                sh "rm -f ${IMAGE_NAME}.tar || true"
+                sh "docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true"
             }
         }
     }
