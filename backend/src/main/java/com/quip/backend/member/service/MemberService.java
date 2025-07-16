@@ -15,15 +15,18 @@ public class MemberService {
 
     private final MemberMapper memberMapper;
 
-    public void validateMember(Long memberId, String operation) {
-        if (!this.isMemberExist(memberId)) {
+    public Member validateMember(Long memberId, String operation) {
+        if (memberId == null) {
+            throw new ValidationException(operation, "memberId", "must not be null");
+        }
+        if (operation == null) {
+            throw new IllegalArgumentException("Parameter 'operation' must not be null.");
+        }
+        Member member = memberMapper.selectById(memberId);
+        if (member == null) {
             throw new ValidationException(operation, "memberId", "must refer to an existing member");
         }
         log.info("Validated memberId: {}", memberId);
-    }
-
-    private boolean isMemberExist(Long memberId) {
-        Member member = memberMapper.selectById(memberId);
-        return member != null;
+        return member;
     }
 }

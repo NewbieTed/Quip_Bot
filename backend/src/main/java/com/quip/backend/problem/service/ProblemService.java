@@ -1,7 +1,7 @@
 package com.quip.backend.problem.service;
 
-import com.quip.backend.asset.utils.AssetUtils;
 import com.quip.backend.authorization.constants.AuthorizationConstants;
+import com.quip.backend.authorization.context.AuthorizationContext;
 import com.quip.backend.authorization.service.AuthorizationService;
 import com.quip.backend.channel.service.ChannelService;
 import com.quip.backend.common.exception.ValidationException;
@@ -18,6 +18,7 @@ import com.quip.backend.problem.mapper.dto.request.CreateProblemChoiceRequestDto
 import com.quip.backend.problem.mapper.dto.request.CreateProblemRequestDtoMapper;
 import com.quip.backend.problem.mapper.dto.response.GetProblemListItemResponseDtoMapper;
 import com.quip.backend.problem.model.Problem;
+import com.quip.backend.problem.model.ProblemCategory;
 import com.quip.backend.problem.model.ProblemChoice;
 import com.quip.backend.server.service.ServerService;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +34,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProblemService {
 
-    private final AssetUtils assetUtils;
+//    private final AssetUtils assetUtils;
 
     // Service modules
     private final ProblemCategoryService problemCategoryService;
@@ -64,21 +65,15 @@ public class ProblemService {
     // TODO: Change other feature's file structure on DTOs as well as naming
 
     public List<GetProblemListItemResponseDto> getProblemsByCategory(GetProblemRequestDto getProblemRequestDto) {
-        Long memberId = getProblemRequestDto.getMemberId();
-        Long problemCategoryId = getProblemRequestDto.getProblemCategoryId();
-        Long channelId = getProblemRequestDto.getChannelId();
-
-        memberService.validateMember(memberId, RETRIEVE_PROBLEM);
-        channelService.validateChannel(channelId, RETRIEVE_PROBLEM);
-        problemCategoryService.validateProblemCategory(problemCategoryId, RETRIEVE_PROBLEM);
         authorizationService.validateAuthorization(
-                memberId,
-                channelId,
+                getProblemRequestDto.getMemberId(),
+                getProblemRequestDto.getChannelId(),
                 AuthorizationConstants.VIEW_PROBLEM,
                 RETRIEVE_PROBLEM
         );
+        ProblemCategory problemCategory = problemCategoryService.validateProblemCategory(getProblemRequestDto.getProblemCategoryId(), RETRIEVE_PROBLEM);
 
-        List<Problem> problems = problemMapper.selectByProblemCategoryId(problemCategoryId);
+        List<Problem> problems = problemMapper.selectByProblemCategoryId(problemCategory.getId());
         List<GetProblemListItemResponseDto> getProblemResponseDtos = new ArrayList<>();
 
         for (Problem problem : problems) {
@@ -95,11 +90,7 @@ public class ProblemService {
         }
 
         // Validate authorization
-        memberService.validateMember(problemCreateDto.getMemberId(), CREATE_PROBLEM);
-        channelService.validateChannel(problemCreateDto.getChannelId(), CREATE_PROBLEM);
-        Long serverId = channelService.findServerId(problemCreateDto.getChannelId());
-        serverService.validateServer(serverId, CREATE_PROBLEM);
-        authorizationService.validateAuthorization(
+        AuthorizationContext authorizationContext = authorizationService.validateAuthorization(
                 problemCreateDto.getMemberId(),
                 problemCreateDto.getChannelId(),
                 AuthorizationConstants.MANAGE_PROBLEM,
@@ -111,12 +102,11 @@ public class ProblemService {
         this.validateProblem(problemCreateDto.getQuestion(), CREATE_PROBLEM);
         problemChoiceService.validateProblemChoices(problemCreateDto.getChoices(), CREATE_PROBLEM_CHOICE);
 
-        // TODO: Move this to files
-        this.validateProblemMedia(problemCreateDto.getMediaFileId());
+        // TODO: Validate files
 
         // Insert problem
         Problem problem = createProblemRequestDtoMapper.toProblem(problemCreateDto);
-        problem.setServerId(serverId);
+        problem.setServerId(authorizationContext.server().getId());
         problemMapper.insert(problem);
 
         if (problem.getId() == null) {
@@ -142,18 +132,6 @@ public class ProblemService {
         }
         // TODO Validate duplicates
         log.info("Validated problem creation DTO with question: '{}'", question.trim());
-    }
-
-
-    // TODO: Move to fileService
-    private void validateProblemMedia(Long mediaFileId) {
-//        if (mediaFileId != null && !assetUtils.fileExists(mediaFileId)) {
-//            throw new ValidationException(
-//                    "Problem Creation",
-//                    "mediaFileId",
-//                    "specified media file does not exist"
-//            );
-//        }
     }
 
 }

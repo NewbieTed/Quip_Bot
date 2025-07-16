@@ -2,6 +2,7 @@ package com.quip.backend.assistant.service;
 
 import com.quip.backend.assistant.dto.request.AssistantRequestDto;
 import com.quip.backend.authorization.constants.AuthorizationConstants;
+import com.quip.backend.authorization.context.AuthorizationContext;
 import com.quip.backend.authorization.service.AuthorizationService;
 import com.quip.backend.channel.service.ChannelService;
 import com.quip.backend.member.service.MemberService;
@@ -25,6 +26,7 @@ public class AssistantService {
     private final ChannelService channelService;
     private final ServerService serverService;
     private final AuthorizationService authorizationService;
+    private final ReactorNettyWebSocketClient webSocketClient;
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -34,23 +36,18 @@ public class AssistantService {
         // Validate authorization
         Long memberId = assistantRequestDto.getMemberId();
         Long channelId = assistantRequestDto.getChannelId();
-        memberService.validateMember(memberId, INVOKE_ASSISTANT);
-        channelService.validateChannel(channelId, INVOKE_ASSISTANT);
 
-        Long serverId = channelService.findServerId(channelId);
-        serverService.validateServer(serverId, INVOKE_ASSISTANT);
-
-        authorizationService.validateAuthorization(
+        AuthorizationContext authorizationContext = authorizationService.validateAuthorization(
                 memberId,
                 channelId,
                 AuthorizationConstants.INVOKE_ASSISTANT,
                 INVOKE_ASSISTANT
         );
 
-        ReactorNettyWebSocketClient client = new ReactorNettyWebSocketClient();
+        Long serverId = authorizationContext.server().getId();
 
         return Flux.create(sink ->
-            client.execute(
+            webSocketClient.execute(
                 URI.create("ws://host.docker.internal:5001/assistant"),
                 session -> {
                     try {

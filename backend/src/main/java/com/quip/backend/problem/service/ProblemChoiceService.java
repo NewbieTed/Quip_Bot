@@ -22,7 +22,7 @@ public class ProblemChoiceService {
                     throw new ValidationException(
                             "Problem Choice Creation",
                             "choiceText/mediaFileId",
-                            "each choice must have non-empty text or a valid media file ID"
+                            "must have non-empty text or a valid media file ID for each choice"
                     );
                 }
 //                if (choice.getMediaFileId() != null && !assetUtils.fileExists(choice.getMediaFileId())) {

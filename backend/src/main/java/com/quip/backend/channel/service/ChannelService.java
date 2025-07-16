@@ -13,25 +13,20 @@ import org.springframework.stereotype.Service;
 public class ChannelService {
     private final ChannelMapper channelMapper;
 
-    public Long findServerId(Long channelId) {
+
+    public Channel validateChannel(Long channelId, String operation) {
+        if (channelId == null) {
+            throw new ValidationException(operation, "channelId", "must not be null");
+        }
+        if (operation == null) {
+            throw new IllegalArgumentException("Parameter 'operation' must not be null.");
+        }
         Channel channel = channelMapper.selectById(channelId);
         if (channel == null) {
-            return null;
-        }
-        return channel.getServerId();
-    }
-
-
-    public void validateChannel(Long channelId, String operation) {
-        if (!this.isChannelExist(channelId)) {
             throw new ValidationException(operation, "channelId", "must refer to an existing channel");
         }
         log.info("Validated channelId: {}", channelId);
-    }
-
-    private boolean isChannelExist(Long channelId) {
-        Channel channel = channelMapper.selectById(channelId);
-        return channel != null;
+        return channel;
     }
 
 }
