@@ -48,3 +48,5 @@ src/main/resources/static/
 
 ### Visual Studio Code ###
 .vscode/
+
+.kiro/

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.quip.backend.common.BaseTest;
 import com.quip.backend.dto.BaseResponse;
-import jakarta.persistence.EntityNotFoundException;
+import com.quip.backend.common.exception.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

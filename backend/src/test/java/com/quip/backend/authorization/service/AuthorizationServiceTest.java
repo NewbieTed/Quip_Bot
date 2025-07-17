@@ -13,7 +13,7 @@ import com.quip.backend.member.model.Member;
 import com.quip.backend.member.service.MemberService;
 import com.quip.backend.server.model.Server;
 import com.quip.backend.server.service.ServerService;
-import jakarta.persistence.EntityNotFoundException;
+import com.quip.backend.common.exception.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

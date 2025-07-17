@@ -5,7 +5,7 @@ import com.quip.backend.common.BaseTest;
 import com.quip.backend.common.exception.ValidationException;
 import com.quip.backend.server.mapper.database.ServerMapper;
 import com.quip.backend.server.model.Server;
-import jakarta.persistence.EntityNotFoundException;
+import com.quip.backend.common.exception.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

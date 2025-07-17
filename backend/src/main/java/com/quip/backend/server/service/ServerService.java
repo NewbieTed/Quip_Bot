@@ -4,7 +4,7 @@ package com.quip.backend.server.service;
 import com.quip.backend.common.exception.ValidationException;
 import com.quip.backend.server.mapper.database.ServerMapper;
 import com.quip.backend.server.model.Server;
-import jakarta.persistence.EntityNotFoundException;
+import com.quip.backend.common.exception.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
