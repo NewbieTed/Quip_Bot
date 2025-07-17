@@ -49,6 +49,7 @@ public class AuthorizationService {
      * @throws EntityNotFoundException If the authorization type does not exist
      */
     public AuthorizationContext validateAuthorization(Long memberId, Long channelId, String authorizationType, String operation) {
+        // Validate all required parameters are present
         if (memberId == null) {
             throw new IllegalArgumentException("memberId must not be null");
         }
@@ -61,16 +62,20 @@ public class AuthorizationService {
         if (operation == null) {
             throw new IllegalArgumentException("operation must not be null");
         }
+        
+        // Verify member, channel, and server all exist
         Member member = memberService.validateMember(memberId, operation);
         Channel channel = channelService.validateChannel(channelId, operation);
         Server server = serverService.assertServerExist(channel.getServerId());
 
+        // Check if member has the specific permission for this channel
         long authorizationTypeId = this.getPermissionTypeId(authorizationType);
         MemberChannelAuthorization memberChannelAuthorization = memberChannelAuthorizationMapper.selectByIds(memberId, channelId, authorizationTypeId);
         if (memberChannelAuthorization == null) {
             throw new ValidationException(operation, "member", "does not have authorization to " + authorizationType.toLowerCase());
         }
 
+        // Return context with all validated entities
         return new AuthorizationContext(member, channel, server, memberChannelAuthorization);
     }
 
@@ -82,8 +87,10 @@ public class AuthorizationService {
      * @throws EntityNotFoundException If no authorization type with the given name exists
      */
     private long getPermissionTypeId(String authorizationTypeName) {
+        // Look up the authorization type by name
         AuthorizationType authorizationType = authorizationTypeMapper.selectByAuthorizationTypeName(authorizationTypeName);
         if (authorizationType == null) {
+            // Throw system-level exception if the authorization type doesn't exist
             throw new EntityNotFoundException("AuthorizationType not found for name: " + authorizationTypeName);
         }
         return authorizationType.getId();

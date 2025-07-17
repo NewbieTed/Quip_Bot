@@ -58,7 +58,7 @@ public class ProblemCategoryService {
      * @throws ValidationException If the member lacks proper authorization
      */
     public List<GetProblemCategoryResponseDto> getServerProblemCategories(GetProblemCategoryRequestDto getProblemCategoryRequestDto) {
-        // Validate authorization
+        // Check member authorization for viewing problem categories in this channel
         AuthorizationContext authorizationContext = authorizationService.validateAuthorization(
                 getProblemCategoryRequestDto.getMemberId(),
                 getProblemCategoryRequestDto.getChannelId(),
@@ -66,7 +66,7 @@ public class ProblemCategoryService {
                 GET_PROBLEM_CATEGORIES
         );
 
-        // Compile problem categories
+        // Retrieve all categories for the server and convert to DTOs
         List<ProblemCategory> problemCategories = problemCategoryMapper.selectByServerId(authorizationContext.server().getId());
         List<GetProblemCategoryResponseDto> getProblemCategoryResponseDtos = new ArrayList<>();
         for (ProblemCategory problemCategory : problemCategories) {
@@ -88,7 +88,7 @@ public class ProblemCategoryService {
      * @throws ValidationException If the input data is invalid or the member lacks proper authorization
      */
     public void addProblemCategory(CreateProblemCategoryRequestDto createProblemCategoryRequestDto) {
-        // Validate authorization
+        // Check if member has permission to manage problem categories
         AuthorizationContext authorizationContext = authorizationService.validateAuthorization(
                 createProblemCategoryRequestDto.getMemberId(),
                 createProblemCategoryRequestDto.getChannelId(),
@@ -96,11 +96,14 @@ public class ProblemCategoryService {
                 CREATE_PROBLEM_CATEGORY
         );
 
+        // Convert DTO to entity and set server relationship
         ProblemCategory problemCategory = createProblemCategoryRequestDtoMapper.toProblemCategory(createProblemCategoryRequestDto);
         problemCategory.setServerId(authorizationContext.server().getId());
 
+        // Validate category data before insertion
         validateNewProblemCategory(problemCategory);
 
+        // Persist the new category
         problemCategoryMapper.insert(problemCategory);
     }
 
@@ -119,6 +122,7 @@ public class ProblemCategoryService {
      * @throws IllegalArgumentException If the operation parameter is null
      */
     public ProblemCategory validateProblemCategory(Long problemCategoryId, String operation) {
+        // Check for required parameters
         if (problemCategoryId == null) {
             throw new ValidationException(operation, "problemCategoryId", "must not be null");
         }
@@ -126,6 +130,7 @@ public class ProblemCategoryService {
             throw new IllegalArgumentException("Parameter 'operation' must not be null.");
         }
 
+        // Verify the category exists in the database
         ProblemCategory problemCategory = problemCategoryMapper.selectById(problemCategoryId);
         if (problemCategory == null) {
             throw new ValidationException(operation, "problemCategoryId", "must refer to an existing problem category");
@@ -147,10 +152,12 @@ public class ProblemCategoryService {
         String problemCategoryName = problemCategory.getCategoryName();
         String problemCategoryDescription = problemCategory.getDescription();
 
+        // Ensure category name is provided
         if (problemCategoryName == null || problemCategoryName.trim().isEmpty()) {
             throw new ValidationException(CREATE_PROBLEM_CATEGORY, "problemCategoryName", "must not be empty");
         }
 
+        // Ensure category description is provided
         if (problemCategoryDescription == null || problemCategoryDescription.trim().isEmpty()) {
             throw new ValidationException(CREATE_PROBLEM_CATEGORY, "problemCategoryDescription", "must not be empty");
         }

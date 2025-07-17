@@ -39,16 +39,20 @@ public class ServerService {
      * @throws IllegalArgumentException If the operation parameter is null
      */
     public Server validateServer(Long serverId, String operation) {
+        // Validate input parameters
         if (serverId == null) {
             throw new ValidationException(operation, "serverId", "must not be null");
         }
         if (operation == null) {
             throw new IllegalArgumentException("Parameter 'operation' must not be null.");
         }
+        
+        // Attempt to retrieve the server from the database
         Server server = serverMapper.selectById(serverId);
         if (server == null) {
             throw new ValidationException(operation, "serverId", "must refer to an existing server");
         }
+        
         log.info("Validated serverId: {}", serverId);
         return server;
     }
@@ -67,13 +71,18 @@ public class ServerService {
      * @throws EntityNotFoundException If no server exists with the given ID
      */
     public Server assertServerExist(Long serverId) {
+        // Check for null server ID
         if (serverId == null) {
             throw new IllegalArgumentException("Parameter 'serverId' must not be null");
         }
+        
+        // Attempt to retrieve the server
         Server server = serverMapper.selectById(serverId);
         if (server == null) {
+            // Throw system-level exception for missing server
             throw new EntityNotFoundException("Server not found for serverId: " + serverId);
         }
+        
         log.info("ServerId existence validated: {}", serverId);
         return server;
     }

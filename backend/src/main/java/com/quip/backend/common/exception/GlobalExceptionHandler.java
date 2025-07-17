@@ -12,17 +12,28 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 
+/**
+ * Global exception handler for the application.
+ * <p>
+ * This class centralizes exception handling across all controllers and provides
+ * consistent error responses for different types of exceptions. It converts
+ * exceptions into standardized API responses with appropriate HTTP status codes.
+ * </p>
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    // Handle missing or malformed request bodies
+    /**
+     * Handles exceptions caused by missing or malformed request bodies.
+     * Provides detailed error messages about type mismatches when possible.
+     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public BaseResponse<String> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
         String detailedMessage = "Required request body is missing or malformed";
 
-        // Check if the exception contains type mismatch information
+        // Enhance error message with field and type information when available
         Throwable cause = ex.getCause();
         if (cause instanceof com.fasterxml.jackson.databind.exc.MismatchedInputException mismatchedInputException) {
 
@@ -65,7 +76,10 @@ public class GlobalExceptionHandler {
     }
 
 
-    // Handle validation errors (e.g., @Valid @RequestBody)
+    /**
+     * Handles validation errors from Spring's validation framework.
+     * Returns the first validation error message with a 422 status code.
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public BaseResponse<String> handleValidationException(MethodArgumentNotValidException ex) {
         String errorMessage = ex.getBindingResult().getAllErrors().get(0).getDefaultMessage();
@@ -76,7 +90,10 @@ public class GlobalExceptionHandler {
         return BaseResponse.failure(HttpStatus.UNPROCESSABLE_ENTITY.value(), errorMessage);
     }
 
-    // Handle custom ValidationException
+    /**
+     * Handles custom validation exceptions thrown by the application.
+     * Used for business rule validations that aren't covered by Spring's validation.
+     */
     @ExceptionHandler(ValidationException.class)
     public BaseResponse<String> handleCustomValidationException(ValidationException ex) {
         String errorMessage = ex.getMessage();
@@ -84,7 +101,10 @@ public class GlobalExceptionHandler {
         return BaseResponse.failure(HttpStatus.UNPROCESSABLE_ENTITY.value(), errorMessage);
     }
 
-    // Handle EntityNotFoundException
+    /**
+     * Handles entity not found exceptions.
+     * Returns a generic message to the client while logging the detailed error.
+     */
     @ExceptionHandler(EntityNotFoundException.class)
     public BaseResponse<String> handleEntityNotFoundException(EntityNotFoundException ex) {
         String errorMessage = ex.getMessage();

@@ -64,11 +64,15 @@ public class AssistantService {
 
         Long serverId = authorizationContext.server().getId();
 
+        // Create a reactive stream that will emit responses from the AI assistant
         return Flux.create(sink ->
+            // Connect to the AI assistant WebSocket endpoint
             webSocketClient.execute(
+                // Using Docker internal hostname to connect to the AI service
                 URI.create("ws://host.docker.internal:5001/assistant"),
                 session -> {
                     try {
+                        // Prepare the payload with all necessary context for the AI assistant
                         String payload = objectMapper.writeValueAsString(
                             Map.of(
                                     "message", assistantRequestDto.getMessage(),
@@ -77,29 +81,38 @@ public class AssistantService {
                                     "memberId", memberId
                             )
                         );
+                        
+                        // Send the initial message to the WebSocket
                         return session.send(Mono.just(session.textMessage(payload)))
+                            // Process incoming messages from the WebSocket
                             .thenMany(session.receive()
+                                // Convert binary messages to text
                                 .map(WebSocketMessage::getPayloadAsText)
+                                // For each message received, emit it to our Flux
                                 .doOnNext(message -> {
                                     log.info("Received chunk: {}", message);
                                     sink.next(message);
                                 })
+                                // Handle any errors during message reception
                                 .doOnError(e -> {
                                     log.error("WebSocket receive error: {}", e.getMessage(), e);
                                     sink.error(e);
                                 })
                                 .then())
+                            // Handle WebSocket session completion
                             .doFinally(signal -> {
                                 log.info("WebSocket session closed with signal: {}", signal);
                                 sink.complete();
                             })
                             .then();
                     } catch (Exception e) {
+                        // Handle any errors during WebSocket setup or JSON serialization
                         log.error("WebSocket initialization error: {}", e.getMessage(), e);
                         sink.error(e);
                         return Mono.empty();
                     }
                 }
+            // Subscribe to activate the WebSocket connection
             ).subscribe()
         );
     }

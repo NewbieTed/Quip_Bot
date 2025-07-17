@@ -96,14 +96,18 @@ public class ProblemService {
      * @throws ValidationException If the member lacks proper authorization or if the category doesn't exist
      */
     public List<GetProblemListItemResponseDto> getProblemsByCategory(GetProblemRequestDto getProblemRequestDto) {
+        // Verify member has permission to view problems in this channel
         authorizationService.validateAuthorization(
                 getProblemRequestDto.getMemberId(),
                 getProblemRequestDto.getChannelId(),
                 AuthorizationConstants.VIEW_PROBLEM,
                 RETRIEVE_PROBLEM
         );
+        
+        // Validate that the requested problem category exists
         ProblemCategory problemCategory = problemCategoryService.validateProblemCategory(getProblemRequestDto.getProblemCategoryId(), RETRIEVE_PROBLEM);
 
+        // Retrieve all problems for the category and convert to DTOs
         List<Problem> problems = problemMapper.selectByProblemCategoryId(problemCategory.getId());
         List<GetProblemListItemResponseDto> getProblemResponseDtos = new ArrayList<>();
 
@@ -136,7 +140,7 @@ public class ProblemService {
             throw new ValidationException(CREATE_PROBLEM, "body", "must not be null");
         }
 
-        // Validate authorization
+        // Verify member has permission to manage problems in this channel
         AuthorizationContext authorizationContext = authorizationService.validateAuthorization(
                 problemCreateDto.getMemberId(),
                 problemCreateDto.getChannelId(),
@@ -144,14 +148,14 @@ public class ProblemService {
                 CREATE_PROBLEM
         );
 
-        // Validate fields
+        // Validate all required fields and relationships
         problemCategoryService.validateProblemCategory(problemCreateDto.getProblemCategoryId(), CREATE_PROBLEM);
         this.validateProblem(problemCreateDto.getQuestion(), CREATE_PROBLEM);
         problemChoiceService.validateProblemChoices(problemCreateDto.getChoices(), CREATE_PROBLEM_CHOICE);
 
         // TODO: Validate files
 
-        // Insert problem
+        // Create and persist the problem entity
         Problem problem = createProblemRequestDtoMapper.toProblem(problemCreateDto);
         problem.setServerId(authorizationContext.server().getId());
         problemMapper.insert(problem);
@@ -161,7 +165,7 @@ public class ProblemService {
         }
         log.info("Inserted problem with ID: {}", problem.getId());
 
-        // Insert choices
+        // Create and persist all associated problem choices
         List<CreateProblemChoiceRequestDto> choices = problemCreateDto.getChoices();
         if (choices != null) {
             for (CreateProblemChoiceRequestDto choiceDto : choices) {
@@ -185,6 +189,7 @@ public class ProblemService {
      * @throws ValidationException If the question is null or empty
      */
     public void validateProblem(String question, String operation) {
+        // Ensure question has actual content
         if (question == null || question.trim().isEmpty()) {
             throw new ValidationException(operation, "question", "must not be empty");
         }

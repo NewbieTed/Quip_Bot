@@ -36,16 +36,20 @@ public class ChannelService {
      * @throws IllegalArgumentException If the operation parameter is null
      */
     public Channel validateChannel(Long channelId, String operation) {
+        // Validate required parameters
         if (channelId == null) {
             throw new ValidationException(operation, "channelId", "must not be null");
         }
         if (operation == null) {
             throw new IllegalArgumentException("Parameter 'operation' must not be null.");
         }
+        
+        // Check if channel exists in the database
         Channel channel = channelMapper.selectById(channelId);
         if (channel == null) {
             throw new ValidationException(operation, "channelId", "must refer to an existing channel");
         }
+        
         log.info("Validated channelId: {}", channelId);
         return channel;
     }
