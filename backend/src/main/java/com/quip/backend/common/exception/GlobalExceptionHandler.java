@@ -3,7 +3,6 @@ package com.quip.backend.common.exception;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.quip.backend.common.exception.ValidationException;
 import com.quip.backend.dto.BaseResponse;
-import com.quip.backend.common.exception.EntityExistsException;
 import com.quip.backend.common.exception.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,7 +84,7 @@ public class GlobalExceptionHandler {
         return BaseResponse.failure(HttpStatus.UNPROCESSABLE_ENTITY.value(), errorMessage);
     }
 
-    // Handle EntityExistsException
+    // Handle EntityNotFoundException
     @ExceptionHandler(EntityNotFoundException.class)
     public BaseResponse<String> handleEntityNotFoundException(EntityNotFoundException ex) {
         String errorMessage = ex.getMessage();
