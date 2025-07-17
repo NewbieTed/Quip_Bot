@@ -11,9 +11,4 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <select id="findById" parameterType="long" resultType="com.quip.backend.server.model.Server">
-        SELECT id, server_name, created_by, updated_by, created_at, updated_at
-        FROM server
-        WHERE id = #{id}
-    </select>
 </mapper>

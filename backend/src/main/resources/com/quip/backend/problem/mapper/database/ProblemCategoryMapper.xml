@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.quip.backend.problem.mapper.database.ProblemCategoryMapper">
+    <resultMap id="ProblemCategoryResultMap" type="com.quip.backend.problem.model.ProblemCategory">
+        <id property="id" column="id"/>
+        <result property="serverId" column="server_id"/>
+        <result property="categoryName" column="category_name"/>
+        <result property="description" column="description"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+
+    <select id="selectByServerId" resultMap="ProblemCategoryResultMap">
+        SELECT id, server_id, category_name, description, created_by, updated_by, created_at, updated_at
+        FROM problem_category
+        WHERE server_id = #{serverId}
+    </select>
+
+</mapper>

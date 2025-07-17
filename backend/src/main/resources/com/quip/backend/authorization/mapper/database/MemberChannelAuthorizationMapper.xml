@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.quip.backend.authorization.mapper.database.MemberChannelAuthorizationMapper">
+
+    <resultMap id="MemberChannelPermissionResultMap" type="com.quip.backend.authorization.model.MemberChannelAuthorization">
+        <result property="memberId" column="member_id"/>
+        <result property="channelId" column="channel_id"/>
+        <result property="authorizationTypeId" column="authorization_type_id"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+
+    <select id="selectByIds" resultMap="MemberChannelPermissionResultMap">
+        SELECT member_id, channel_id, authorization_type_id, created_by, updated_by, created_at, updated_at
+        FROM member_channel_authorization
+        WHERE member_id = #{memberId}
+        AND channel_id = #{channelId}
+        AND authorization_type_id = #{authorizationTypeId}
+    </select>
+</mapper>

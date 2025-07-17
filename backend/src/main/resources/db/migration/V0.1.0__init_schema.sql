@@ -52,29 +52,29 @@ CREATE TABLE channel (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE permission_type (
+CREATE TABLE authorization_type (
     id BIGSERIAL PRIMARY KEY,
-    permission_name TEXT NOT NULL,
+    authorization_type_name TEXT NOT NULL,
 
     created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
-    UNIQUE(permission_name)
+    UNIQUE(authorization_type_name)
 );
 
-CREATE TABLE member_channel_permission (
+CREATE TABLE member_channel_authorization (
     member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
     channel_id BIGINT NOT NULL REFERENCES channel(id) ON DELETE CASCADE,
-    permission_type_id BIGINT NOT NULL REFERENCES permission_type(id) ON DELETE RESTRICT,
+    authorization_type_id BIGINT NOT NULL REFERENCES authorization_type(id) ON DELETE RESTRICT,
 
     created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
-    PRIMARY KEY(member_id, channel_id, permission_type_id)
+    PRIMARY KEY(member_id, channel_id, authorization_type_id)
 );
 
 -- File management tables
@@ -230,7 +230,7 @@ CREATE TABLE member_role (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
-    PRIMARY KEY (member_id, role_id)
+    PRIMARY KEY (member_id, server_role_id)
 );
 
 CREATE TABLE poll (
@@ -385,8 +385,6 @@ CREATE TABLE member_achievement (
     PRIMARY KEY (member_id, server_id, achievement_id)
 );
 
-
-
 CREATE TABLE server_setting (
     server_id BIGINT PRIMARY KEY,
     auto_mod_enabled BOOLEAN DEFAULT TRUE NOT NULL,
@@ -405,7 +403,7 @@ CREATE TABLE reaction_role (
     id SERIAL PRIMARY KEY,
     server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
     channel_id BIGINT NOT NULL REFERENCES channel(id) ON DELETE CASCADE,
-    role_id BIGINT NOT NULL REFERENCES server_role(id),
+    server_role_id BIGINT NOT NULL REFERENCES server_role(id),
     message_id BIGINT NOT NULL,
     emoji TEXT NOT NULL,
 
@@ -421,8 +419,8 @@ CREATE TABLE reaction_role (
 COMMENT ON TABLE member IS 'Stores member information and references for Discord members.';
 COMMENT ON TABLE server IS 'Stores Discord server (guild) information.';
 COMMENT ON TABLE channel IS 'Stores Discord channel information within servers, including category association.';
-COMMENT ON TABLE permission_type IS 'Stores permission types for member-channel permissions.';
-COMMENT ON TABLE member_channel_permission IS 'Stores fine-grained permissions each member has on a specific channel.';
+COMMENT ON TABLE authorization_type IS 'Stores authorization types for member-channel authorizations.';
+COMMENT ON TABLE member_channel_authorization IS 'Stores fine-grained authorizations each member has on a specific channel.';
 COMMENT ON TABLE server_category IS 'Stores Discord server category/channel grouping information.';
 COMMENT ON TABLE member_server_stat IS 'Tracks member statistics per server for leveling and activity.';
 COMMENT ON TABLE warning IS 'Stores warnings issued to members by moderators.';
@@ -473,7 +471,7 @@ CREATE INDEX idx_announcement_server_id ON announcement(server_id);
 
 -- member_role
 CREATE INDEX idx_member_role_member_id ON member_role(member_id);
-CREATE INDEX idx_member_role_role_id ON member_role(role_id);
+CREATE INDEX idx_member_role_server_role_id ON member_role(server_role_id);
 
 -- poll_vote
 CREATE INDEX idx_poll_vote_poll_id ON poll_vote(poll_id);
@@ -511,13 +509,13 @@ CREATE INDEX idx_server_category_server_id ON server_category(server_id);
 CREATE INDEX idx_server_category_category_name ON server_category(category_name);
 CREATE INDEX idx_server_category_position ON server_category(position);
 
--- permission_type
-CREATE INDEX idx_permission_type_permission_name ON permission_type(permission_name);
+-- authorization_type
+CREATE INDEX idx_authorization_type_authorization_type_name ON authorization_type(authorization_type_name);
 
--- member_channel_permission
-CREATE INDEX idx_member_channel_permission_member_id ON member_channel_permission(member_id);
-CREATE INDEX idx_member_channel_permission_channel_id ON member_channel_permission(channel_id);
-CREATE INDEX idx_member_channel_permission_permission_type_id ON member_channel_permission(permission_type_id);
+-- member_channel_authorization
+CREATE INDEX idx_member_channel_authorization_member_id ON member_channel_authorization(member_id);
+CREATE INDEX idx_member_channel_authorization_channel_id ON member_channel_authorization(channel_id);
+CREATE INDEX idx_member_channel_authorization_authorization_type_id ON member_channel_authorization(authorization_type_id);
 
 
 -- ===========================
@@ -570,10 +568,10 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_permission_type'
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_authorization_type'
     ) THEN
-        CREATE TRIGGER trigger_set_updated_at_permission_type
-        BEFORE UPDATE ON permission_type
+        CREATE TRIGGER trigger_set_updated_at_authorization_type
+        BEFORE UPDATE ON authorization_type
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
 END$$;
@@ -581,10 +579,10 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_member_channel_permission'
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_member_channel_authorization'
     ) THEN
-        CREATE TRIGGER trigger_set_updated_at_member_channel_permission
-        BEFORE UPDATE ON member_channel_permission
+        CREATE TRIGGER trigger_set_updated_at_member_channel_authorization
+        BEFORE UPDATE ON member_channel_authorization
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
 END$$;

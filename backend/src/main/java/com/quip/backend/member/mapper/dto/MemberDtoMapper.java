@@ -7,7 +7,5 @@ import org.mapstruct.factory.Mappers;
 
 @Mapper
 public interface MemberDtoMapper {
-    MemberDtoMapper INSTANCE = Mappers.getMapper(MemberDtoMapper.class);
 
-    MemberDto toDto(Member member);
 }

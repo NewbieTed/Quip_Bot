@@ -3,6 +3,7 @@ package com.quip.backend.common.exception;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.quip.backend.common.exception.ValidationException;
 import com.quip.backend.dto.BaseResponse;
+import com.quip.backend.common.exception.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -72,7 +73,7 @@ public class GlobalExceptionHandler {
         // Log the validation error message
         logger.error("Validation error: {}", errorMessage);
 
-        return BaseResponse.failure(HttpStatus.BAD_REQUEST.value(), errorMessage);
+        return BaseResponse.failure(HttpStatus.UNPROCESSABLE_ENTITY.value(), errorMessage);
     }
 
     // Handle custom ValidationException
@@ -80,6 +81,15 @@ public class GlobalExceptionHandler {
     public BaseResponse<String> handleCustomValidationException(ValidationException ex) {
         String errorMessage = ex.getMessage();
         logger.error("ValidationException: {}", errorMessage, ex);
-        return BaseResponse.failure(HttpStatus.BAD_REQUEST.value(), errorMessage);
+        return BaseResponse.failure(HttpStatus.UNPROCESSABLE_ENTITY.value(), errorMessage);
+    }
+
+    // Handle EntityNotFoundException
+    @ExceptionHandler(EntityNotFoundException.class)
+    public BaseResponse<String> handleEntityNotFoundException(EntityNotFoundException ex) {
+        String errorMessage = ex.getMessage();
+        logger.error("EntityNotFoundException: {}", errorMessage, ex);
+        return BaseResponse.failure(HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Please check terminal for error details");
     }
 }

@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.3.4'
     id 'io.spring.dependency-management' version '1.1.6'
+    id 'info.solidsoft.pitest' version '1.15.0'
 }
 
 group = 'com.quip'
@@ -10,6 +11,7 @@ version = '0.0.1-SNAPSHOT'
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
+        vendor = JvmVendorSpec.ADOPTIUM
     }
 }
 
@@ -19,7 +21,6 @@ repositories {
 
 dependencies {
     // Spring Boot Starters
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation' // For @Valid annotations
 
@@ -55,6 +56,10 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'io.projectreactor:reactor-test:3.6.2'
+
+    // Mutation Testing
+    testImplementation 'org.pitest:pitest-junit5-plugin:1.2.1'
 }
 
 // MapStruct annotation processor configuration
@@ -66,4 +71,19 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+pitest {
+    junit5PluginVersion = '1.2.1'
+    targetClasses = ['com.quip.backend.**']  // where your logic lives
+    targetTests = ['com.quip.backend.**']
+    excludedClasses = [
+            '**.*MapperImpl',         // exclude all mappers
+            "com.quip.backend.common.exception.*",
+            "com.quip.backend.ws.*",
+            "com.quip.backend.BackendApplication"
+    ]
+    threads = 4
+    outputFormats = ['XML', 'HTML']
+    timestampedReports = false
 }
