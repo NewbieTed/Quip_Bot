@@ -7,8 +7,21 @@ import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
-
+/**
+ * MyBatis mapper interface for ProblemCategory entity database operations.
+ * <p>
+ * This interface provides methods for accessing and manipulating ProblemCategory data
+ * in the database. It extends BaseMapper to inherit standard CRUD operations
+ * and adds custom query methods specific to ProblemCategory entities.
+ * </p>
+ */
 @Mapper
 public interface ProblemCategoryMapper extends BaseMapper<ProblemCategory> {
+    /**
+     * Retrieves all problem categories belonging to a specific server.
+     *
+     * @param serverId The ID of the server to filter by
+     * @return A list of ProblemCategory entities in the specified server
+     */
     List<ProblemCategory> selectByServerId(@Param("serverId") Long serverId);
 }
