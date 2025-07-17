@@ -18,6 +18,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.util.Map;
 
+/**
+ * Service responsible for AI assistant functionality.
+ * <p>
+ * This service handles interactions with the AI assistant system, providing
+ * a bridge between the user interface and the AI backend. It manages WebSocket
+ * connections to the AI service and handles authorization for assistant invocations.
+ * </p>
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -29,6 +37,19 @@ public class AssistantService {
 
     private static final String INVOKE_ASSISTANT = "Invoke Assistant";
 
+    /**
+     * Invokes the AI assistant with the given request and streams back responses.
+     * <p>
+     * This method establishes a WebSocket connection to the AI backend service,
+     * sends the user's request, and returns a reactive stream of responses from
+     * the assistant. It first validates that the requesting member has proper
+     * authorization to use the assistant in the specified channel.
+     * </p>
+     *
+     * @param assistantRequestDto The request containing member ID, channel ID, and message
+     * @return A Flux of string responses from the assistant
+     * @throws ValidationException If the member lacks proper authorization
+     */
     public Flux<String> invokeAssistant(AssistantRequestDto assistantRequestDto) {
         // Validate authorization
         Long memberId = assistantRequestDto.getMemberId();
