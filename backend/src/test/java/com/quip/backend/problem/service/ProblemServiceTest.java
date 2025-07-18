@@ -43,6 +43,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit tests for {@link ProblemService}.
+ * <p>
+ * This test class validates the problem service functionality including
+ * problem creation, retrieval, and validation.
+ * </p>
+ */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ProblemService Tests")
 public class ProblemServiceTest extends BaseTest {
@@ -113,6 +120,10 @@ public class ProblemServiceTest extends BaseTest {
         setupMockProblemCategory();
     }
 
+    /**
+     * Tests for the getProblem method which retrieves a specific problem.
+     * Currently tests the placeholder implementation that returns null.
+     */
     @Nested
     @DisplayName("getProblem() Tests")
     class GetProblemTests {
@@ -128,6 +139,11 @@ public class ProblemServiceTest extends BaseTest {
         }
     }
 
+    /**
+     * Tests for the getProblemsByCategory method which retrieves problems by their category.
+     * This nested class validates that problems are correctly retrieved and mapped to DTOs,
+     * and that empty results are handled properly.
+     */
     @Nested
     @DisplayName("getProblemsByCategory() Tests")
     class GetProblemsByCategoryTests {
@@ -219,6 +235,11 @@ public class ProblemServiceTest extends BaseTest {
         }
     }
 
+    /**
+     * Tests for the addProblem method which creates a new problem with choices.
+     * This nested class validates that problems are correctly created, validated,
+     * and that appropriate exceptions are thrown for invalid inputs.
+     */
     @Nested
     @DisplayName("addProblem() Tests")
     class AddProblemTests {
@@ -423,6 +444,11 @@ public class ProblemServiceTest extends BaseTest {
         }
     }
 
+    /**
+     * Tests for the validateProblem method which ensures a problem question is valid.
+     * This nested class validates that proper validation is performed on problem questions,
+     * checking for null, empty, and whitespace-only values.
+     */
     @Nested
     @DisplayName("validateProblem() Tests")
     class ValidateProblemTests {
@@ -476,6 +502,10 @@ public class ProblemServiceTest extends BaseTest {
         }
     }
 
+    /**
+     * Sets up a valid CreateProblemRequestDto for testing.
+     * This creates a request with valid member, channel, category, question, and choices.
+     */
     private void setupValidCreateProblemRequest() {
         List<CreateProblemChoiceRequestDto> choices = List.of(
                 CreateProblemChoiceRequestDto.builder()
@@ -497,6 +527,10 @@ public class ProblemServiceTest extends BaseTest {
                 .build();
     }
 
+    /**
+     * Sets up a valid GetProblemRequestDto for testing.
+     * This creates a request with valid member, channel, and category IDs.
+     */
     private void setupValidGetProblemRequest() {
         validGetProblemRequest = new GetProblemRequestDto();
         validGetProblemRequest.setMemberId(VALID_MEMBER_ID);
@@ -504,6 +538,10 @@ public class ProblemServiceTest extends BaseTest {
         validGetProblemRequest.setProblemCategoryId(VALID_CATEGORY_ID);
     }
 
+    /**
+     * Sets up a mock AuthorizationContext for testing.
+     * This creates a context with valid member, channel, and server entities.
+     */
     private void setupMockAuthorizationContext() {
         Member mockMember = new Member();
         mockMember.setId(VALID_MEMBER_ID);
@@ -517,6 +555,10 @@ public class ProblemServiceTest extends BaseTest {
         mockAuthorizationContext = new AuthorizationContext(mockMember, mockChannel, mockServer, null);
     }
 
+    /**
+     * Sets up a mock ProblemCategory for testing.
+     * This creates a category with a valid ID.
+     */
     private void setupMockProblemCategory() {
         mockProblemCategory = new ProblemCategory();
         mockProblemCategory.setId(VALID_CATEGORY_ID);

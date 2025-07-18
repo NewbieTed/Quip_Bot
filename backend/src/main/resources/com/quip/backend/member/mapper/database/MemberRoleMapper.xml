@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 
+  MemberRoleMapper.xml - MyBatis mapper for member roles
+  
+  This mapper provides SQL queries and mappings for the MemberRole entity,
+  handling database operations related to roles assigned to members.
+-->
 <mapper namespace="com.quip.backend.member.mapper.database.MemberRoleMapper">
 
     <resultMap id="MemberRoleResultMap" type="com.quip.backend.member.model.MemberRole">

@@ -76,6 +76,11 @@ class ProblemControllerTest extends BaseTest {
         assertNotNull(validator);
     }
 
+    /**
+     * Tests for the getProblemsByCategory endpoint which retrieves problems by their category.
+     * This nested class validates that the endpoint correctly processes requests,
+     * validates parameters, and returns appropriate responses.
+     */
     @Nested
     @DisplayName("getProblemsByCategory Tests")
     class GetProblemsByCategoryTests {
@@ -209,6 +214,11 @@ class ProblemControllerTest extends BaseTest {
         }
     }
 
+    /**
+     * Tests for the addProblem endpoint which creates a new problem.
+     * This nested class validates that the endpoint correctly processes requests,
+     * handles various input scenarios, and returns appropriate responses.
+     */
     @Nested
     @DisplayName("addProblem Tests")
     class AddProblemTests {
@@ -363,7 +373,14 @@ class ProblemControllerTest extends BaseTest {
         }
     }
 
-    // Helper methods
+    /**
+     * Helper methods for test data setup and creation
+     */
+    
+    /**
+     * Sets up test data for problem controller tests.
+     * This method initializes valid request DTOs and mock response data.
+     */
     private void setupTestData() {
         validCreateRequest = CreateProblemRequestDto.builder()
                 .question(VALID_QUESTION)
@@ -390,6 +407,11 @@ class ProblemControllerTest extends BaseTest {
         );
     }
 
+    /**
+     * Creates a list of valid problem choices for testing.
+     * 
+     * @return A list of CreateProblemChoiceRequestDto objects with valid test data
+     */
     private List<CreateProblemChoiceRequestDto> createValidChoices() {
         return Arrays.asList(
                 CreateProblemChoiceRequestDto.builder()

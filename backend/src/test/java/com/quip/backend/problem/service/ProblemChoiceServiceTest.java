@@ -16,6 +16,13 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Unit tests for {@link ProblemChoiceService}.
+ * <p>
+ * This test class validates the problem choice service functionality,
+ * particularly focusing on the validation of problem choices.
+ * </p>
+ */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ProblemChoiceService Tests")
 public class ProblemChoiceServiceTest extends BaseTest {
@@ -28,6 +35,11 @@ public class ProblemChoiceServiceTest extends BaseTest {
     private static final String INVALID_CHOICE_MSG =
         "Validation failed in [Problem Choice Creation]: Field 'choiceText/mediaFileId' must have non-empty text or a valid media file ID for each choice.";
 
+    /**
+     * Tests for the validateProblemChoices method which ensures problem choices are valid.
+     * This nested class validates that proper validation is performed on problem choices,
+     * checking for required fields and valid combinations of text and media.
+     */
     @Nested
     @DisplayName("validateProblemChoices() Tests")
     class ValidateProblemChoicesTests {

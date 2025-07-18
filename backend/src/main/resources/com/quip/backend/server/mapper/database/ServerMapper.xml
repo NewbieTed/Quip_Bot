@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 
+  ServerMapper.xml - MyBatis mapper for servers
+  
+  This mapper provides SQL queries and mappings for the Server entity,
+  handling database operations related to servers in the system.
+-->
 <mapper namespace="com.quip.backend.server.mapper.database.ServerMapper">
 
     <resultMap id="ServerResultMap" type="com.quip.backend.server.model.Server">

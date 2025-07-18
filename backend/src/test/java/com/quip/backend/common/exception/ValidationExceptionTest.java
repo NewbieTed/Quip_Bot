@@ -18,6 +18,11 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("ValidationException Tests")
 public class ValidationExceptionTest extends BaseTest {
 
+    /**
+     * Tests for the ValidationException constructors.
+     * This nested class validates that the exception is properly created with
+     * different message variations and verifies its inheritance.
+     */
     @Nested
     @DisplayName("Constructor Tests")
     class ConstructorTests {
@@ -75,6 +80,11 @@ public class ValidationExceptionTest extends BaseTest {
         }
     }
 
+    /**
+     * Tests for the runtime behavior of ValidationException.
+     * This nested class validates that the exception can be thrown and caught properly,
+     * and that message information is preserved during this process.
+     */
     @Nested
     @DisplayName("Exception Behavior Tests")
     class ExceptionBehaviorTests {

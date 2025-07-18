@@ -21,7 +21,15 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit tests for {@link MemberService}.
+ * <p>
+ * This test class validates the member service functionality including
+ * member validation and existence checking.
+ * </p>
+ */
 @ExtendWith(MockitoExtension.class)
+@DisplayName("MemberService Tests")
 public class MemberServiceTest extends BaseTest {
 
     @InjectMocks
@@ -43,6 +51,11 @@ public class MemberServiceTest extends BaseTest {
     }
 
 
+    /**
+     * Tests for the validateMember method which ensures a member exists and is valid.
+     * This nested class contains tests that verify member validation logic works correctly
+     * for both valid and invalid member IDs.
+     */
     @Nested
     @DisplayName("validateMember() Tests")
     class ValidateMemberTests {
@@ -113,6 +126,11 @@ public class MemberServiceTest extends BaseTest {
     }
 
 
+    /**
+     * Creates a simple Member entity for testing.
+     * 
+     * @return A basic Member instance for test cases
+     */
     private Member createMember() {
         return new Member();
     }

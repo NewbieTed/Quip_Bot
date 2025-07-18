@@ -21,6 +21,13 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit tests for {@link ServerService}.
+ * <p>
+ * This test class validates the server service functionality including
+ * server validation and existence checking.
+ * </p>
+ */
 @ExtendWith(MockitoExtension.class)
 public class ServerServiceTest extends BaseTest {
 
@@ -43,6 +50,11 @@ public class ServerServiceTest extends BaseTest {
     }
 
 
+    /**
+     * Tests for the validateServer method which ensures a server exists and is valid.
+     * This nested class contains tests that verify server validation logic works correctly
+     * for both valid and invalid server IDs.
+     */
     @Nested
     @DisplayName("validateServer() Tests")
     class ValidateServerTests {
@@ -114,6 +126,12 @@ public class ServerServiceTest extends BaseTest {
 
 
 
+    /**
+     * Tests for the assertServerExist method which verifies a server exists and throws
+     * an EntityNotFoundException if it doesn't.
+     * This nested class contains tests that verify server existence checking works correctly
+     * for both valid and invalid server IDs.
+     */
     @Nested
     @DisplayName("assertServerExist() Tests")
     class assertServerExistTests {
@@ -169,6 +187,11 @@ public class ServerServiceTest extends BaseTest {
     }
 
 
+    /**
+     * Creates a simple Server entity for testing.
+     * 
+     * @return A basic Server instance for test cases
+     */
     private Server createServer() {
         return new Server();
     }

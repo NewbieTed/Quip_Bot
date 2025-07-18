@@ -20,6 +20,13 @@ import static org.assertj.core.api.AssertionsForClassTypes.in;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit tests for {@link ChannelService}.
+ * <p>
+ * This test class validates the channel service functionality including
+ * channel validation and existence checking.
+ * </p>
+ */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ChannelService Tests")
 public class ChannelServiceTest extends BaseTest {
@@ -43,6 +50,11 @@ public class ChannelServiceTest extends BaseTest {
         validChannel = createChannel();
     }
 
+    /**
+     * Tests for the validateChannel method which ensures a channel exists and is valid.
+     * This nested class contains tests that verify channel validation logic works correctly
+     * for both valid and invalid channel IDs.
+     */
     @Nested
     @DisplayName("validateChannel() Tests")
     class ValidateChannelTests {
@@ -113,6 +125,11 @@ public class ChannelServiceTest extends BaseTest {
     }
 
 
+    /**
+     * Creates a simple Channel entity for testing.
+     * 
+     * @return A basic Channel instance for test cases
+     */
     private Channel createChannel() {
         return new Channel();
     }
