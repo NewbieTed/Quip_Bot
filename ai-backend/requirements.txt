@@ -9,3 +9,5 @@ uvicorn~=0.35.0
 pydantic~=2.11.7
 uvicorn[standard]
 httpx~=0.28.1
+langchain-mcp-adapters
+fastmcp
