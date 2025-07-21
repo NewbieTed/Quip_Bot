@@ -3,15 +3,6 @@
 # MCP Server Setup Script
 set -e
 
-echo "🚀 Setting up MCP Server..."
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Function to print colored output
 print_status() {
     echo -e "${GREEN}[INFO]${NC} $1"
@@ -32,41 +23,131 @@ print_debug() {
 # Function to check if virtual environment is valid
 check_venv_validity() {
     local venv_path="$1"
-    
+
     if [ ! -d "$venv_path" ]; then
         return 1
     fi
-    
+
     # Check if activation script exists
     if [ ! -f "$venv_path/bin/activate" ]; then
         print_warning "Virtual environment missing activation script"
         return 1
     fi
-    
+
     # Check if Python executable exists
     if [ ! -f "$venv_path/bin/python" ]; then
         print_warning "Virtual environment missing Python executable"
         return 1
     fi
-    
+
     # Check Python version in venv
     local venv_python_version
     venv_python_version=$("$venv_path/bin/python" -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null || echo "")
-    
+
     if [ -z "$venv_python_version" ]; then
         print_warning "Cannot determine Python version in virtual environment"
         return 1
     fi
-    
+
     # Check if version meets requirements
     if [ "$(printf '%s\n' "3.12" "$venv_python_version" | sort -V | head -n1)" != "3.12" ]; then
         print_warning "Virtual environment Python version ($venv_python_version) does not meet requirements (>=3.12)"
         return 1
     fi
-    
+
     print_debug "Virtual environment is valid (Python $venv_python_version)"
     return 0
 }
+
+# Function to check if a dependency is available
+check_dependency() {
+    local dep="$1"
+    local python_cmd="$2"
+
+    case "$dep" in
+        "yaml")
+            $python_cmd -c "import yaml" 2>/dev/null
+            ;;
+        "python-dotenv")
+            $python_cmd -c "import dotenv" 2>/dev/null
+            ;;
+        *)
+            $python_cmd -c "import ${dep//-/_}" 2>/dev/null
+            ;;
+    esac
+}
+
+# Function to verify and fix dependencies
+verify_and_fix_dependencies() {
+    local python_cmd="$1"
+    local deps=("${@:2}")
+    local missing_deps=()
+
+    print_status "Verifying critical dependencies..."
+
+    # Check each dependency
+    for dep in "${deps[@]}"; do
+        if ! check_dependency "$dep" "$python_cmd"; then
+            print_warning "Critical dependency '$dep' is missing"
+            missing_deps+=("$dep")
+        fi
+    done
+
+    # If any dependencies are missing, force reinstall
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        print_error "Missing critical dependencies: ${missing_deps[*]}"
+        print_status "Triggering full clean reinstall..."
+
+        # Remove cached dependency hash to force reinstall
+        [ -f "$PYPROJECT_HASH_FILE" ] && rm "$PYPROJECT_HASH_FILE"
+
+        # Clear all cache and state files
+        print_status "Clearing pip cache and state files..."
+        "$VENV_PATH/bin/pip" cache purge 2>/dev/null || true
+        [ -f "$PYPROJECT_HASH_FILE" ] && rm "$PYPROJECT_HASH_FILE"
+        [ -f "pip-selfcheck.json" ] && rm "pip-selfcheck.json"
+
+        # Clean reinstall with no cache
+        print_status "Clean reinstalling all Python dependencies (no cache)..."
+        if ! "$VENV_PATH/bin/pip" install --no-cache-dir --force-reinstall -e .; then
+            print_error "Failed to reinstall dependencies from pyproject.toml"
+            exit 1
+        fi
+
+        # Update hash
+        echo "$CURRENT_HASH" > "$PYPROJECT_HASH_FILE"
+        print_status "Dependencies clean-reinstalled successfully"
+
+        # Re-verify all dependencies
+        print_status "Re-verifying critical dependencies..."
+        for dep in "${deps[@]}"; do
+            if ! check_dependency "$dep" "$python_cmd"; then
+                print_error "Critical dependency '$dep' still not available after reinstall"
+                exit 1
+            fi
+        done
+        print_status "All critical dependencies verified after reinstall ✓"
+    else
+        print_status "All critical dependencies verified ✓"
+    fi
+}
+
+# Function to ensure logs directory exists
+ensure_logs_directory() {
+    if [ ! -d "logs" ]; then
+        print_status "Creating logs directory..."
+        mkdir -p logs
+    fi
+}
+
+echo "🚀 Setting up MCP Server..."
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
 # Check if Python is installed
 if ! command -v python3 &> /dev/null; then
@@ -162,76 +243,6 @@ else
     print_status "Skipping dependency installation (already up to date)"
 fi
 
-# Function to check if a dependency is available
-check_dependency() {
-    local dep="$1"
-    local python_cmd="$2"
-    
-    case "$dep" in
-        "yaml")
-            $python_cmd -c "import yaml" 2>/dev/null
-            ;;
-        "python-dotenv")
-            $python_cmd -c "import dotenv" 2>/dev/null
-            ;;
-        *)
-            $python_cmd -c "import ${dep//-/_}" 2>/dev/null
-            ;;
-    esac
-}
-
-# Function to verify and fix dependencies
-verify_and_fix_dependencies() {
-    local python_cmd="$1"
-    local deps=("${@:2}")
-    local missing_deps=()
-    
-    print_status "Verifying critical dependencies..."
-    
-    # Check each dependency
-    for dep in "${deps[@]}"; do
-        if ! check_dependency "$dep" "$python_cmd"; then
-            print_warning "Critical dependency '$dep' is missing"
-            missing_deps+=("$dep")
-        fi
-    done
-    
-    # If any dependencies are missing, force reinstall
-    if [ ${#missing_deps[@]} -gt 0 ]; then
-        print_error "Missing critical dependencies: ${missing_deps[*]}"
-        print_status "Triggering full clean reinstall..."
-        
-        # Clear all cache and state files
-        print_status "Clearing pip cache and state files..."
-        "$VENV_PATH/bin/pip" cache purge 2>/dev/null || true
-        [ -f "$PYPROJECT_HASH_FILE" ] && rm "$PYPROJECT_HASH_FILE"
-        [ -f "pip-selfcheck.json" ] && rm "pip-selfcheck.json"
-        
-        # Clean reinstall with no cache
-        print_status "Clean reinstalling all Python dependencies (no cache)..."
-        if ! "$VENV_PATH/bin/pip" install --no-cache-dir --force-reinstall -e .; then
-            print_error "Failed to reinstall dependencies from pyproject.toml"
-            exit 1
-        fi
-        
-        # Update hash
-        echo "$CURRENT_HASH" > "$PYPROJECT_HASH_FILE"
-        print_status "Dependencies clean-reinstalled successfully"
-        
-        # Re-verify all dependencies
-        print_status "Re-verifying critical dependencies..."
-        for dep in "${deps[@]}"; do
-            if ! check_dependency "$dep" "$python_cmd"; then
-                print_error "Critical dependency '$dep' still not available after reinstall"
-                exit 1
-            fi
-        done
-        print_status "All critical dependencies verified after reinstall ✓"
-    else
-        print_status "All critical dependencies verified ✓"
-    fi
-}
-
 # Verify critical dependencies
 CRITICAL_DEPS=("uvicorn" "pydantic" "python-dotenv" "yaml" "fastmcp")
 verify_and_fix_dependencies "$VENV_PATH/bin/python" "${CRITICAL_DEPS[@]}"
@@ -245,12 +256,8 @@ else
     print_warning ".env file not found. Please create one based on the template."
 fi
 
-# Create logs directory
-if [ ! -d "logs" ]; then
-    print_status "Creating logs directory..."
-    mkdir -p logs
-fi
 
+ensure_logs_directory
 
 print_status "✅ MCP Server setup completed successfully!"
 print_status ""
