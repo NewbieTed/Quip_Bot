@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 import json
 from app.agent_runner import run_agent
+from app.graph import get_cached_graph
 from fastapi import WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import StreamingResponse
 

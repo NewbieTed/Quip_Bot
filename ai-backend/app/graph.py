@@ -1,41 +1,33 @@
 import os
-
+import hashlib
+import logging
 from langchain_openai import ChatOpenAI
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.config import get_stream_writer
 from langgraph.constants import END
 from langgraph.graph.state import CompiledStateGraph
-
 from app.config import Config
-from langgraph.prebuilt import create_react_agent
-
-
-# async def setup_graph(tools=[]):
-#     if tools is None:
-#         tools = []
-#     memory = MemorySaver()
-#     os.environ["OPENAI_API_KEY"] = Config.OPENAI_API_KEY
-#     llm = ChatOpenAI(temperature=0, model="gpt-4o-mini", api_key=Config.OPENAI_API_KEY)
-#
-#     return create_react_agent(llm, tools=tools, checkpointer=memory)
-
-
-from typing import Annotated
-
-from langchain.chat_models import init_chat_model
-from langchain_core.messages import BaseMessage
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain_core.messages import AIMessage
 from typing_extensions import TypedDict
-
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
-from langgraph.prebuilt import ToolNode, tools_condition
+from langgraph.prebuilt import ToolNode
+from typing import Annotated
+
+# Configure logger for this module
+logger = logging.getLogger(__name__)
+
+
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
+    member_id: int
+    channel_id: int
+
 
 def route_to_progress_report_before_tools(
-    state: State,
+        state: State,
 ):
     """
     Use in the conditional_edge to route to the ToolNode if the last message
@@ -51,54 +43,115 @@ def route_to_progress_report_before_tools(
         return "progress_report"
     return END
 
+
 class ProgressReportNode:
     """A node that reports progress to the user."""
-    input: dict
-    message: str
-    llm = ChatOpenAI(temperature=0, model="gpt-4o-mini", api_key=Config.OPENAI_API_KEY)
-    system_prompt: dict = {
-                "role": "system",
-                "content": "You are an expert in turning function calls into human understandable language.  You also "
-                           "prefer to use as few words as possible. When given you a tool name and function call, "
-                           "you shall output a short label in natural language and present continuous tense about what "
-                           "the call is trying to do, also use '...' in the end to indicate in progress."
-            }
-    def __init__(self, ai_input: dict) -> None:
-        self.input = ai_input
-        print(self.input, flush=True)
-        if messages := ai_input.get("messages", []):
-            message = messages[-1]
-            self.message = message
-        else:
-            return
-        for tool_call in message.tool_calls:
-            user_prompt = "Tool name: " + str(message.tool_calls[0]["name"]) + "Tool args: " + str(tool_call["args"])
-            print(user_prompt, flush=True)
-            messages = [
+
+    def __init__(self):
+        self.llm = ChatOpenAI(temperature=0, model="gpt-4o-mini", api_key=Config.OPENAI_API_KEY)
+        self.system_prompt = {
+            "role": "system",
+            "content": "You are an expert in turning function calls into human understandable language.  You also "
+                       "prefer to use as few words as possible. When given you a tool name and function call, "
+                       "you shall output a short label in natural language and present continuous tense about what "
+                       "the call is trying to do, also use '...' in the end to indicate in progress."
+        }
+
+    def __call__(self, state: State):
+        logger.debug("ProgressReportNode called with state type: %s", type(state))
+
+        messages = state.get("messages", [])
+        if not messages:
+            logger.debug("No messages in state, returning unchanged")
+            return state
+
+        last_message = messages[-1]
+        if not hasattr(last_message, "tool_calls") or not last_message.tool_calls:
+            logger.debug("No tool calls in last message, returning unchanged")
+            return state
+
+        logger.info("Processing %d tool calls for progress report", len(last_message.tool_calls))
+
+        for tool_call in last_message.tool_calls:
+            user_prompt = f"Tool name: {tool_call['name']} Tool args: {tool_call['args']}"
+            logger.debug("Generating progress report for: %s", user_prompt)
+
+            messages_for_llm = [
                 self.system_prompt,
                 {
                     "role": "user",
                     "content": user_prompt
                 }
             ]
-            new_message = self.llm.invoke(messages)
+            new_message = self.llm.invoke(messages_for_llm)
             writer = get_stream_writer()
             writer({"progress": new_message.content})
-            print(new_message.content, flush=True)
-        # for tool_call in message.tool_calls:
-        #     tool_name = tool_call["name"]
-        #     status_update_message = f"Calling tool: {tool_name}..."
-            # print(f"Message {status_update_message}", flush=True)
+            logger.info("Progress report generated: %s", new_message.content)
 
-    def __call__(self, inputs: dict):
-        pass
+        return state
 
-async def setup_graph(tools=None) -> CompiledStateGraph:
+
+class ContextInjectionNode:
+    """Node that injects runtime context into tool calls"""
+
+    RUNTIME_SUBSTITUTIONS = {
+        "member_id": lambda state: state["member_id"],
+        "channel_id": lambda state: state["channel_id"],
+        "memberId": lambda state: state["member_id"],
+        "channelId": lambda state: state["channel_id"],
+    }
+
+    def __call__(self, state: State):
+        messages = state["messages"]
+        if not messages:
+            return state
+
+        last_message = messages[-1]
+        if not hasattr(last_message, "tool_calls") or not last_message.tool_calls:
+            return state
+
+        logger.info("Context injection: Processing %d tool calls", len(last_message.tool_calls))
+
+        # Inject context into tool calls
+        enhanced_tool_calls = []
+        for tool_call in last_message.tool_calls:
+            enhanced_args = tool_call["args"].copy()
+
+            # Substitute runtime values
+            for arg_name in enhanced_args:
+                if arg_name in self.RUNTIME_SUBSTITUTIONS:
+                    old_value = enhanced_args[arg_name]
+                    new_value = self.RUNTIME_SUBSTITUTIONS[arg_name](state)
+                    enhanced_args[arg_name] = new_value
+                    logger.info("Context injection: %s %s -> %s", arg_name, old_value, new_value)
+
+            enhanced_tool_calls.append({
+                **tool_call,
+                "args": enhanced_args
+            })
+
+        # Create new message with enhanced tool calls
+        # Instead of creating new AIMessage
+        enhanced_message = AIMessage(
+            content=last_message.content,
+            tool_calls=enhanced_tool_calls
+        )
+
+        # Modify the existing message in place
+        last_message.tool_calls = enhanced_tool_calls
+        return state
+
+
+async def setup_graph(tools=None, memory_saver=None) -> CompiledStateGraph:
     if tools is None:
         tools = []
+    if memory_saver is None:
+        memory_saver = MemorySaver()
+
     os.environ["OPENAI_API_KEY"] = Config.OPENAI_API_KEY
     llm = ChatOpenAI(temperature=0, model="gpt-4o-mini", api_key=Config.OPENAI_API_KEY)
     llm_with_tools = llm.bind_tools(tools)
+
     def agent(state: State):
         return {"messages": [llm_with_tools.invoke(state["messages"])]}
 
@@ -106,9 +159,12 @@ async def setup_graph(tools=None) -> CompiledStateGraph:
     graph_builder.add_node("agent", agent)
 
     tool_node = ToolNode(tools=tools)
-    progress_report_node = ProgressReportNode
+    progress_report_node = ProgressReportNode()
+    context_injection_node = ContextInjectionNode()
+
     graph_builder.add_node("tools", tool_node)
     graph_builder.add_node("progress_report", progress_report_node)
+    graph_builder.add_node("context_injection", context_injection_node)
 
     graph_builder.add_conditional_edges(
         "agent",
@@ -116,22 +172,89 @@ async def setup_graph(tools=None) -> CompiledStateGraph:
         {"progress_report": "progress_report", END: END},
     )
 
-    graph_builder.add_edge("progress_report", "tools")
+    graph_builder.add_edge("progress_report", "context_injection")
+    graph_builder.add_edge("context_injection", "tools")
     graph_builder.add_edge("tools", "agent")
     graph_builder.set_entry_point("agent")
-    memory = MemorySaver()
-    graph = graph_builder.compile(checkpointer=memory)
+
+    # Use the provided memory saver (preserves memory across recompilations)
+    graph = graph_builder.compile(checkpointer=memory_saver)
     return graph
 
 
+# Global cache for graph and tools
+class GraphCache:
+    def __init__(self):
+        self.graph = None
+        self.client = None
+        self.tools_hash = None
+        self.memory_saver = MemorySaver()  # Persistent memory across recompilations
 
-# from IPython.display import Image, display
+    def _compute_tools_hash(self, tools):
+        """Compute a hash of the tools to detect changes."""
+        # Create a stable representation of tools for hashing
+        tool_signatures = []
+        for tool in tools:
+            # Include tool name, description, and parameter schema
+            signature = {
+                'name': tool.name,
+                'description': tool.description,
+                'args_schema': str(tool.args_schema) if hasattr(tool, 'args_schema') else None
+            }
+            tool_signatures.append(str(signature))
 
-# try:
-#     img_bytes = graph.get_graph().draw_mermaid_png()
-#     with open("graph.png", "wb") as f:
-#         f.write(img_bytes)
-# except Exception as e:
-#     print("Failed to generate graph:", e)
-#     # This requires some extra dependencies and is optional
-#     pass
+        # Sort to ensure consistent hashing regardless of tool order
+        tool_signatures.sort()
+        tools_string = '|'.join(tool_signatures)
+        return hashlib.md5(tools_string.encode()).hexdigest()
+
+    async def get_graph(self):
+        """Get graph, recompiling only if tools have changed."""
+        # Create MCP client
+        if self.client is None:
+            logger.info("Creating MCP client connection")
+            self.client = MultiServerMCPClient(
+                {
+                    "weather": {
+                        # "url": "http://host.docker.internal:8000/mcp",
+                        "url": "http://localhost:8000/mcp",
+                        "transport": "streamable_http"
+                    }
+                }
+            )
+
+        # Get current tools
+        tools = await self.client.get_tools()
+        current_tools_hash = self._compute_tools_hash(tools)
+        tool_names = [tool.name for tool in tools]
+
+        # Check if we need to recompile
+        if self.graph is None:
+            logger.info("Initial graph compilation with %d tools: %s", len(tools), tool_names)
+            logger.debug("Tools hash: %s", current_tools_hash)
+            self.graph = await setup_graph(tools, self.memory_saver)
+            self.tools_hash = current_tools_hash
+
+        elif current_tools_hash != self.tools_hash:
+            logger.warning("Tools changed! Recompiling graph...")
+            logger.info("Previous hash: %s, New hash: %s", self.tools_hash, current_tools_hash)
+            logger.info("New tools: %s", tool_names)
+            logger.info("Preserving conversation memory across recompilation")
+
+            # Recompile with the SAME memory saver to preserve history
+            self.graph = await setup_graph(tools, self.memory_saver)
+            self.tools_hash = current_tools_hash
+
+        else:
+            logger.debug("Using cached graph (tools unchanged, hash: %s)", current_tools_hash)
+
+        return self.graph
+
+
+# Global cache instance
+_graph_cache = GraphCache()
+
+
+async def get_cached_graph():
+    """Get the cached graph instance, recompiling only if tools have changed."""
+    return await _graph_cache.get_graph()
