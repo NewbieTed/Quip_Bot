@@ -13,4 +13,7 @@ ENV/
 .idea/
 *.iml
 
-*/config.py
+!poetry.lock
+
+# Poetry cache
+.pyproject_hash

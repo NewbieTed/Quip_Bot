@@ -5,7 +5,8 @@ from langchain_openai import ChatOpenAI
 from langgraph.config import get_stream_writer
 from langgraph.constants import END
 from langgraph.graph.state import CompiledStateGraph
-from app.config import Config
+from src.config import Config
+from src.agent.tools import get_all_tools
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_core.messages import AIMessage
 from typing_extensions import TypedDict
@@ -19,15 +20,14 @@ from typing import Annotated
 logger = logging.getLogger(__name__)
 
 
-
-class State(TypedDict):
+class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
     member_id: int
     channel_id: int
 
 
 def route_to_progress_report_before_tools(
-        state: State,
+        state: AgentState,
 ):
     """
     Use in the conditional_edge to route to the ToolNode if the last message
@@ -48,7 +48,12 @@ class ProgressReportNode:
     """A node that reports progress to the user."""
 
     def __init__(self):
-        self.llm = ChatOpenAI(temperature=0, model="gpt-4o-mini", api_key=Config.OPENAI_API_KEY)
+        openai_config = Config.get_openai_config()
+        self.llm = ChatOpenAI(
+            temperature=openai_config.get("temperature", 0),
+            model=openai_config.get("model", "gpt-4o-mini"),
+            api_key=Config.OPENAI_API_KEY
+        )
         self.system_prompt = {
             "role": "system",
             "content": "You are an expert in turning function calls into human understandable language.  You also "
@@ -57,7 +62,7 @@ class ProgressReportNode:
                        "the call is trying to do, also use '...' in the end to indicate in progress."
         }
 
-    def __call__(self, state: State):
+    def __call__(self, state: AgentState):
         logger.debug("ProgressReportNode called with state type: %s", type(state))
 
         messages = state.get("messages", [])
@@ -92,7 +97,7 @@ class ProgressReportNode:
 
 
 class ContextInjectionNode:
-    """Node that injects runtime context into tool calls"""
+    """Node that injects runtime context into tool calls for legacy MCP tools"""
 
     RUNTIME_SUBSTITUTIONS = {
         "member_id": lambda state: state["member_id"],
@@ -101,7 +106,7 @@ class ContextInjectionNode:
         "channelId": lambda state: state["channel_id"],
     }
 
-    def __call__(self, state: State):
+    def __call__(self, state: AgentState):
         messages = state["messages"]
         if not messages:
             return state
@@ -112,12 +117,12 @@ class ContextInjectionNode:
 
         logger.info("Context injection: Processing %d tool calls", len(last_message.tool_calls))
 
-        # Inject context into tool calls
+        # Inject context into tool calls (mainly for MCP tools that don't use InjectedState)
         enhanced_tool_calls = []
         for tool_call in last_message.tool_calls:
             enhanced_args = tool_call["args"].copy()
 
-            # Substitute runtime values
+            # Substitute runtime values for tools that need manual injection
             for arg_name in enhanced_args:
                 if arg_name in self.RUNTIME_SUBSTITUTIONS:
                     old_value = enhanced_args[arg_name]
@@ -129,13 +134,6 @@ class ContextInjectionNode:
                 **tool_call,
                 "args": enhanced_args
             })
-
-        # Create new message with enhanced tool calls
-        # Instead of creating new AIMessage
-        enhanced_message = AIMessage(
-            content=last_message.content,
-            tool_calls=enhanced_tool_calls
-        )
 
         # Modify the existing message in place
         last_message.tool_calls = enhanced_tool_calls
@@ -149,13 +147,18 @@ async def setup_graph(tools=None, memory_saver=None) -> CompiledStateGraph:
         memory_saver = MemorySaver()
 
     os.environ["OPENAI_API_KEY"] = Config.OPENAI_API_KEY
-    llm = ChatOpenAI(temperature=0, model="gpt-4o-mini", api_key=Config.OPENAI_API_KEY)
+    openai_config = Config.get_openai_config()
+    llm = ChatOpenAI(
+        temperature=openai_config.get("temperature", 0),
+        model=openai_config.get("model", "gpt-4o-mini"),
+        api_key=Config.OPENAI_API_KEY
+    )
     llm_with_tools = llm.bind_tools(tools)
 
-    def agent(state: State):
+    def agent(state: AgentState):
         return {"messages": [llm_with_tools.invoke(state["messages"])]}
 
-    graph_builder = StateGraph(State)
+    graph_builder = StateGraph(AgentState)
     graph_builder.add_node("agent", agent)
 
     tool_node = ToolNode(tools=tools)
@@ -210,39 +213,59 @@ class GraphCache:
 
     async def get_graph(self):
         """Get graph, recompiling only if tools have changed."""
-        # Create MCP client
-        if self.client is None:
+        # Get local tools with force_reload in development mode
+        local_tools = get_all_tools(force_reload=True)
+        logger.info("Loaded %d local tools: %s", len(local_tools), [tool.name for tool in local_tools])
+        
+        # Create MCP client and get MCP tools
+        mcp_tools = []
+        mcp_config = Config.get_mcp_config()
+        mcp_enabled = mcp_config.get("enabled", True)
+        
+        if mcp_enabled and self.client is None:
             logger.info("Creating MCP client connection")
-            self.client = MultiServerMCPClient(
-                {
-                    "weather": {
-                        # "url": "http://host.docker.internal:8000/mcp",
-                        "url": "http://localhost:8000/mcp",
-                        "transport": "streamable_http"
-                    }
+            servers_config = {}
+            for server_name, server_config in mcp_config.get("servers", {}).items():
+                servers_config[server_name] = {
+                    "url": Config.MCP_SERVER_URL,
+                    "transport": server_config.get("transport", "streamable_http")
                 }
-            )
+            
+            if servers_config:
+                self.client = MultiServerMCPClient(servers_config)
+                mcp_tools = await self.client.get_tools()
+                logger.info("Loaded %d MCP tools: %s", len(mcp_tools), [tool.name for tool in mcp_tools])
+            else:
+                logger.info("No MCP servers configured, using local tools only")
 
-        # Get current tools
-        tools = await self.client.get_tools()
-        current_tools_hash = self._compute_tools_hash(tools)
-        tool_names = [tool.name for tool in tools]
+        elif mcp_enabled and self.client:
+            mcp_tools = await self.client.get_tools()
+            logger.debug("Retrieved %d MCP tools from existing client", len(mcp_tools))
+        
+        elif not mcp_enabled:
+            logger.info("MCP disabled in configuration, using local tools only")
+
+        # Combine local and MCP tools
+        all_tools = local_tools + mcp_tools
+        current_tools_hash = self._compute_tools_hash(all_tools)
+        tool_names = [tool.name for tool in all_tools]
 
         # Check if we need to recompile
         if self.graph is None:
-            logger.info("Initial graph compilation with %d tools: %s", len(tools), tool_names)
+            logger.info("Initial graph compilation with %d total tools (%d local + %d MCP): %s", 
+                       len(all_tools), len(local_tools), len(mcp_tools), tool_names)
             logger.debug("Tools hash: %s", current_tools_hash)
-            self.graph = await setup_graph(tools, self.memory_saver)
+            self.graph = await setup_graph(all_tools, self.memory_saver)
             self.tools_hash = current_tools_hash
 
         elif current_tools_hash != self.tools_hash:
             logger.warning("Tools changed! Recompiling graph...")
             logger.info("Previous hash: %s, New hash: %s", self.tools_hash, current_tools_hash)
-            logger.info("New tools: %s", tool_names)
+            logger.info("New tools (%d local + %d MCP): %s", len(local_tools), len(mcp_tools), tool_names)
             logger.info("Preserving conversation memory across recompilation")
 
             # Recompile with the SAME memory saver to preserve history
-            self.graph = await setup_graph(tools, self.memory_saver)
+            self.graph = await setup_graph(all_tools, self.memory_saver)
             self.tools_hash = current_tools_hash
 
         else:

@@ -3,10 +3,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.config import Config
-from app.api.routes import router
-from app import graph as graph_module
-from app.graph import setup_graph
+from src.config import Config
+from src.agent.api.routes import router
 
 # Configure logging
 logging.basicConfig(
@@ -19,8 +17,8 @@ logging.basicConfig(
 )
 
 # Set specific log levels for different modules
-logging.getLogger('app.graph').setLevel(logging.INFO)
-logging.getLogger('app.agent_runner').setLevel(logging.INFO)
+logging.getLogger('agent.graph').setLevel(logging.INFO)
+logging.getLogger('agent.agent_runner').setLevel(logging.INFO)
 logging.getLogger('httpx').setLevel(logging.WARNING)  # Reduce HTTP client noise
 logging.getLogger('openai').setLevel(logging.WARNING)  # Reduce OpenAI client noise
 
@@ -45,8 +43,6 @@ app.add_middleware(
 )
 
 app.include_router(router)
-
-
 
 if __name__ == "__main__":
     import uvicorn

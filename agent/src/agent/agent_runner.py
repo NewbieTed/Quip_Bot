@@ -1,20 +1,13 @@
-import json
 import logging
-
-from langchain_core.messages import AIMessage
-from langgraph.types import interrupt
-
-import app.graph
-from langchain_mcp_adapters.client import MultiServerMCPClient
-from fastmcp import Client
-
-
 from pathlib import Path
-SYSTEM_PROMPT_PATH = Path("prompts/system_prompt.txt")
-# SYSTEM_PROMPT_PATH = Path("app/prompts/system_prompt.txt")
+from src.config import Config
 
 # Import the graph cache from graph module
-from app.graph import get_cached_graph
+from src.agent.graph import get_cached_graph
+
+# Get system prompt path from configuration
+agent_config = Config.get_agent_config()
+SYSTEM_PROMPT_PATH = Path(agent_config.get("system_prompt_path", "src/agent/prompts/system_prompt.txt"))
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -35,6 +28,11 @@ async def run_agent(member_message: str, member_id: int, channel_id: int):
     # Get the cached graph (recompiles only if tools changed)
     logger.debug("Retrieving cached graph")
     graph = await get_cached_graph()
+    
+    # Log available tools for debugging
+    from src.agent.tools import get_all_tools
+    tools = get_all_tools()
+    logger.info("Agent has access to %d local tools: %s", len(tools), [tool.name for tool in tools])
 
     config = {"configurable": {"thread_id": member_id}}
     system_message: str = load_system_prompt()
