@@ -1,0 +1,52 @@
+# Agent Configuration
+app:
+  name: "agent"
+  version: "1.0.0"
+  description: "Agent Service for Quip Bot"
+
+# Backend API Configuration
+backend:
+  url: "http://quip-backend-app:8080"  # Can be overridden by BACKEND_URL env var
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    - console
+    - file
+  file_path: "logs/agent.log"
+
+# OpenAI Configuration
+openai:
+  model: "gpt-4o-mini"
+  temperature: 0
+  max_tokens: 4000
+
+# MCP Client Configuration (optional - can be empty for local tools only)
+mcp:
+  enabled: true  # Set to false to use local tools only
+  servers:
+    QuipMCPServer:
+      transport: "streamable_http"
+      reconnect_attempts: 3
+      reconnect_delay: 5
+    # Add more MCP servers here as needed
+    # WeatherMCPServer:
+    #   transport: "streamable_http"
+    #   reconnect_attempts: 3
+    #   reconnect_delay: 5
+
+# Agent Configuration
+agent:
+  system_prompt_path: "src/agent/prompts/system_prompt.txt"
+  max_iterations: 10
+  stream_mode:
+    - "updates"
+    - "messages" 
+    - "custom"
+
+# Memory Configuration
+memory:
+  type: "in_memory"
+  checkpoint_interval: 100

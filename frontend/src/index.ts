@@ -10,7 +10,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
-console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY);        
+import { logger } from './utils/logger';
+logger.info('OPENAI_API_KEY configured: ' + (process.env.OPENAI_API_KEY ? 'Yes' : 'No'));        
 import { Client, Collection, GatewayIntentBits, SlashCommandBuilder, CommandInteraction, Events, ChatInputCommandInteraction } from 'discord.js';
 import { token } from '../config.json';
 

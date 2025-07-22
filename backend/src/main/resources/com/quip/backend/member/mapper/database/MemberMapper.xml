@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 
+  MemberMapper.xml - MyBatis mapper for members
+  
+  This mapper provides SQL queries and mappings for the Member entity,
+  handling database operations related to members in the system.
+-->
 <mapper namespace="com.quip.backend.member.mapper.database.MemberMapper">
 
     <resultMap id="MemberResultMap" type="com.quip.backend.member.model.Member">
@@ -11,9 +17,4 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <select id="findById" parameterType="long" resultType="com.quip.backend.member.model.Member">
-        SELECT id, member_name, created_by, updated_by, created_at, updated_at
-        FROM member
-        WHERE id = #{id}
-    </select>
 </mapper>

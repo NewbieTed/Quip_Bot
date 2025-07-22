@@ -1,0 +1,72 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'quip-backend-app'
+        IMAGE_TAG = 'latest'
+        SPRING_PATH = 'backend'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git url: 'https://github.com/NewbieTed/Quip_Bot',
+                    branch: 'quiz',
+                    credentialsId: 'github-pat'
+            }
+        }
+
+        stage('Build JAR') {
+            steps {
+                dir("${SPRING_PATH}") {
+                    sh 'chmod +x ./gradlew'
+                    sh './gradlew clean build -Dorg.gradle.java.installations.auto-download=true'
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                dir("${SPRING_PATH}") {
+                    sh './gradlew test'
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                dir("${SPRING_PATH}") {
+                    sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                }
+            }
+        }
+
+        stage('Run Container (optional)') {
+            steps {
+                script {
+                    try {
+                        sh "docker rm -f quip-test || true"
+                        sh "docker run -d --name quip-test -p 8080:8080 ${IMAGE_NAME}:${IMAGE_TAG}"
+                        sh "sleep 10 && curl -f localhost:8080 || echo 'App not responding'"
+                    } finally {
+                        sh "docker rm -f quip-test || true"
+                    }
+                }
+            }
+        }
+
+        stage('Archive Docker Image') {
+            steps {
+                sh "docker save ${IMAGE_NAME}:${IMAGE_TAG} -o ${IMAGE_NAME}.tar"
+                archiveArtifacts artifacts: "${IMAGE_NAME}.tar"
+            }
+        }
+
+        stage('Cleanup Docker Resources') {
+            steps {
+                sh "rm -f ${IMAGE_NAME}.tar || true"
+                sh "docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true"
+            }
+        }
+    }
+}

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 
+  AuthorizationTypeMapper.xml - MyBatis mapper for authorization types
+  
+  This mapper provides SQL queries and mappings for the AuthorizationType entity,
+  handling database operations related to authorization types in the system.
+-->
+<mapper namespace="com.quip.backend.authorization.mapper.database.AuthorizationTypeMapper">
+
+    <resultMap id="AuthorizationTypeResultMap" type="com.quip.backend.authorization.model.AuthorizationType">
+        <id property="id" column="id"/>
+        <result property="authorizationTypeName" column="authorization_type_name"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="selectByAuthorizationTypeName" resultMap="AuthorizationTypeResultMap">
+        SELECT id, authorization_type_name, created_by, updated_by, created_at, updated_at
+        FROM authorization_type
+        WHERE authorization_type_name = #{authorizationTypeName}
+    </select>
+</mapper>

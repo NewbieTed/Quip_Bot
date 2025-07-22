@@ -20,6 +20,7 @@ build/
 
 # Environment files
 .env
+.env.local
 
 # Image directory
 src/main/resources/static/
@@ -48,3 +49,11 @@ src/main/resources/static/
 
 ### Visual Studio Code ###
 .vscode/
+
+.kiro/
+
+### Logs
+*.log
+logs/
+*/logs/
+**/logs/*.log

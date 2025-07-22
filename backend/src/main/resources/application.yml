@@ -4,12 +4,19 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
   main:
-    allow-bean-definition-overriding: true # Required for MyBatis and JPA to coexist smoothly
+    allow-bean-definition-overriding: true
+
+logging:
+  file:
+    name: logs/backend.log
+  level:
+    com.quip.backend: INFO
+    org.springframework: WARN
+    org.mybatis: WARN
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 
 mybatis:
   mapper-locations: classpath*:/com/quip/**/*.xml

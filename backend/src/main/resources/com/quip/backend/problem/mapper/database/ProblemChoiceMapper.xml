@@ -1,8 +1,24 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 
+  ProblemChoiceMapper.xml - MyBatis mapper for problem choices
+  
+  This mapper provides SQL queries and mappings for the ProblemChoice entity,
+  handling database operations related to answer choices for problems.
+-->
 <mapper namespace="com.quip.backend.problem.mapper.database.ProblemChoiceMapper">
 
-
+    <resultMap id="ProblemChoiceResultMap" type="com.quip.backend.problem.model.ProblemChoice">
+        <id property="id" column="id"/>
+        <result property="problemId" column="problem_id"/>
+        <result property="choiceText" column="choice_text"/>
+        <result property="mediaFileId" column="media_file_id"/>
+        <result property="isCorrect" column="is_correct"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
 
 
 </mapper>
