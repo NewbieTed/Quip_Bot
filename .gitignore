@@ -20,7 +20,7 @@ build/
 
 # Environment files
 .env
-.env*
+.env.local
 
 # Image directory
 src/main/resources/static/
