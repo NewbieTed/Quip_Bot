@@ -54,3 +54,6 @@ src/main/resources/static/
 
 ### Logs
 *.log
+logs/
+*/logs/
+**/logs/*.log

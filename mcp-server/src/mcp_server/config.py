@@ -58,11 +58,21 @@ class Config:
 
         level_str = config.get("level", "INFO").upper()
         level = getattr(logging, level_str, logging.INFO)
+        
+        # Ensure logs directory exists
+        os.makedirs("logs", exist_ok=True)
+        
+        handlers = [logging.StreamHandler()]
+        
+        # Add file handler if specified in config
+        if "file" in config.get("handlers", []):
+            file_path = config.get("file_path", "logs/mcp-server.log")
+            handlers.append(logging.FileHandler(file_path))
 
         return {
             "level": level,
             "format": config.get("format", "%(asctime)s - %(name)s - %(levelname)s - %(message)s"),
-            "handlers": [logging.StreamHandler()]
+            "handlers": handlers
         }
     
     @classmethod
