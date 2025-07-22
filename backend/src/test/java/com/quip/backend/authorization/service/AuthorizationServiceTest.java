@@ -234,7 +234,14 @@ class AuthorizationServiceTest extends BaseTest {
         }
     }
 
-    // Test data factory methods
+    /**
+     * Helper methods for creating test data
+     */
+    
+    /**
+     * Creates an AuthorizationType entity with the specified ID and name.
+     * Used for mocking authorization type data in tests.
+     */
     private AuthorizationType createAuthorizationType(Long authorizationTypeId, String authorizationTypeName) {
         AuthorizationType authorizationType = new AuthorizationType();
         authorizationType.setId(authorizationTypeId);
@@ -242,16 +249,28 @@ class AuthorizationServiceTest extends BaseTest {
         return authorizationType;
     }
 
+    /**
+     * Creates a simple MemberChannelAuthorization entity.
+     * Used for mocking authorization data in tests.
+     */
     private MemberChannelAuthorization createMemberChannelAuthorization() {
         return new MemberChannelAuthorization();
     }
 
+    /**
+     * Creates a Server entity with the specified ID.
+     * Used for mocking server data in tests.
+     */
     private Server createServer(Long serverId) {
         Server server = new Server();
         server.setId(serverId);
         return server;
     }
 
+    /**
+     * Creates a Channel entity with the specified ID and server ID.
+     * Used for mocking channel data in tests.
+     */
     private Channel createChannel(Long channelId, Long serverId) {
         Channel channel = new Channel();
         channel.setId(channelId);
@@ -259,12 +278,21 @@ class AuthorizationServiceTest extends BaseTest {
         return channel;
     }
 
+    /**
+     * Creates a Member entity with the specified ID.
+     * Used for mocking member data in tests.
+     */
     private Member createMember(Long memberId) {
         Member member = new Member();
         member.setId(memberId);
         return member;
     }
 
+    /**
+     * Sets up common mock behaviors for the dependent services.
+     * This method configures the member, channel, and server services to return
+     * valid test entities when called with the test constants.
+     */
     private void mockValidAuthorizationDependencies() {
         when(memberService.validateMember(VALID_MEMBER_ID, VALID_OPERATION)).thenReturn(validMember);
         when(channelService.validateChannel(VALID_CHANNEL_ID, VALID_OPERATION)).thenReturn(validChannel);

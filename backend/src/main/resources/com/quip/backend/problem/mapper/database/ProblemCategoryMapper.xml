@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 
+  ProblemCategoryMapper.xml - MyBatis mapper for problem categories
+  
+  This mapper provides SQL queries and mappings for the ProblemCategory entity,
+  handling database operations related to problem categories in the system.
+-->
 <mapper namespace="com.quip.backend.problem.mapper.database.ProblemCategoryMapper">
     <resultMap id="ProblemCategoryResultMap" type="com.quip.backend.problem.model.ProblemCategory">
         <id property="id" column="id"/>

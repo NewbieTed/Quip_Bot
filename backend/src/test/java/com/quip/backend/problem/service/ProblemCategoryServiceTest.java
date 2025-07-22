@@ -31,6 +31,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit tests for {@link ProblemCategoryService}.
+ * <p>
+ * This test class validates the problem category service functionality including
+ * category creation, retrieval, and validation.
+ * </p>
+ */
 @ExtendWith(MockitoExtension.class)
 public class ProblemCategoryServiceTest extends BaseTest {
 
@@ -70,6 +77,10 @@ public class ProblemCategoryServiceTest extends BaseTest {
         reset(problemCategoryMapper, getProblemCategoryResponseDtoMapper, createProblemCategoryRequestDtoMapper);
     }
 
+    /**
+     * Tests for the getServerProblemCategories method which retrieves problem categories for a server.
+     * This nested class validates that categories are correctly retrieved and mapped to DTOs.
+     */
     @Nested
     @DisplayName("getServerProblemCategories() Tests")
     class GetServerProblemCategoriesTests {
@@ -107,6 +118,11 @@ public class ProblemCategoryServiceTest extends BaseTest {
 
     }
 
+    /**
+     * Tests for the addProblemCategory method which creates a new problem category.
+     * This nested class validates that categories are correctly created and validated,
+     * and that appropriate exceptions are thrown for invalid inputs.
+     */
     @Nested
     @DisplayName("addProblemCategory() Tests")
     class AddProblemCategoryTests {
@@ -251,6 +267,11 @@ public class ProblemCategoryServiceTest extends BaseTest {
         }
     }
 
+    /**
+     * Tests for the validateProblemCategory method which ensures a problem category exists and is valid.
+     * This nested class contains tests that verify problem category validation logic works correctly
+     * for both valid and invalid category IDs.
+     */
     @Nested
     @DisplayName("validateProblemCategory() Tests")
     class ValidateProblemCategoryTests {
@@ -321,6 +342,15 @@ public class ProblemCategoryServiceTest extends BaseTest {
         }
     }
 
+    /**
+     * Creates a mock AuthorizationContext for testing.
+     * <p>
+     * This method sets up a valid authorization context with a server ID
+     * and configures the authorizationService mock to return it.
+     * </p>
+     * 
+     * @return A mock AuthorizationContext for testing
+     */
     private AuthorizationContext mockValidAuthorizationContext() {
         AuthorizationContext context = new AuthorizationContext(null, null, new Server(), new MemberChannelAuthorization());
         context.server().setId(VALID_SERVER_ID);
@@ -329,6 +359,16 @@ public class ProblemCategoryServiceTest extends BaseTest {
         return context;
     }
 
+    /**
+     * Creates a ProblemCategory entity with the specified name and description.
+     * <p>
+     * This method is used to create test data for problem category tests.
+     * </p>
+     * 
+     * @param name The category name
+     * @param description The category description
+     * @return A ProblemCategory entity with the specified values
+     */
     private ProblemCategory buildProblemCategory(String name, String description) {
         ProblemCategory category = new ProblemCategory();
         category.setCategoryName(name);
@@ -337,6 +377,16 @@ public class ProblemCategoryServiceTest extends BaseTest {
         return category;
     }
 
+    /**
+     * Creates a CreateProblemCategoryRequestDto with the specified name and description.
+     * <p>
+     * This method is used to create test request DTOs for problem category creation tests.
+     * </p>
+     * 
+     * @param name The category name
+     * @param description The category description
+     * @return A CreateProblemCategoryRequestDto with the specified values
+     */
     private CreateProblemCategoryRequestDto buildCategoryRequest(String name, String description) {
         CreateProblemCategoryRequestDto requestDto = new CreateProblemCategoryRequestDto();
         requestDto.setMemberId(VALID_MEMBER_ID);

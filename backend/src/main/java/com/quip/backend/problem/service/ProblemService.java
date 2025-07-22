@@ -29,6 +29,18 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Service responsible for managing problems in the system.
+ * <p>
+ * This service handles the creation, retrieval, and management of problems.
+ * It provides functionality for adding new problems with their associated choices,
+ * retrieving problems by category, and validating problem data.
+ * </p>
+ * <p>
+ * The service enforces authorization rules to ensure that only authorized members
+ * can perform operations on problems.
+ * </p>
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -58,21 +70,44 @@ public class ProblemService {
     private static final String CREATE_PROBLEM_CHOICE = "Problem Choice Creation";
     private static final String RETRIEVE_PROBLEM = "Problem Retrieval";
 
+    /**
+     * Gets a specific problem by ID.
+     * <p>
+     * This is a placeholder method for future implementation.
+     * </p>
+     *
+     * @return Problem response DTO
+     */
     public GetProblemResponseDto getProblem() {
         return null; // Placeholder for future implementation
     }
 
     // TODO: Change other feature's file structure on DTOs as well as naming
 
+    /**
+     * Retrieves a list of problems belonging to a specific category.
+     * <p>
+     * This method first validates that the requesting member has permission to view problems
+     * in the specified channel, then retrieves all problems associated with the given category.
+     * </p>
+     *
+     * @param getProblemRequestDto DTO containing member ID, channel ID, and problem category ID
+     * @return List of problem response DTOs
+     * @throws ValidationException If the member lacks proper authorization or if the category doesn't exist
+     */
     public List<GetProblemListItemResponseDto> getProblemsByCategory(GetProblemRequestDto getProblemRequestDto) {
+        // Verify member has permission to view problems in this channel
         authorizationService.validateAuthorization(
                 getProblemRequestDto.getMemberId(),
                 getProblemRequestDto.getChannelId(),
                 AuthorizationConstants.VIEW_PROBLEM,
                 RETRIEVE_PROBLEM
         );
+        
+        // Validate that the requested problem category exists
         ProblemCategory problemCategory = problemCategoryService.validateProblemCategory(getProblemRequestDto.getProblemCategoryId(), RETRIEVE_PROBLEM);
 
+        // Retrieve all problems for the category and convert to DTOs
         List<Problem> problems = problemMapper.selectByProblemCategoryId(problemCategory.getId());
         List<GetProblemListItemResponseDto> getProblemResponseDtos = new ArrayList<>();
 
@@ -83,13 +118,29 @@ public class ProblemService {
         return getProblemResponseDtos;
     }
 
+    /**
+     * Adds a new problem to the system with its associated choices.
+     * <p>
+     * This method creates a new problem in the database along with any associated choices.
+     * It performs validation on the input data and ensures that the requesting member
+     * has proper authorization to manage problems in the specified channel.
+     * </p>
+     * <p>
+     * The method is transactional to ensure that both the problem and its choices
+     * are either all created successfully or none are created.
+     * </p>
+     *
+     * @param problemCreateDto DTO containing the problem data to be created
+     * @throws ValidationException If the input data is invalid or the member lacks proper authorization
+     * @throws IllegalStateException If the problem insertion fails to return an ID
+     */
     @Transactional
     public void addProblem(CreateProblemRequestDto problemCreateDto) {
         if (problemCreateDto == null) {
             throw new ValidationException(CREATE_PROBLEM, "body", "must not be null");
         }
 
-        // Validate authorization
+        // Verify member has permission to manage problems in this channel
         AuthorizationContext authorizationContext = authorizationService.validateAuthorization(
                 problemCreateDto.getMemberId(),
                 problemCreateDto.getChannelId(),
@@ -97,14 +148,14 @@ public class ProblemService {
                 CREATE_PROBLEM
         );
 
-        // Validate fields
+        // Validate all required fields and relationships
         problemCategoryService.validateProblemCategory(problemCreateDto.getProblemCategoryId(), CREATE_PROBLEM);
         this.validateProblem(problemCreateDto.getQuestion(), CREATE_PROBLEM);
         problemChoiceService.validateProblemChoices(problemCreateDto.getChoices(), CREATE_PROBLEM_CHOICE);
 
         // TODO: Validate files
 
-        // Insert problem
+        // Create and persist the problem entity
         Problem problem = createProblemRequestDtoMapper.toProblem(problemCreateDto);
         problem.setServerId(authorizationContext.server().getId());
         problemMapper.insert(problem);
@@ -114,7 +165,7 @@ public class ProblemService {
         }
         log.info("Inserted problem with ID: {}", problem.getId());
 
-        // Insert choices
+        // Create and persist all associated problem choices
         List<CreateProblemChoiceRequestDto> choices = problemCreateDto.getChoices();
         if (choices != null) {
             for (CreateProblemChoiceRequestDto choiceDto : choices) {
@@ -126,7 +177,19 @@ public class ProblemService {
         }
     }
 
+    /**
+     * Validates a problem question for creation or update operations.
+     * <p>
+     * This method ensures that the question text is not null or empty.
+     * Future implementations may include duplicate checking.
+     * </p>
+     *
+     * @param question The problem question text to validate
+     * @param operation A descriptive name of the operation being performed (for error messages)
+     * @throws ValidationException If the question is null or empty
+     */
     public void validateProblem(String question, String operation) {
+        // Ensure question has actual content
         if (question == null || question.trim().isEmpty()) {
             throw new ValidationException(operation, "question", "must not be empty");
         }

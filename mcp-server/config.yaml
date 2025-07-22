@@ -1,0 +1,36 @@
+# MCP Server Configuration
+app:
+  name: "mcp-server"
+  version: "1.0.0"
+  description: "MCP Server for Quip Backend Integration"
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    - console
+    - file
+  file_path: "logs/mcp-server.log"
+
+# HTTP Client Configuration
+http:
+  user_agent: "mcp-server/1.0.0"
+  retry_attempts: 3
+  retry_delay: 1
+
+# Tool Configuration
+tools:
+  weather:
+    enabled: true
+    cache_duration: 300  # 5 minutes
+  quip_backend:
+    enabled: true
+    rate_limit: 100  # requests per minute
+
+# Server Configuration
+server:
+  cors_enabled: true
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:5001"

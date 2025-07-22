@@ -5,6 +5,14 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Data Transfer Object for returning problem choice information.
+ * <p>
+ * This DTO contains the essential information about a problem choice
+ * to be returned to the client, including its text content, media URL,
+ * and whether it is the correct answer.
+ * </p>
+ */
 @Data
 @Builder
 @NoArgsConstructor
@@ -21,5 +29,8 @@ public class GetProblemChoiceResponseDto {
     private String mediaUrl;
 
 
+    /**
+     * Flag indicating whether this choice is the correct answer to the problem.
+     */
     private Boolean isCorrect;
 }

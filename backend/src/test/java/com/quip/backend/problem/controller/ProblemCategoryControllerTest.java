@@ -74,6 +74,11 @@ class ProblemCategoryControllerTest extends BaseTest {
         assertNotNull(validator);
     }
 
+    /**
+     * Tests for the getByChannelId endpoint which retrieves problem categories for a channel.
+     * This nested class validates that the endpoint correctly processes requests,
+     * validates parameters, and returns appropriate responses.
+     */
     @Nested
     @DisplayName("getByChannelId Tests")
     class GetByChannelIdTests {
@@ -207,6 +212,11 @@ class ProblemCategoryControllerTest extends BaseTest {
         }
     }
 
+    /**
+     * Tests for the addProblemCategory endpoint which creates a new problem category.
+     * This nested class validates that the endpoint correctly processes requests,
+     * handles various input scenarios, and returns appropriate responses.
+     */
     @Nested
     @DisplayName("addProblemCategory Tests")
     class AddProblemCategoryTests {
@@ -451,7 +461,14 @@ class ProblemCategoryControllerTest extends BaseTest {
         }
     }
 
-    // Helper methods
+    /**
+     * Helper methods for test data setup and creation
+     */
+    
+    /**
+     * Sets up test data for problem category controller tests.
+     * This method initializes valid request DTOs and mock response data.
+     */
     private void setupTestData() {
         validCreateRequest = CreateProblemCategoryRequestDto.builder()
                 .channelId(VALID_CHANNEL_ID)

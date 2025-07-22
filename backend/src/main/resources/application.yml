@@ -7,6 +7,17 @@ spring:
   main:
     allow-bean-definition-overriding: true
 
+logging:
+  file:
+    name: logs/backend.log
+  level:
+    com.quip.backend: INFO
+    org.springframework: WARN
+    org.mybatis: WARN
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
 mybatis:
   mapper-locations: classpath*:/com/quip/**/*.xml
   configuration:

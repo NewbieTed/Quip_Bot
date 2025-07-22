@@ -80,6 +80,11 @@ class GlobalExceptionHandlerTest extends BaseTest {
         public void setActive(Boolean active) { this.active = active; }
     }
 
+    /**
+     * Tests for the handleHttpMessageNotReadable method which processes HTTP message parsing errors.
+     * This nested class validates that the handler correctly processes various types of
+     * message parsing exceptions and returns appropriate error responses.
+     */
     @Nested
     @DisplayName("handleHttpMessageNotReadable() Tests")
     class HandleHttpMessageNotReadableTests {
@@ -155,6 +160,11 @@ class GlobalExceptionHandlerTest extends BaseTest {
         }
     }
 
+    /**
+     * Tests for the handleValidationException method which processes validation errors from Spring's validation framework.
+     * This nested class validates that the handler correctly processes MethodArgumentNotValidException
+     * and returns appropriate error responses with the correct status codes.
+     */
     @Nested
     @DisplayName("handleValidationException() Tests")
     class HandleValidationExceptionTests {
@@ -225,6 +235,11 @@ class GlobalExceptionHandlerTest extends BaseTest {
         }
     }
 
+    /**
+     * Tests for the handleCustomValidationException method which processes custom validation exceptions.
+     * This nested class validates that the handler correctly processes ValidationException
+     * and returns appropriate error responses with the correct status codes.
+     */
     @Nested
     @DisplayName("handleCustomValidationException() Tests")
     class HandleCustomValidationExceptionTests {
@@ -279,6 +294,11 @@ class GlobalExceptionHandlerTest extends BaseTest {
         }
     }
 
+    /**
+     * Tests for the handleEntityNotFoundException method which processes entity not found exceptions.
+     * This nested class validates that the handler correctly processes EntityNotFoundException
+     * and returns appropriate error responses with the correct status codes.
+     */
     @Nested
     @DisplayName("handleEntityNotFoundException() Tests")
     class HandleEntityNotFoundExceptionTests {

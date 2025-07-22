@@ -18,6 +18,11 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("EntityNotFoundException Tests")
 public class EntityNotFoundExceptionTest extends BaseTest {
 
+    /**
+     * Tests for the EntityNotFoundException constructors.
+     * This nested class validates that the exception is properly created with
+     * different message and cause combinations.
+     */
     @Nested
     @DisplayName("Constructor Tests")
     class ConstructorTests {
@@ -106,6 +111,11 @@ public class EntityNotFoundExceptionTest extends BaseTest {
         }
     }
 
+    /**
+     * Tests for the runtime behavior of EntityNotFoundException.
+     * This nested class validates that the exception can be thrown and caught properly,
+     * and that message and cause information is preserved during this process.
+     */
     @Nested
     @DisplayName("Exception Behavior Tests")
     class ExceptionBehaviorTests {

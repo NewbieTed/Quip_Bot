@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 
+  MemberChannelAuthorizationMapper.xml - MyBatis mapper for member channel authorizations
+  
+  This mapper provides SQL queries and mappings for the MemberChannelAuthorization entity,
+  handling database operations related to member permissions on channels.
+-->
 <mapper namespace="com.quip.backend.authorization.mapper.database.MemberChannelAuthorizationMapper">
 
     <resultMap id="MemberChannelPermissionResultMap" type="com.quip.backend.authorization.model.MemberChannelAuthorization">

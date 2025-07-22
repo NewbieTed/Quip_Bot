@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 
+  ServerRoleMapper.xml - MyBatis mapper for server roles
+  
+  This mapper provides SQL queries and mappings for the ServerRole entity,
+  handling database operations related to roles within servers.
+-->
 <mapper namespace="com.quip.backend.server.mapper.database.ServerRoleMapper">
 
     <resultMap id="ServerRoleResultMap" type="com.quip.backend.server.model.ServerRole">
