@@ -29,7 +29,7 @@ public class Problem {
     /**
      * Unique identifier for the problem, auto-generated.
      */
-    @TableId(type = IdType.AUTO, value = "id")
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
     /**

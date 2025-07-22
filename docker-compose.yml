@@ -29,18 +29,59 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+      DATABASE_URL: ${DATABASE_URL}
+      AGENT_URL: ${AGENT_URL}
     depends_on:
       quip-db:
         condition: service_healthy
     command: java -jar /app/build/libs/app.jar
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - quip-network
 
-  quip-backend-ai:
-    build: ./ai-backend
-    container_name: quip-backend-ai
+  quip-agent:
+    build: ./agent
+    container_name: quip-agent
     ports:
       - "5001:5000"
+    environment:
+      MCP_SERVER_URL: ${MCP_SERVER_URL}
+      BACKEND_URL: http://quip-backend-app:8080
+    depends_on:
+      quip-backend-app:
+        condition: service_healthy
+    networks:
+      - quip-network
+
+  quip-mcp-server:
+    build: ./mcp-server
+    container_name: quip-mcp-server
+    ports:
+      - "8000:8000"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8000
+    depends_on:
+      quip-agent:
+        condition: service_started
+    networks:
+      - quip-network
+
+  quip-frontend:
+    build: ./frontend
+    container_name: quip-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      BACKEND_URL: ${BACKEND_URL}
+    depends_on:
+      quip-backend-app:
+        condition: service_started
     networks:
       - quip-network
 

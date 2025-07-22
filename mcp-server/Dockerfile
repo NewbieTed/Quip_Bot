@@ -22,7 +22,7 @@ COPY . .
 RUN mkdir -p logs
 
 # Expose port
-EXPOSE 5000
+EXPOSE 8000
 
 # Run the application
-CMD ["uvicorn", "src.agent.main:app", "--host", "0.0.0.0", "--port", "5000"]
+CMD ["python", "-m", "src.mcp_server.main"]

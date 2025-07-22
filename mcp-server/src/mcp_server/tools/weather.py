@@ -2,7 +2,7 @@ import httpx
 import logging
 
 from fastmcp import Context
-from mcp_server.app import mcp
+from src.mcp_server.app import mcp
 
 logger = logging.getLogger(__name__)
 

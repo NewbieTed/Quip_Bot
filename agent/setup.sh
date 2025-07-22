@@ -269,7 +269,8 @@ fi
 
 print_status "✅ Agent setup completed successfully!"
 print_status ""
-print_status "Next steps:"
+print_status "Next steps (if you are not using Docker):"
+print_status "Note: All paths defined below should be run under the 'agent' directory"
 print_status "1. To activate the environment manually: source venv/bin/activate"
-print_status "2. To start the server: python src/agent/main.py"
+print_status "2. To start the server: uvicorn src.agent.main:app --host <your_host_ip> --port <your_port_number>"
 print_status "3. Make sure to configure your .env file with required API keys"

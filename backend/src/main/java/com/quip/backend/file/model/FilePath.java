@@ -28,8 +28,7 @@ public class FilePath {
     /**
      * Unique identifier for the file path, auto-generated.
      */
-    @TableId(type = IdType.AUTO)
-    @TableField("id")
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
     
     /**

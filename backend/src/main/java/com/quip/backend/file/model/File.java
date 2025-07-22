@@ -28,8 +28,7 @@ public class File {
     /**
      * Unique identifier for the file, auto-generated.
      */
-    @TableId(type = IdType.AUTO)
-    @TableField("id")
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
     
     /**

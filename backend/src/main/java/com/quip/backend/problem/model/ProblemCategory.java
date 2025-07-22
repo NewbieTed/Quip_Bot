@@ -29,7 +29,7 @@ public class ProblemCategory {
     /**
      * Unique identifier for the problem category, auto-generated.
      */
-    @TableId(type = IdType.AUTO, value = "id")
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
     /**

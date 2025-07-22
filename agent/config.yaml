@@ -6,7 +6,7 @@ app:
 
 # Backend API Configuration
 backend:
-  url: "http://localhost:8080"  # Can be overridden by BACKEND_URL env var
+  url: "http://quip-backend-app:8080"  # Can be overridden by BACKEND_URL env var
 
 # Logging Configuration
 logging:

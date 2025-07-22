@@ -13,7 +13,7 @@ class Config:
     """Configuration management for MCP Server"""
     
     _config_cache: Optional[Dict[str, Any]] = None
-    _config_file = Path(__file__).parent.parent.parent / "config.yaml"
+    _config_file = Path("config.yaml")
     
     # Environment Variables (sensitive data)
     DEBUG = os.getenv("DEBUG", "false").lower() == "true"

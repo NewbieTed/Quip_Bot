@@ -3,8 +3,8 @@ Main entry point for the MCP Server
 """
 
 import logging
-from mcp_server.app import mcp
-from mcp_server.config import Config
+from src.mcp_server.app import mcp
+from src.mcp_server.config import Config
 
 # Configure logging
 logging.basicConfig(**Config.get_logging_config())

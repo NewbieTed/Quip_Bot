@@ -22,8 +22,10 @@ logger = logging.getLogger(__name__)
 
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
-    member_id: int
+    server_id: int
     channel_id: int
+    member_id: int
+
 
 
 def route_to_progress_report_before_tools(

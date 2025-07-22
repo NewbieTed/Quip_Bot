@@ -11,7 +11,7 @@ mcp = FastMCP(
 )
 
 # Do NOT remove this, otherwise FastMCP will not register the tools
-from tools import *
+from src.mcp_server.tools import *
 
 # Log the loaded tools
 logger.info(f"Successfully loaded MCP tools.")

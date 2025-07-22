@@ -6,7 +6,7 @@ authors = [
     {name = "Quip Team", email = "team@quip.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<4.0"
 dependencies = [
     "fastapi",
     "pydantic",
@@ -15,10 +15,10 @@ dependencies = [
     "PyYAML",
     "langchain-openai",
     "langchain-core",
-    "langchain",
+    "langchain (>=0.3.26,<0.4.0)",
     "langgraph",
     "langchain-mcp-adapters",
-    "structlog"
+    "structlog",
 ]
 
 [project.optional-dependencies]

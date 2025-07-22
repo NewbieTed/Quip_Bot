@@ -262,6 +262,7 @@ ensure_logs_directory
 print_status "✅ MCP Server setup completed successfully!"
 print_status ""
 print_status "Next steps:"
+print_status "Note: All paths defined below should be run under the 'mcp-server' directory"
 print_status "1. To activate the environment manually: source venv/bin/activate"
 print_status "2. To start the server: python src/mcp_server/main.py"
 print_status "3. Make sure to configure your .env file with required service URLs"

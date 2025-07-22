@@ -4,7 +4,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from typing import Dict, Any, Optional
 
-# Load environment variables from .env file
+# Load environment variables from .env file (for local development)
+# In Docker, environment variables are set by Docker Compose
 load_dotenv()
 
 
@@ -12,12 +13,12 @@ class Config:
     """Configuration management for Agent"""
     
     _config_cache: Optional[Dict[str, Any]] = None
-    _config_file = Path(__file__).parent / "config.yaml"
+    _config_file = Path("config.yaml")
     
-    # Environment Variables (sensitive data)
+    # Environment Variables
     DEBUG = os.getenv("DEBUG", "false").lower() == "true"
     HOST = os.getenv("HOST", "0.0.0.0")
-    PORT = int(os.getenv("PORT", "5001"))
+    PORT = int(os.getenv("PORT", "5000"))
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080")
     MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp")
