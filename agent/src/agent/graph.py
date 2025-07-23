@@ -10,7 +10,7 @@ from src.agent.tools import get_all_tools
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_core.messages import AIMessage
 from typing_extensions import TypedDict
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
@@ -146,7 +146,7 @@ async def setup_graph(tools=None, memory_saver=None) -> CompiledStateGraph:
     if tools is None:
         tools = []
     if memory_saver is None:
-        memory_saver = MemorySaver()
+        memory_saver = InMemorySaver()
 
     os.environ["OPENAI_API_KEY"] = Config.OPENAI_API_KEY
     openai_config = Config.get_openai_config()
@@ -193,7 +193,7 @@ class GraphCache:
         self.graph = None
         self.client = None
         self.tools_hash = None
-        self.memory_saver = MemorySaver()  # Persistent memory across recompilations
+        self.memory_saver = InMemorySaver()  # Persistent memory across recompilations
 
     def _compute_tools_hash(self, tools):
         """Compute a hash of the tools to detect changes."""
