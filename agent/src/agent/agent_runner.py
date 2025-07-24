@@ -1,9 +1,14 @@
+import copy
 import logging
 from pathlib import Path
 from src.config import Config
 
 # Import the graph cache from graph module
 from src.agent.graph import get_cached_graph
+from langgraph.graph.state import CompiledStateGraph
+
+from langgraph.types import Command
+from langchain_core.messages import HumanMessage
 
 # Get system prompt path from configuration
 agent_config = Config.get_agent_config()
@@ -14,27 +19,33 @@ logger = logging.getLogger(__name__)
 
 
 def load_system_prompt() -> str:
+    """Load the system prompt from the configured file path."""
     return SYSTEM_PROMPT_PATH.read_text(encoding="utf-8").strip()
 
 
-async def run_agent(member_message: str, server_id: int, channel_id: int, member_id: int):
-    logger.info("Starting agent run for server_id=%s, channel_id=%s, member_id=%s, ", server_id, member_id, channel_id)
-    
-    if not isinstance(member_message, str) or not member_message.strip():
-        logger.error("Invalid message provided: %s", type(member_message))
-        yield "Error: Provided message must be a non-empty string."
-        return
-
+async def _setup_agent_run(member_message: str, server_id: int, channel_id: int, 
+                           member_id: int, conversation_id: int):
+    """Common setup for agent runs."""
     # Get the cached graph (recompiles only if tools changed)
     logger.debug("Retrieving cached graph")
     graph = await get_cached_graph()
-    
+
     # Log available tools for debugging
     from src.agent.tools import get_all_tools
     tools = get_all_tools()
     logger.info("Agent has access to %d local tools: %s", len(tools), [tool.name for tool in tools])
 
-    config = {"configurable": {"thread_id": member_id}}
+    # Create config with thread ID and other context
+    config = {
+        "configurable": {
+            "thread_id": str(member_id) + str(server_id) + str(conversation_id), 
+            "member_id": member_id, 
+            "server_id:": server_id, 
+            "conversation_id": conversation_id
+        }
+    }
+    
+    # Prepare messages with system prompt and user message
     system_message: str = load_system_prompt()
     messages = [
         {
@@ -52,54 +63,117 @@ async def run_agent(member_message: str, server_id: int, channel_id: int, member
         "messages": messages,
         "server_id": server_id,
         "channel_id": channel_id,
-        "member_id": member_id
+        "member_id": member_id,
+        "conversation_id": conversation_id,
     }
+    
+    return graph, config, initial_state
 
+
+async def _process_stream(graph: CompiledStateGraph, state, config, stream_mode=None):
+    """Process the agent's stream and yield responses."""
+    if stream_mode is None:
+        stream_mode = ["updates", "custom"]
+        
     last_content = None
-    previous_content = ""
+    
     try:
-        async for mode, chunk in graph.astream(initial_state, config,
-                                               stream_mode=["updates", "messages", "custom"]):
-
-            if mode == "messages":
-                logger.debug("Received message stream chunk")
-                if isinstance(chunk, dict) and "messages" in chunk:
-                    partial_message = chunk["messages"][-1].content
-                    # Only yield the new part of the message to avoid duplication
-                    if partial_message and partial_message != previous_content:
-                        if previous_content and partial_message.startswith(previous_content):
-                            # Yield only the new part
-                            new_part = partial_message[len(previous_content):]
-                            if new_part:
-                                yield new_part
-                        else:
-                            # Yield the full message if it's completely different
-                            yield partial_message
-                        previous_content = partial_message
-                continue
-                
+        async for mode, chunk in graph.astream(state, config, stream_mode=stream_mode):
             if mode == "custom":
                 if isinstance(chunk, dict):
                     message = chunk.get('progress', chunk)
                 else:
                     message = chunk
                 logger.debug("Custom stream message: %s", message)
+                last_content = message
                 yield message
                 continue
-                
-            for value in chunk.values():
-                if isinstance(value, dict) and "messages" in value:
-                    last_content = value["messages"][-1].content
-                    
+
+            if mode == "updates":
+                logger.debug("Received update stream chunk %s", chunk)
+                # Check for interrupt message (only in run_new_agent)
+                if isinstance(chunk, dict) and '__interrupt__' in chunk:
+                    interrupt_obj = chunk['__interrupt__'][0]
+                    request_value = interrupt_obj.value.get('request')
+                    if request_value:
+                        logger.info("Interrupt request: %s", request_value)
+                        yield request_value
+                        last_content = request_value
+                        continue
+                        
+                # Check for agent response
+                if isinstance(chunk, dict) and 'agent' in chunk and 'messages' in chunk["agent"]:
+                    last_content = chunk["agent"]["messages"][-1].content.strip()
+                    if last_content is not None and last_content != "":
+                        yield last_content
+                    continue
+
     except Exception as e:
-        logger.exception("Stream error occurred for member_id=%s: %s", member_id, str(e))
+        logger.exception("Stream error occurred: %s", str(e))
         yield f"Error: {str(e)}"
+        return
 
-    if last_content and last_content != previous_content:
-        logger.info("Agent run completed successfully for member_id=%s", member_id)
-        yield last_content
-    elif not last_content:
-        logger.warning("No response generated by assistant for member_id=%s", member_id)
+    if not last_content:
+        logger.warning("No response generated by assistant")
         yield "No response generated by the assistant."
+        
+    return
 
 
+async def run_agent(member_message: str,
+                    server_id: int,
+                    channel_id: int,
+                    member_id: int,
+                    conversation_id: int,
+                    approved: bool):
+    """Run an agent with approval flow."""
+    logger.info("Resuming agent run for server_id=%s, channel_id=%s, member_id=%s", 
+                server_id, channel_id, member_id)
+
+    # TODO: Check if approve is True when member_message is not empty, that cannot happen
+    # Get common setup
+    graph, config, initial_state = await _setup_agent_run(
+        member_message, server_id, channel_id, member_id, conversation_id
+    )
+
+    # Handle approval flow if provided
+    # None approval means that there is no approval to be made, it is just a regular message
+    if approved is not None:
+        command = Command(resume=approved)
+        async for message in _process_stream(graph, command, config):
+            yield message
+
+    # Skip if message is empty
+    if not member_message.strip():
+        return
+
+    # new_state = copy.deepcopy(graph.get_state(config).values)
+    new_state = graph.get_state(config).values
+    new_state["messages"] += [HumanMessage(member_message)]
+    # Continue with the regular message flow
+    async for message in _process_stream(graph, new_state, config):
+        yield message
+    logger.info("Agent run completed for member_id=%s", member_id)
+
+
+async def run_new_agent(member_message: str, server_id: int, channel_id: int, member_id: int, conversation_id: int):
+    """Run a new agent instance."""
+    logger.info("Starting agent run for server_id=%s, channel_id=%s, member_id=%s", 
+                server_id, channel_id, member_id)
+
+    # Validate input
+    if not isinstance(member_message, str) or not member_message.strip():
+        logger.error("Invalid message provided: %s", type(member_message))
+        yield "Error: Provided message must be a non-empty string."
+        return
+
+    # Get common setup
+    graph, config, initial_state = await _setup_agent_run(
+        member_message, server_id, channel_id, member_id, conversation_id
+    )
+
+    # Process the stream
+    async for message in _process_stream(graph, initial_state, config):
+        yield message
+
+    logger.info("Agent run completed for member_id=%s", member_id)

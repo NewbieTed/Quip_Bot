@@ -8,13 +8,14 @@ from langgraph.graph.state import CompiledStateGraph
 from src.config import Config
 from src.agent.tools import get_all_tools
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain_core.messages import AIMessage
-from typing_extensions import TypedDict
+from langgraph.types import interrupt, Command
+from langchain_core.messages import ToolMessage
+from typing_extensions import TypedDict, NotRequired
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
-from typing import Annotated
+from typing import Annotated, Literal
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -25,10 +26,12 @@ class AgentState(TypedDict):
     server_id: int
     channel_id: int
     member_id: int
+    conversation_id: int
+    decision: NotRequired[str]
+    tool_call_id: NotRequired[str]
 
 
-
-def route_to_progress_report_before_tools(
+def route_to_human_confirmation_before_tools(
         state: AgentState,
 ):
     """
@@ -42,8 +45,64 @@ def route_to_progress_report_before_tools(
     else:
         raise ValueError(f"No messages found in input state to tool_edge: {state}")
     if hasattr(ai_message, "tool_calls") and len(ai_message.tool_calls) > 0:
-        return "progress_report"
+        return "human_confirmation"
     return END
+
+class HumanConfirmationNode:
+    """A node that asks the user to confirm the tool call."""
+    def __init__(self):
+        openai_config = Config.get_openai_config()
+        self.llm = ChatOpenAI(
+            temperature=openai_config.get("temperature", 0),
+            model=openai_config.get("model", "gpt-4o-mini"),
+            api_key=Config.OPENAI_API_KEY
+        )
+        self.system_prompt = {
+            "role": "system",
+            "content": (
+                "You are a verification assistant helping to describe tool actions before user approval. "
+                "You will be given a tool name and a dictionary of arguments. "
+                "Your task is to rephrase this as a short, natural-sounding **infinitive verb phrase** "
+                "(starting with a verb like 'search for', 'retrieve', 'send', etc.) that completes the sentence:\n"
+                "'Do you approve the agent to ____?'\n"
+                "Only return the phrase to inject into that sentence."
+            )
+        }
+
+    def __call__(self, state: AgentState) -> Command[Literal["progress_report", "reject_action"]]:
+        logger.debug("HumanConfirmationNode called with state type: %s", type(state))
+        messages = state.get("messages", [])
+        if not messages:
+            logger.debug("No messages in state, returning unchanged")
+            return Command(goto="reject_action", update={"decision": "rejected"})
+
+        last_message = messages[-1]
+        if not hasattr(last_message, "tool_calls") or not last_message.tool_calls:
+            logger.debug("No tool calls in last message, returning unchanged")
+            return Command(goto="reject_action", update={"decision": "rejected"})
+
+        for tool_call in last_message.tool_calls:
+            user_prompt = f"Tool name: {tool_call['name']}, Tool args: {tool_call['args']}"
+            logger.debug("Generating confirmation request for: %s", user_prompt)
+            tool_call_id = tool_call['id']
+            messages_for_llm = [
+                self.system_prompt,
+                {
+                    "role": "user",
+                    "content": user_prompt
+                }
+            ]
+            new_message = self.llm.invoke(messages_for_llm)
+            approved: bool = interrupt({
+                "request": f"Do you approve the agent to {new_message.content}?"
+            })
+            # TODO: This will not handle when there are multiple tool calls
+            logger.info("Got approval: %s", approved)
+            if not approved:
+                logger.info("Rejecting action")
+                return Command(goto="reject_action", update={"decision": "rejected", "tool_call_id": tool_call_id})
+
+        return Command(goto="progress_report", update={"decision": "approved"})
 
 
 class ProgressReportNode:
@@ -142,6 +201,35 @@ class ContextInjectionNode:
         return state
 
 
+class RejectActionNode:
+    def __call__(self, state: AgentState):
+        writer = get_stream_writer()
+        writer({"progress": "Rejected tool call."})
+        
+        # Get the tool_call_id from state, or find it from the last message
+        tool_call_id = state.get("tool_call_id")
+        if not tool_call_id:
+            # Fallback: get tool_call_id from the last message with tool calls
+            messages = state.get("messages", [])
+            for message in reversed(messages):
+                if hasattr(message, "tool_calls") and message.tool_calls:
+                    tool_call_id = message.tool_calls[0]["id"]
+                    break
+        
+        if tool_call_id:
+            state["messages"].append(
+                ToolMessage(
+                    "Tool call operation cancelled by user. \n"
+                    "Note: the tool is still fine to use (accessible), it is OK to continue using it",
+                    tool_call_id=tool_call_id
+                )
+            )
+        else:
+            logger.error("No tool_call_id found to reject")
+            
+        return state
+
+
 async def setup_graph(tools=None, memory_saver=None) -> CompiledStateGraph:
     if tools is None:
         tools = []
@@ -164,22 +252,35 @@ async def setup_graph(tools=None, memory_saver=None) -> CompiledStateGraph:
     graph_builder.add_node("agent", agent)
 
     tool_node = ToolNode(tools=tools)
+    human_confirmation_node = HumanConfirmationNode()
+    reject_action_node = RejectActionNode()
     progress_report_node = ProgressReportNode()
     context_injection_node = ContextInjectionNode()
 
-    graph_builder.add_node("tools", tool_node)
+    graph_builder.add_node("human_confirmation", human_confirmation_node)
+    graph_builder.add_node("reject_action", reject_action_node)
     graph_builder.add_node("progress_report", progress_report_node)
     graph_builder.add_node("context_injection", context_injection_node)
+    graph_builder.add_node("tools", tool_node)
 
     graph_builder.add_conditional_edges(
         "agent",
-        route_to_progress_report_before_tools,
-        {"progress_report": "progress_report", END: END},
+        route_to_human_confirmation_before_tools,
+        {"human_confirmation": "human_confirmation", END: END},
+    )
+
+    graph_builder.add_conditional_edges(
+        "human_confirmation",
+        lambda state: state["decision"],
+        {"approved": "progress_report", "rejected": "reject_action"}
     )
 
     graph_builder.add_edge("progress_report", "context_injection")
     graph_builder.add_edge("context_injection", "tools")
     graph_builder.add_edge("tools", "agent")
+
+    graph_builder.add_edge("reject_action", END)
+    graph_builder.add_edge("agent", END)
     graph_builder.set_entry_point("agent")
 
     # Use the provided memory saver (preserves memory across recompilations)
@@ -218,12 +319,12 @@ class GraphCache:
         # Get local tools with force_reload in development mode
         local_tools = get_all_tools(force_reload=True)
         logger.info("Loaded %d local tools: %s", len(local_tools), [tool.name for tool in local_tools])
-        
+
         # Create MCP client and get MCP tools
         mcp_tools = []
         mcp_config = Config.get_mcp_config()
         mcp_enabled = mcp_config.get("enabled", True)
-        
+
         if mcp_enabled and self.client is None:
             logger.info("Creating MCP client connection")
             servers_config = {}
@@ -232,7 +333,7 @@ class GraphCache:
                     "url": Config.MCP_SERVER_URL,
                     "transport": server_config.get("transport", "streamable_http")
                 }
-            
+
             if servers_config:
                 self.client = MultiServerMCPClient(servers_config)
                 mcp_tools = await self.client.get_tools()
@@ -243,7 +344,7 @@ class GraphCache:
         elif mcp_enabled and self.client:
             mcp_tools = await self.client.get_tools()
             logger.debug("Retrieved %d MCP tools from existing client", len(mcp_tools))
-        
+
         elif not mcp_enabled:
             logger.info("MCP disabled in configuration, using local tools only")
 
@@ -254,8 +355,8 @@ class GraphCache:
 
         # Check if we need to recompile
         if self.graph is None:
-            logger.info("Initial graph compilation with %d total tools (%d local + %d MCP): %s", 
-                       len(all_tools), len(local_tools), len(mcp_tools), tool_names)
+            logger.info("Initial graph compilation with %d total tools (%d local + %d MCP): %s",
+                        len(all_tools), len(local_tools), len(mcp_tools), tool_names)
             logger.debug("Tools hash: %s", current_tools_hash)
             self.graph = await setup_graph(all_tools, self.memory_saver)
             self.tools_hash = current_tools_hash
