@@ -39,7 +39,11 @@ mcp:
 
 # Agent Configuration
 agent:
-  system_prompt_path: "src/agent/prompts/system_prompt.txt"
+  prompts_dir: "src/agent/prompts"
+  prompts:
+    main_system: "main_system_prompt.txt"
+    human_confirmation: "human_confirmation_prompt.txt"
+    progress_report: "progress_report_prompt.txt"
   max_iterations: 10
   stream_mode:
     - "updates"

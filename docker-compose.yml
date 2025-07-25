@@ -50,8 +50,12 @@ services:
     ports:
       - "5001:5000"
     environment:
-      MCP_SERVER_URL: ${MCP_SERVER_URL}
+      # MCP Server Configuration (Multi-server support)
+      MCP_SERVER_URL_QUIPMCPSERVER: ${MCP_SERVER_URL_QUIPMCPSERVER}
+      MCP_SERVER_URL: ${MCP_SERVER_URL}  # Global fallback
       BACKEND_URL: http://quip-backend-app:8080
+      # Add additional MCP server URLs as needed:
+      # MCP_SERVER_URL_WEATHERMCPSERVER: ${MCP_SERVER_URL_WEATHERMCPSERVER}
     depends_on:
       quip-backend-app:
         condition: service_healthy

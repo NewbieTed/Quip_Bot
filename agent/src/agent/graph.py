@@ -7,15 +7,17 @@ from langgraph.constants import END
 from langgraph.graph.state import CompiledStateGraph
 from src.config import Config
 from src.agent.tools import get_all_tools
+from src.agent.utils.prompt_loader import load_prompt
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.types import interrupt, Command
 from langchain_core.messages import ToolMessage
+from langchain_core.tools.base import BaseTool
 from typing_extensions import TypedDict, NotRequired
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Set, List
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -28,12 +30,13 @@ class AgentState(TypedDict):
     member_id: int
     conversation_id: int
     decision: NotRequired[str]
-    tool_call_id: NotRequired[str]
+    tool_call_ids: List[str]
+    tool_whitelist: Set[str]
 
 
 def route_to_human_confirmation_before_tools(
         state: AgentState,
-):
+) -> str:
     """
     Use in the conditional_edge to route to the ToolNode if the last message
     has tool calls. Otherwise, route to the end.
@@ -48,6 +51,12 @@ def route_to_human_confirmation_before_tools(
         return "human_confirmation"
     return END
 
+
+class Decision(TypedDict):
+    approved: bool
+    tool_whitelist_update: List[str]
+
+
 class HumanConfirmationNode:
     """A node that asks the user to confirm the tool call."""
     def __init__(self):
@@ -59,14 +68,7 @@ class HumanConfirmationNode:
         )
         self.system_prompt = {
             "role": "system",
-            "content": (
-                "You are a verification assistant helping to describe tool actions before user approval. "
-                "You will be given a tool name and a dictionary of arguments. "
-                "Your task is to rephrase this as a short, natural-sounding **infinitive verb phrase** "
-                "(starting with a verb like 'search for', 'retrieve', 'send', etc.) that completes the sentence:\n"
-                "'Do you approve the agent to ____?'\n"
-                "Only return the phrase to inject into that sentence."
-            )
+            "content": load_prompt("human_confirmation")
         }
 
     def __call__(self, state: AgentState) -> Command[Literal["progress_report", "reject_action"]]:
@@ -81,10 +83,12 @@ class HumanConfirmationNode:
             logger.debug("No tool calls in last message, returning unchanged")
             return Command(goto="reject_action", update={"decision": "rejected"})
 
+        tool_whitelist: Set[str] = state["tool_whitelist"]
         for tool_call in last_message.tool_calls:
+            if tool_call['name'] in state["tool_whitelist"]:
+                continue
             user_prompt = f"Tool name: {tool_call['name']}, Tool args: {tool_call['args']}"
             logger.debug("Generating confirmation request for: %s", user_prompt)
-            tool_call_id = tool_call['id']
             messages_for_llm = [
                 self.system_prompt,
                 {
@@ -93,16 +97,32 @@ class HumanConfirmationNode:
                 }
             ]
             new_message = self.llm.invoke(messages_for_llm)
-            approved: bool = interrupt({
-                "request": f"Do you approve the agent to {new_message.content}?"
+            decision: Decision = interrupt({
+                "request": {
+                    "content": f"Do you approve the agent to {new_message.content}?",
+                    "tool_name": tool_call["name"]
+                }
             })
-            # TODO: This will not handle when there are multiple tool calls
-            logger.info("Got approval: %s", approved)
-            if not approved:
-                logger.info("Rejecting action")
-                return Command(goto="reject_action", update={"decision": "rejected", "tool_call_id": tool_call_id})
 
-        return Command(goto="progress_report", update={"decision": "approved"})
+            for tool in decision["tool_whitelist_update"]:
+                tool_whitelist.add(tool)
+
+            logger.info("Got decision: %s", decision)
+
+            # Reject all tool calls if one is rejected
+            if not decision["approved"]:
+                logger.info("Rejecting all tool calls")
+                tool_call_ids = [tool_call["id"] for tool_call in last_message.tool_calls]
+
+                return Command(goto="reject_action",
+                               update={
+                                    "decision": "rejected",
+                                    "tool_call_ids": tool_call_ids,
+                                    "tool_whitelist": tool_whitelist
+                                    }
+                               )
+
+        return Command(goto="progress_report", update={"decision": "approved", "tool_whitelist": tool_whitelist})
 
 
 class ProgressReportNode:
@@ -117,10 +137,7 @@ class ProgressReportNode:
         )
         self.system_prompt = {
             "role": "system",
-            "content": "You are an expert in turning function calls into human understandable language.  You also "
-                       "prefer to use as few words as possible. When given you a tool name and function call, "
-                       "you shall output a short label in natural language and present continuous tense about what "
-                       "the call is trying to do, also use '...' in the end to indicate in progress."
+            "content": load_prompt("progress_report")
         }
 
     def __call__(self, state: AgentState):
@@ -207,16 +224,13 @@ class RejectActionNode:
         writer({"progress": "Rejected tool call."})
         
         # Get the tool_call_id from state, or find it from the last message
-        tool_call_id = state.get("tool_call_id")
-        if not tool_call_id:
-            # Fallback: get tool_call_id from the last message with tool calls
-            messages = state.get("messages", [])
-            for message in reversed(messages):
-                if hasattr(message, "tool_calls") and message.tool_calls:
-                    tool_call_id = message.tool_calls[0]["id"]
-                    break
-        
-        if tool_call_id:
+        tool_call_ids = state.get("tool_call_ids")
+
+        if not tool_call_ids:
+            logger.error("No tool_call_id found to reject")
+            return state
+
+        for tool_call_id in tool_call_ids:
             state["messages"].append(
                 ToolMessage(
                     "Tool call operation cancelled by user. \n"
@@ -224,8 +238,6 @@ class RejectActionNode:
                     tool_call_id=tool_call_id
                 )
             )
-        else:
-            logger.error("No tool_call_id found to reject")
             
         return state
 
@@ -296,7 +308,7 @@ class GraphCache:
         self.tools_hash = None
         self.memory_saver = InMemorySaver()  # Persistent memory across recompilations
 
-    def _compute_tools_hash(self, tools):
+    def _compute_tools_hash(self, tools) -> str:
         """Compute a hash of the tools to detect changes."""
         # Create a stable representation of tools for hashing
         tool_signatures = []
@@ -329,17 +341,22 @@ class GraphCache:
             logger.info("Creating MCP client connection")
             servers_config = {}
             for server_name, server_config in mcp_config.get("servers", {}).items():
+                server_url = server_config.get("url", Config.MCP_SERVER_URL)
                 servers_config[server_name] = {
-                    "url": Config.MCP_SERVER_URL,
+                    "url": server_url,
                     "transport": server_config.get("transport", "streamable_http")
                 }
+                logger.info("Configured MCP server '%s' with URL: %s", server_name, server_url)
 
             if servers_config:
                 self.client = MultiServerMCPClient(servers_config)
-                mcp_tools = await self.client.get_tools()
+                mcp_tools: List[BaseTool] = await self.client.get_tools()
+
                 logger.info("Loaded %d MCP tools: %s", len(mcp_tools), [tool.name for tool in mcp_tools])
             else:
                 logger.info("No MCP servers configured, using local tools only")
+
+            # TODO: Tool name conflicts?
 
         elif mcp_enabled and self.client:
             mcp_tools = await self.client.get_tools()
@@ -350,6 +367,15 @@ class GraphCache:
 
         # Combine local and MCP tools
         all_tools = local_tools + mcp_tools
+        # Check for duplicate tool names
+        name_counts = {}
+        for tool in all_tools:
+            name_counts[tool.name] = name_counts.get(tool.name, 0) + 1
+        duplicate_names = [name for name, count in name_counts.items() if count > 1]
+        if duplicate_names:
+            logger.warning("Duplicate tool names detected: %s", duplicate_names)
+            raise ValueError(f"Duplicate tool names detected: {duplicate_names}")
+
         current_tools_hash = self._compute_tools_hash(all_tools)
         tool_names = [tool.name for tool in all_tools]
 

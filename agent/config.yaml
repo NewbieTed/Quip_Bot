@@ -28,18 +28,25 @@ mcp:
   enabled: true  # Set to false to use local tools only
   servers:
     QuipMCPServer:
+      # URL configured via environment variables for security
+      # Use MCP_SERVER_URL_QUIPMCPSERVER or fallback to MCP_SERVER_URL
       transport: "streamable_http"
       reconnect_attempts: 3
       reconnect_delay: 5
     # Add more MCP servers here as needed
     # WeatherMCPServer:
+    #   # URL configured via MCP_SERVER_URL_WEATHERMCPSERVER env var
     #   transport: "streamable_http"
     #   reconnect_attempts: 3
     #   reconnect_delay: 5
 
 # Agent Configuration
 agent:
-  system_prompt_path: "src/agent/prompts/system_prompt.txt"
+  prompts_dir: "src/agent/prompts"
+  prompts:
+    main_system: "main_system_prompt.txt"
+    human_confirmation: "human_confirmation_prompt.txt"
+    progress_report: "progress_report_prompt.txt"
   max_iterations: 10
   stream_mode:
     - "updates"
