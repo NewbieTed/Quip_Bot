@@ -413,6 +413,65 @@ CREATE TABLE reaction_role (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE agent_conversation (
+    id BIGSERIAL PRIMARY KEY,
+    conversation_id BIGINT NOT NULL,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
+    is_active BOOLEAN DEFAULT FALSE NOT NULL,
+    is_interrupt BOOLEAN DEFAULT FALSE NOT NULL,
+    is_processing BOOLEAN DEFAULT FALSE NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE mcp_server (
+    id BIGSERIAL PRIMARY KEY,
+    discord_server_id BIGINT REFERENCES server(id) ON DELETE CASCADE,
+    server_name TEXT NOT NULL,
+    server_url TEXT NOT NULL,
+    description TEXT,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE tool (
+    id BIGSERIAL PRIMARY KEY,
+    mcp_server_id BIGINT NOT NULL REFERENCES mcp_server(id) ON DELETE CASCADE,
+    tool_name TEXT NOT NULL,
+    description TEXT,
+    enabled BOOLEAN DEFAULT FALSE NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TYPE tool_whitelist_scope AS ENUM ('global', 'server', 'conversation');
+
+CREATE TABLE tool_whitelist (
+    member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
+    tool_id BIGINT NOT NULL REFERENCES tool(id) ON DELETE CASCADE,
+    server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
+    agent_conversation_id BIGINT DEFAULT 0 NOT NULL REFERENCES agent_conversation(id) ON DELETE CASCADE,
+    scope tool_whitelist_scope NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (member_id, tool_id, server_id, agent_conversation_id)
+);
+
 -- ===========================
 -- Documentation Comments
 -- ===========================
@@ -446,6 +505,427 @@ COMMENT ON TABLE file IS 'Stores uploaded files metadata.';
 COMMENT ON TABLE file_type IS 'Stores server-scoped file type definitions for uploaded files.';
 COMMENT ON TABLE file_path IS 'Stores various storage paths for files.';
 COMMENT ON TABLE problem_answer_history IS 'Tracks member quiz answer submissions and correctness.';
+COMMENT ON TABLE agent_conversation IS 'Stores conversation state for human-in-the-loop agent interactions.';
+COMMENT ON TABLE mcp_server IS 'Stores MCP (Model Context Protocol) server definitions.';
+COMMENT ON TABLE tool IS 'Stores available tools and their associated MCP servers.';
+COMMENT ON TABLE tool_whitelist IS 'Stores member tool approval permissions with scope and expiration.';
+
+
+-- ===========================
+-- COLUMN COMMENTS FOR ALL TABLES
+-- ===========================
+-- This part contains comprehensive column documentation for the Discord bot database schema
+-- Following PostgreSQL best practices for database documentation
+
+-- ===========================
+-- CORE TABLES
+-- ===========================
+
+-- member table
+COMMENT ON COLUMN member.id IS 'Primary key - Discord member ID (snowflake)';
+COMMENT ON COLUMN member.member_name IS 'Discord username or display name';
+COMMENT ON COLUMN member.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN member.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN member.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN member.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- server table
+COMMENT ON COLUMN server.id IS 'Primary key - Discord server/guild ID (snowflake)';
+COMMENT ON COLUMN server.server_name IS 'Discord server/guild name';
+COMMENT ON COLUMN server.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN server.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN server.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN server.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- server_category table
+COMMENT ON COLUMN server_category.id IS 'Primary key - Discord category ID (snowflake)';
+COMMENT ON COLUMN server_category.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN server_category.category_name IS 'Name of the Discord channel category';
+COMMENT ON COLUMN server_category.position IS 'Display order position within the server';
+
+-- channel table
+COMMENT ON COLUMN channel.id IS 'Primary key - Discord channel ID (snowflake)';
+COMMENT ON COLUMN channel.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN channel.server_category_id IS 'Foreign key to server_category table (nullable)';
+COMMENT ON COLUMN channel.channel_name IS 'Discord channel name';
+COMMENT ON COLUMN channel.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN channel.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN channel.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN channel.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- ===========================
+-- AUTHORIZATION TABLES
+-- ===========================
+
+-- authorization_type table
+COMMENT ON COLUMN authorization_type.id IS 'Primary key - auto-incrementing authorization type ID';
+COMMENT ON COLUMN authorization_type.authorization_type_name IS 'Name of the authorization type (e.g., "read", "write", "admin")';
+COMMENT ON COLUMN authorization_type.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN authorization_type.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN authorization_type.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN authorization_type.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- member_channel_authorization table
+COMMENT ON COLUMN member_channel_authorization.member_id IS 'Foreign key to member table';
+COMMENT ON COLUMN member_channel_authorization.channel_id IS 'Foreign key to channel table';
+COMMENT ON COLUMN member_channel_authorization.authorization_type_id IS 'Foreign key to authorization_type table';
+COMMENT ON COLUMN member_channel_authorization.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN member_channel_authorization.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN member_channel_authorization.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN member_channel_authorization.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- ===========================
+-- FILE MANAGEMENT TABLES
+-- ===========================
+
+-- file_path table
+COMMENT ON COLUMN file_path.id IS 'Primary key - auto-incrementing file path ID';
+COMMENT ON COLUMN file_path.path_name IS 'Human-readable name for this file path configuration';
+COMMENT ON COLUMN file_path.file_path IS 'Actual file system path or storage location';
+COMMENT ON COLUMN file_path.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN file_path.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN file_path.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN file_path.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- file_type table
+COMMENT ON COLUMN file_type.id IS 'Primary key - auto-incrementing file type ID';
+COMMENT ON COLUMN file_type.server_id IS 'Foreign key to server table (server-scoped file types)';
+COMMENT ON COLUMN file_type.type_name IS 'Name of the file type (e.g., "quiz_image", "project_doc")';
+COMMENT ON COLUMN file_type.description IS 'Description of what this file type is used for';
+COMMENT ON COLUMN file_type.file_path_id IS 'Foreign key to file_path table (storage location)';
+COMMENT ON COLUMN file_type.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN file_type.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN file_type.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- file table
+COMMENT ON COLUMN file.id IS 'Primary key - auto-incrementing file ID';
+COMMENT ON COLUMN file.file_name IS 'Original filename as uploaded';
+COMMENT ON COLUMN file.file_type_id IS 'Foreign key to file_type table';
+COMMENT ON COLUMN file.size IS 'File size in bytes';
+COMMENT ON COLUMN file.mime_type IS 'MIME type of the file (e.g., "image/png", "application/pdf")';
+COMMENT ON COLUMN file.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN file.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN file.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN file.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- ===========================
+-- MEMBER STATISTICS & GAMIFICATION
+-- ===========================
+
+-- member_server_stat table
+COMMENT ON COLUMN member_server_stat.member_id IS 'Foreign key to member table';
+COMMENT ON COLUMN member_server_stat.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN member_server_stat.join_date IS 'When the member joined this server';
+COMMENT ON COLUMN member_server_stat.level IS 'Current level of the member in this server';
+COMMENT ON COLUMN member_server_stat.last_active IS 'Timestamp of last activity in this server';
+COMMENT ON COLUMN member_server_stat.total_messages IS 'Total number of messages sent by member in this server';
+COMMENT ON COLUMN member_server_stat.participation_streak IS 'Current consecutive days of participation';
+COMMENT ON COLUMN member_server_stat.experience IS 'Total experience points earned in this server';
+COMMENT ON COLUMN member_server_stat.num_warnings IS 'Total number of warnings received in this server';
+COMMENT ON COLUMN member_server_stat.num_bans IS 'Total number of bans received in this server';
+COMMENT ON COLUMN member_server_stat.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN member_server_stat.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN member_server_stat.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN member_server_stat.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- ===========================
+-- MODERATION TABLES
+-- ===========================
+
+-- warning table
+COMMENT ON COLUMN warning.id IS 'Primary key - auto-incrementing warning ID';
+COMMENT ON COLUMN warning.member_id IS 'Foreign key to member table (member being warned)';
+COMMENT ON COLUMN warning.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN warning.moderator_id IS 'Foreign key to member table (moderator issuing warning)';
+COMMENT ON COLUMN warning.reason IS 'Reason for the warning';
+COMMENT ON COLUMN warning.issued_at IS 'Timestamp when warning was issued';
+COMMENT ON COLUMN warning.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN warning.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN warning.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN warning.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- ban table
+COMMENT ON COLUMN ban.id IS 'Primary key - auto-incrementing ban ID';
+COMMENT ON COLUMN ban.member_id IS 'Foreign key to member table (member being banned)';
+COMMENT ON COLUMN ban.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN ban.moderator_id IS 'Foreign key to member table (moderator issuing ban)';
+COMMENT ON COLUMN ban.reason IS 'Reason for the ban';
+COMMENT ON COLUMN ban.issued_at IS 'Timestamp when ban was issued';
+COMMENT ON COLUMN ban.duration IS 'Duration of the ban (NULL for permanent)';
+COMMENT ON COLUMN ban.unbanned IS 'Whether the ban has been lifted';
+COMMENT ON COLUMN ban.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN ban.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN ban.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN ban.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- flag_reason table
+COMMENT ON COLUMN flag_reason.id IS 'Primary key - auto-incrementing flag reason ID';
+COMMENT ON COLUMN flag_reason.reason IS 'Description of the flag reason (e.g., "spam", "inappropriate content")';
+COMMENT ON COLUMN flag_reason.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN flag_reason.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN flag_reason.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN flag_reason.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- filtered_message table
+COMMENT ON COLUMN filtered_message.id IS 'Primary key - Discord message ID (snowflake)';
+COMMENT ON COLUMN filtered_message.member_id IS 'Foreign key to member table (message author)';
+COMMENT ON COLUMN filtered_message.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN filtered_message.channel_id IS 'Foreign key to channel table';
+COMMENT ON COLUMN filtered_message.content IS 'Content of the flagged message';
+COMMENT ON COLUMN filtered_message.flagged_at IS 'Timestamp when message was flagged';
+COMMENT ON COLUMN filtered_message.reason IS 'Foreign key to flag_reason table';
+COMMENT ON COLUMN filtered_message.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN filtered_message.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN filtered_message.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN filtered_message.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- ===========================
+-- SERVER MANAGEMENT TABLES
+-- ===========================
+
+-- server_rule table
+COMMENT ON COLUMN server_rule.id IS 'Primary key - auto-incrementing rule ID';
+COMMENT ON COLUMN server_rule.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN server_rule.rule_index IS 'Display order of the rule (1, 2, 3, etc.)';
+COMMENT ON COLUMN server_rule.content IS 'Text content of the rule';
+COMMENT ON COLUMN server_rule.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN server_rule.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN server_rule.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN server_rule.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- server_setting table
+COMMENT ON COLUMN server_setting.server_id IS 'Primary key - foreign key to server table';
+COMMENT ON COLUMN server_setting.auto_mod_enabled IS 'Whether automatic moderation is enabled';
+COMMENT ON COLUMN server_setting.level_system_enabled IS 'Whether the leveling system is enabled';
+COMMENT ON COLUMN server_setting.level_multiplier IS 'Multiplier for experience point calculations';
+COMMENT ON COLUMN server_setting.announcement_channel_id IS 'Foreign key to channel table (default announcement channel)';
+COMMENT ON COLUMN server_setting.additional_settings IS 'JSON object for additional server-specific settings';
+COMMENT ON COLUMN server_setting.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN server_setting.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN server_setting.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN server_setting.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- ===========================
+-- UTILITY TABLES
+-- ===========================
+
+-- reminder table
+COMMENT ON COLUMN reminder.id IS 'Primary key - auto-incrementing reminder ID';
+COMMENT ON COLUMN reminder.member_id IS 'Foreign key to member table (member who set the reminder)';
+COMMENT ON COLUMN reminder.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN reminder.content IS 'Text content of the reminder';
+COMMENT ON COLUMN reminder.remind_at IS 'Timestamp when the reminder should be triggered';
+COMMENT ON COLUMN reminder.completed IS 'Whether the reminder has been sent/completed';
+COMMENT ON COLUMN reminder.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN reminder.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN reminder.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN reminder.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- announcement table
+COMMENT ON COLUMN announcement.id IS 'Primary key - auto-incrementing announcement ID';
+COMMENT ON COLUMN announcement.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN announcement.channel_id IS 'Foreign key to channel table (where to send announcement)';
+COMMENT ON COLUMN announcement.content IS 'Text content of the announcement';
+COMMENT ON COLUMN announcement.send_at IS 'Timestamp when the announcement should be sent';
+COMMENT ON COLUMN announcement.sent IS 'Whether the announcement has been sent';
+COMMENT ON COLUMN announcement.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN announcement.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN announcement.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN announcement.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- ===========================
+-- ROLE MANAGEMENT TABLES
+-- ===========================
+
+-- server_role table
+COMMENT ON COLUMN server_role.id IS 'Primary key - Discord role ID (snowflake)';
+COMMENT ON COLUMN server_role.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN server_role.role_name IS 'Name of the Discord role';
+COMMENT ON COLUMN server_role.is_auto_assignable IS 'Whether this role is automatically assigned based on criteria';
+COMMENT ON COLUMN server_role.is_self_assignable IS 'Whether members can assign this role to themselves';
+COMMENT ON COLUMN server_role.level_required IS 'Minimum level required to obtain this role';
+COMMENT ON COLUMN server_role.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN server_role.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN server_role.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN server_role.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- member_role table
+COMMENT ON COLUMN member_role.member_id IS 'Foreign key to member table';
+COMMENT ON COLUMN member_role.server_role_id IS 'Foreign key to server_role table';
+COMMENT ON COLUMN member_role.assigned_at IS 'Timestamp when the role was assigned to the member';
+COMMENT ON COLUMN member_role.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN member_role.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN member_role.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN member_role.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- reaction_role table
+COMMENT ON COLUMN reaction_role.id IS 'Primary key - auto-incrementing reaction role ID';
+COMMENT ON COLUMN reaction_role.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN reaction_role.channel_id IS 'Foreign key to channel table';
+COMMENT ON COLUMN reaction_role.server_role_id IS 'Foreign key to server_role table';
+COMMENT ON COLUMN reaction_role.message_id IS 'Discord message ID (snowflake) that contains the reaction';
+COMMENT ON COLUMN reaction_role.emoji IS 'Emoji that triggers the role assignment';
+COMMENT ON COLUMN reaction_role.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN reaction_role.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN reaction_role.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN reaction_role.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- ===========================
+-- POLLING SYSTEM TABLES
+-- ===========================
+
+-- poll table
+COMMENT ON COLUMN poll.id IS 'Primary key - auto-incrementing poll ID';
+COMMENT ON COLUMN poll.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN poll.question IS 'The poll question or prompt';
+COMMENT ON COLUMN poll.allow_multiple_votes IS 'Whether members can vote for multiple options';
+COMMENT ON COLUMN poll.ends_at IS 'Timestamp when the poll closes';
+COMMENT ON COLUMN poll.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN poll.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN poll.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN poll.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- poll_option table
+COMMENT ON COLUMN poll_option.id IS 'Primary key - auto-incrementing poll option ID';
+COMMENT ON COLUMN poll_option.poll_id IS 'Foreign key to poll table';
+COMMENT ON COLUMN poll_option.option_text IS 'Text content of the poll option';
+COMMENT ON COLUMN poll_option.option_index IS 'Display order of the option (1, 2, 3, etc.)';
+COMMENT ON COLUMN poll_option.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN poll_option.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN poll_option.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN poll_option.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- poll_vote table
+COMMENT ON COLUMN poll_vote.member_id IS 'Foreign key to member table (voter)';
+COMMENT ON COLUMN poll_vote.poll_id IS 'Foreign key to poll table';
+COMMENT ON COLUMN poll_vote.poll_option_id IS 'Foreign key to poll_option table (chosen option)';
+COMMENT ON COLUMN poll_vote.voted_at IS 'Timestamp when the vote was cast';
+COMMENT ON COLUMN poll_vote.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN poll_vote.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN poll_vote.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN poll_vote.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- ===========================
+-- QUIZ/PROBLEM SYSTEM TABLES
+-- ===========================
+
+-- problem_category table
+COMMENT ON COLUMN problem_category.id IS 'Primary key - auto-incrementing category ID';
+COMMENT ON COLUMN problem_category.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN problem_category.category_name IS 'Name of the problem category (e.g., "Math", "Science")';
+COMMENT ON COLUMN problem_category.description IS 'Description of what problems this category contains';
+COMMENT ON COLUMN problem_category.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN problem_category.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN problem_category.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN problem_category.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- problem table
+COMMENT ON COLUMN problem.id IS 'Primary key - auto-incrementing problem ID';
+COMMENT ON COLUMN problem.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN problem.problem_category_id IS 'Foreign key to problem_category table';
+COMMENT ON COLUMN problem.question IS 'Text content of the problem/question';
+COMMENT ON COLUMN problem.media_file_id IS 'Foreign key to file table (optional image/media for question)';
+COMMENT ON COLUMN problem.contributor_id IS 'Foreign key to member table (member who contributed this problem)';
+COMMENT ON COLUMN problem.is_valid IS 'Whether this problem is active and valid for use';
+COMMENT ON COLUMN problem.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN problem.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN problem.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN problem.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- problem_choice table
+COMMENT ON COLUMN problem_choice.id IS 'Primary key - auto-incrementing choice ID';
+COMMENT ON COLUMN problem_choice.problem_id IS 'Foreign key to problem table';
+COMMENT ON COLUMN problem_choice.choice_text IS 'Text content of the answer choice';
+COMMENT ON COLUMN problem_choice.media_file_id IS 'Foreign key to file table (optional image/media for choice)';
+COMMENT ON COLUMN problem_choice.is_correct IS 'Whether this choice is the correct answer';
+COMMENT ON COLUMN problem_choice.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN problem_choice.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN problem_choice.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN problem_choice.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- problem_answer_history table
+COMMENT ON COLUMN problem_answer_history.id IS 'Primary key - auto-incrementing answer history ID';
+COMMENT ON COLUMN problem_answer_history.member_id IS 'Foreign key to member table (member who answered)';
+COMMENT ON COLUMN problem_answer_history.problem_id IS 'Foreign key to problem table';
+COMMENT ON COLUMN problem_answer_history.selected_choice_id IS 'Foreign key to problem_choice table (chosen answer)';
+COMMENT ON COLUMN problem_answer_history.is_correct IS 'Whether the selected answer was correct';
+COMMENT ON COLUMN problem_answer_history.answered_at IS 'Timestamp when the answer was submitted';
+
+-- ===========================
+-- ACHIEVEMENT SYSTEM TABLES
+-- ===========================
+
+-- achievement table
+COMMENT ON COLUMN achievement.id IS 'Primary key - auto-incrementing achievement ID';
+COMMENT ON COLUMN achievement.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN achievement.channel_id IS 'Foreign key to channel table (NULL means server-wide achievement)';
+COMMENT ON COLUMN achievement.achievement_name IS 'Name of the achievement';
+COMMENT ON COLUMN achievement.description IS 'Description of how to earn this achievement';
+COMMENT ON COLUMN achievement.hidden IS 'Whether this achievement is hidden until earned';
+COMMENT ON COLUMN achievement.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN achievement.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN achievement.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN achievement.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- member_achievement table
+COMMENT ON COLUMN member_achievement.member_id IS 'Foreign key to member table';
+COMMENT ON COLUMN member_achievement.server_id IS 'Foreign key to server table';
+COMMENT ON COLUMN member_achievement.achievement_id IS 'Foreign key to achievement table';
+COMMENT ON COLUMN member_achievement.achieved_at IS 'Timestamp when the achievement was earned';
+COMMENT ON COLUMN member_achievement.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN member_achievement.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN member_achievement.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN member_achievement.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- ===========================
+-- AGENT/AI SYSTEM TABLES
+-- ===========================
+
+-- agent_conversation table
+COMMENT ON COLUMN agent_conversation.id IS 'Primary key - auto-incrementing conversation record ID';
+COMMENT ON COLUMN agent_conversation.conversation_id IS 'Frontend-generated unique conversation identifier';
+COMMENT ON COLUMN agent_conversation.server_id IS 'Foreign key to server table (Discord server where conversation occurs)';
+COMMENT ON COLUMN agent_conversation.member_id IS 'Foreign key to member table (member participating in conversation)';
+COMMENT ON COLUMN agent_conversation.is_active IS 'Whether this conversation is currently active for the member';
+COMMENT ON COLUMN agent_conversation.is_interrupt IS 'Whether the agent is paused awaiting user approval for tool usage';
+COMMENT ON COLUMN agent_conversation.is_processing IS 'Whether the agent is currently processing a request';
+COMMENT ON COLUMN agent_conversation.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN agent_conversation.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN agent_conversation.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN agent_conversation.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- mcp_server table
+COMMENT ON COLUMN mcp_server.id IS 'Primary key - auto-incrementing MCP server ID';
+COMMENT ON COLUMN mcp_server.discord_server_id IS 'Foreign key to server table (NULL for global MCP servers)';
+COMMENT ON COLUMN mcp_server.server_name IS 'Human-readable name of the MCP server';
+COMMENT ON COLUMN mcp_server.server_url IS 'URL or connection string for the MCP server';
+COMMENT ON COLUMN mcp_server.description IS 'Description of what tools/capabilities this MCP server provides';
+COMMENT ON COLUMN mcp_server.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN mcp_server.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN mcp_server.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN mcp_server.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- tool table
+COMMENT ON COLUMN tool.id IS 'Primary key - auto-incrementing tool ID';
+COMMENT ON COLUMN tool.mcp_server_id IS 'Foreign key to mcp_server table (MCP server that provides this tool)';
+COMMENT ON COLUMN tool.tool_name IS 'Human-readable name of the tool';
+COMMENT ON COLUMN tool.description IS 'Description of what this tool does and its capabilities';
+COMMENT ON COLUMN tool.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN tool.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN tool.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN tool.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
+-- tool_whitelist table
+COMMENT ON COLUMN tool_whitelist.member_id IS 'Foreign key to member table (member who approved the tool)';
+COMMENT ON COLUMN tool_whitelist.tool_id IS 'Foreign key to tool table (tool that was approved)';
+COMMENT ON COLUMN tool_whitelist.agent_conversation_id IS 'Foreign key to agent_conversation table (for conversation-scoped approvals)';
+COMMENT ON COLUMN tool_whitelist.scope IS 'Scope of approval: "global" (all contexts), "server" (server-wide), or "conversation" (specific conversation only)';
+COMMENT ON COLUMN tool_whitelist.expires_at IS 'Optional expiration timestamp for the tool approval (NULL for permanent)';
+COMMENT ON COLUMN tool_whitelist.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN tool_whitelist.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN tool_whitelist.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN tool_whitelist.updated_at IS 'Timestamp when record was last modified (audit trail)';
+
 
 -- ===========================
 -- Indexes
@@ -516,6 +996,28 @@ CREATE INDEX idx_authorization_type_authorization_type_name ON authorization_typ
 CREATE INDEX idx_member_channel_authorization_member_id ON member_channel_authorization(member_id);
 CREATE INDEX idx_member_channel_authorization_channel_id ON member_channel_authorization(channel_id);
 CREATE INDEX idx_member_channel_authorization_authorization_type_id ON member_channel_authorization(authorization_type_id);
+
+-- agent_conversation
+CREATE INDEX idx_agent_conversation_conversation_id ON agent_conversation(conversation_id);
+CREATE INDEX idx_agent_conversation_server_id ON agent_conversation(server_id);
+CREATE INDEX idx_agent_conversation_member_id ON agent_conversation(member_id);
+CREATE INDEX idx_agent_conversation_is_active ON agent_conversation(is_active);
+CREATE INDEX idx_agent_conversation_is_interrupt ON agent_conversation(is_interrupt);
+CREATE INDEX idx_agent_conversation_is_processing ON agent_conversation(is_processing);
+
+-- mcp_server
+CREATE INDEX idx_mcp_server_server_name ON mcp_server(server_name);
+
+-- tool
+CREATE INDEX idx_tool_tool_name ON tool(tool_name);
+CREATE INDEX idx_tool_mcp_server_id ON tool(mcp_server_id);
+
+-- tool_whitelist
+CREATE INDEX idx_tool_whitelist_member_id ON tool_whitelist(member_id);
+CREATE INDEX idx_tool_whitelist_tool_id ON tool_whitelist(tool_id);
+CREATE INDEX idx_tool_whitelist_conversation_id ON tool_whitelist(agent_conversation_id);
+CREATE INDEX idx_tool_whitelist_scope ON tool_whitelist(scope);
+CREATE INDEX idx_tool_whitelist_expires_at ON tool_whitelist(expires_at);
 
 
 -- ===========================
@@ -838,4 +1340,47 @@ BEGIN
         BEFORE UPDATE ON reaction_role
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
-END$$;
+END$$;DO 
+$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_agent_conversation'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_agent_conversation
+        BEFORE UPDATE ON agent_conversation
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$;
+
+DO $
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_mcp_server'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_mcp_server
+        BEFORE UPDATE ON mcp_server
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$;
+
+DO $
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_tool'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_tool
+        BEFORE UPDATE ON tool
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$;
+
+DO $
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_tool_whitelist'
+    ) THEN
+        CREATE TRIGGER trigger_set_updated_at_tool_whitelist
+        BEFORE UPDATE ON tool_whitelist
+        FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+    END IF;
+END$;
