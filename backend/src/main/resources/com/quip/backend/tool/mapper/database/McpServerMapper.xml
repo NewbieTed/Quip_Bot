@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 
+  McpServerMapper.xml - MyBatis mapper for MCP servers
+  
+  This mapper provides SQL queries and mappings for the McpServer entity,
+  handling database operations related to MCP servers in the system.
+-->
+<mapper namespace="com.quip.backend.tool.mapper.database.McpServerMapper">
+
+    <resultMap id="McpServerResultMap" type="com.quip.backend.tool.model.McpServer">
+        <id property="id" column="id"/>
+        <result property="discordServerId" column="discord_server_id"/>
+        <result property="serverName" column="server_name"/>
+        <result property="serverUrl" column="server_url"/>
+        <result property="description" column="description"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="selectByDiscordServerId" resultMap="McpServerResultMap">
+        SELECT id, discord_server_id, server_name, server_url, description, created_by, updated_by, created_at, updated_at
+        FROM mcp_server
+        WHERE discord_server_id = #{discordServerId}
+    </select>
+
+    <select id="selectGlobalServers" resultMap="McpServerResultMap">
+        SELECT id, discord_server_id, server_name, server_url, description, created_by, updated_by, created_at, updated_at
+        FROM mcp_server
+        WHERE discord_server_id IS NULL
+    </select>
+
+    <select id="selectByNameAndDiscordServerId" resultMap="McpServerResultMap">
+        SELECT id, discord_server_id, server_name, server_url, description, created_by, updated_by, created_at, updated_at
+        FROM mcp_server
+        WHERE server_name = #{serverName}
+        <choose>
+            <when test="discordServerId != null">
+                AND discord_server_id = #{discordServerId}
+            </when>
+            <otherwise>
+                AND discord_server_id IS NULL
+            </otherwise>
+        </choose>
+    </select>
+
+</mapper>
