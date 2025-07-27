@@ -134,13 +134,13 @@ async def _process_stream(
                 if isinstance(chunk, dict):
                     # If chunk has 'progress', use it as content, otherwise use the whole chunk
                     if 'progress' in chunk:
-                        message = {"content": chunk['progress']}
+                        message = {"content": chunk['progress'], "type": "progress"}
                         last_content = chunk['progress']
                     else:
-                        message = {"content": str(chunk)}
+                        message = {"content": str(chunk), "type": "unknown"}
                         last_content = str(chunk)
                 else:
-                    message = {"content": str(chunk)}
+                    message = {"content": str(chunk), "type": "unknown"}
                     last_content = str(chunk)
                 logger.debug("Custom stream message: %s", message)
                 yield _format_json_response(message)
@@ -167,7 +167,7 @@ async def _process_stream(
                 if isinstance(chunk, dict) and 'agent' in chunk and 'messages' in chunk["agent"]:
                     last_content = chunk["agent"]["messages"][-1].content.strip()
                     if last_content is not None and last_content != "":
-                        yield _format_json_response({"content": last_content})
+                        yield _format_json_response({"content": last_content, "type": "update"})
                     continue
 
     except Exception as e:
