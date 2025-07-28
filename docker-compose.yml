@@ -18,25 +18,82 @@ services:
     networks:
       - quip-network
 
+  quip-redis:
+    image: redis:7-alpine
+    container_name: quip-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    environment:
+      # Redis configuration via environment variables
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command: >
+      sh -c "
+        if [ -n \"$$REDIS_PASSWORD\" ]; then
+          redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes --appendfsync everysec --maxmemory 256mb --maxmemory-policy allkeys-lru
+        else
+          redis-server --appendonly yes --appendfsync everysec --maxmemory 256mb --maxmemory-policy allkeys-lru
+        fi
+      "
+    volumes:
+      - quip_redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - quip-network
+    restart: unless-stopped
+
   quip-backend-app:
     build: ./backend
     container_name: quip-backend-app
     ports:
       - "8080:8080"
     environment:
+      # Database Configuration
       DB_HOST: quip-db
       DB_PORT: ${DB_PORT}
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DATABASE_URL: ${DATABASE_URL}
+      # Redis Configuration
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
+      REDIS_HOST: quip-redis
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DATABASE: ${REDIS_DATABASE:-0}
+      REDIS_TIMEOUT: ${REDIS_TIMEOUT:-2000}
+      REDIS_CONNECT_TIMEOUT: ${REDIS_CONNECT_TIMEOUT:-2000}
+      # Redis Pool Configuration
+      REDIS_POOL_MAX_ACTIVE: ${REDIS_POOL_MAX_ACTIVE:-8}
+      REDIS_POOL_MAX_IDLE: ${REDIS_POOL_MAX_IDLE:-8}
+      REDIS_POOL_MIN_IDLE: ${REDIS_POOL_MIN_IDLE:-0}
+      REDIS_POOL_MAX_WAIT: ${REDIS_POOL_MAX_WAIT:--1}
+      # Cache TTL Configuration
+      CACHE_DEFAULT_TTL: ${CACHE_DEFAULT_TTL:-3600000}
+      CACHE_TTL_TOOL_WHITELIST: ${CACHE_TTL_TOOL_WHITELIST:-3600}
+      CACHE_TTL_PROBLEM_CATEGORIES: ${CACHE_TTL_PROBLEM_CATEGORIES:-86400}
+      CACHE_TTL_SERVER_DATA: ${CACHE_TTL_SERVER_DATA:-21600}
+      CACHE_TTL_MEMBER_DATA: ${CACHE_TTL_MEMBER_DATA:-1800}
+      CACHE_TTL_ASSISTANT_SESSION: ${CACHE_TTL_ASSISTANT_SESSION:-7200}
+      CACHE_TTL_TEMPORARY_DATA: ${CACHE_TTL_TEMPORARY_DATA:-300}
+      # Application Redis Settings
+      APP_REDIS_DEFAULT_TTL: ${APP_REDIS_DEFAULT_TTL:-3600}
+      APP_REDIS_HEALTH_INTERVAL: ${APP_REDIS_HEALTH_INTERVAL:-30000}
+      # Other Configuration
       AGENT_URL: ${AGENT_URL}
     depends_on:
       quip-db:
         condition: service_healthy
+      quip-redis:
+        condition: service_healthy
     command: java -jar /app/build/libs/app.jar
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -91,6 +148,7 @@ services:
 
 volumes:
   quip_db_data:
+  quip_redis_data:
 
 networks:
   quip-network: {}
