@@ -1,0 +1,50 @@
+# Development Environment Configuration
+spring:
+  # Development Redis Configuration
+  redis:
+    enabled: true
+    host: localhost
+    port: 6379
+    password: ""
+    database: 0
+    timeout: 5000ms
+    connect-timeout: 5000ms
+    lettuce:
+      pool:
+        max-active: 4        # Smaller pool for development
+        max-idle: 4
+        min-idle: 1
+        max-wait: 2000ms
+  
+  # Development Cache Configuration
+  cache:
+    redis:
+      time-to-live: 1800000  # 30 minutes for faster development iteration
+      enable-statistics: true
+
+# Development-specific Redis settings
+app:
+  redis:
+    default-ttl: 1800        # 30 minutes for development
+    health-check-interval: 10000  # More frequent health checks (10 seconds)
+    cache-ttl:
+      tool-whitelist: 1800   # 30 minutes
+      problem-categories: 3600  # 1 hour
+      server-data: 1800      # 30 minutes
+      member-data: 900       # 15 minutes
+      assistant-session: 3600 # 1 hour
+      temporary-data: 300    # 5 minutes
+    retry:
+      max-attempts: 2        # Fewer retries in development
+      delay: 500
+    circuit-breaker:
+      failure-threshold: 3   # Lower threshold for faster feedback
+      recovery-timeout: 15000
+
+# Enhanced logging for development
+logging:
+  level:
+    com.quip.backend.redis: DEBUG
+    com.quip.backend.cache: DEBUG
+    org.springframework.cache: DEBUG
+    io.lettuce.core: INFO

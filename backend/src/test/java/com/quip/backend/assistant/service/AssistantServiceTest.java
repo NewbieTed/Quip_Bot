@@ -1,6 +1,8 @@
 package com.quip.backend.assistant.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quip.backend.assistant.dto.request.AssistantRequestDto;
+import com.quip.backend.assistant.dto.response.AgentResponseDto;
 import com.quip.backend.authorization.constants.AuthorizationConstants;
 import com.quip.backend.authorization.context.AuthorizationContext;
 import com.quip.backend.authorization.service.AuthorizationService;
@@ -53,6 +55,9 @@ public class AssistantServiceTest extends BaseTest {
     private WebClient webClient;
 
     @Mock
+    private ObjectMapper objectMapper;
+
+    @Mock
     private WebClient.RequestBodyUriSpec requestBodyUriSpec;
 
     @Mock
@@ -76,7 +81,7 @@ public class AssistantServiceTest extends BaseTest {
 
     @BeforeEach
     void setUp() {
-        reset(authorizationService, webClient, requestBodyUriSpec, requestBodySpec, requestHeadersSpec, responseSpec);
+        reset(authorizationService, webClient, objectMapper, requestBodyUriSpec, requestBodySpec, requestHeadersSpec, responseSpec);
 
         setupValidRequestDto();
         setupMockAuthorizationContext();
@@ -96,7 +101,7 @@ public class AssistantServiceTest extends BaseTest {
     class InvokeAssistantTests {
         @Test
         @DisplayName("Should complete Flux when HTTP stream finishes successfully")
-        void shouldCompleteFlux_WhenHttpStreamFinishesSuccessfully() {
+        void shouldCompleteFlux_WhenHttpStreamFinishesSuccessfully() throws Exception {
             // Given
             when(authorizationService.validateAuthorization(
                     VALID_MEMBER_ID,
@@ -107,8 +112,13 @@ public class AssistantServiceTest extends BaseTest {
 
             setupWebClientMocks();
 
-            DataBuffer dataBuffer = new DefaultDataBufferFactory().wrap("chunk-final".getBytes(StandardCharsets.UTF_8));
+            String jsonResponse = "{\"content\":\"chunk-final\"}";
+            DataBuffer dataBuffer = new DefaultDataBufferFactory().wrap(jsonResponse.getBytes(StandardCharsets.UTF_8));
             when(responseSpec.bodyToFlux(DataBuffer.class)).thenReturn(Flux.just(dataBuffer));
+
+            AgentResponseDto agentResponse = new AgentResponseDto();
+            agentResponse.setContent("chunk-final");
+            when(objectMapper.readValue(jsonResponse, AgentResponseDto.class)).thenReturn(agentResponse);
 
             // When & Then
             StepVerifier.create(assistantService.invokeAssistant(validRequestDto))
@@ -146,7 +156,7 @@ public class AssistantServiceTest extends BaseTest {
 
         @Test
         @DisplayName("Should emit chunks from HTTP stream when request is successful")
-        void shouldEmitChunksFromHttpStream_WhenRequestSuccessful() {
+        void shouldEmitChunksFromHttpStream_WhenRequestSuccessful() throws Exception {
             // Given
             when(authorizationService.validateAuthorization(
                     VALID_MEMBER_ID,
@@ -157,9 +167,19 @@ public class AssistantServiceTest extends BaseTest {
 
             setupWebClientMocks();
 
-            DataBuffer dataBuffer1 = new DefaultDataBufferFactory().wrap("chunk-1".getBytes(StandardCharsets.UTF_8));
-            DataBuffer dataBuffer2 = new DefaultDataBufferFactory().wrap("chunk-2".getBytes(StandardCharsets.UTF_8));
+            String jsonResponse1 = "{\"content\":\"chunk-1\"}";
+            String jsonResponse2 = "{\"content\":\"chunk-2\"}";
+            DataBuffer dataBuffer1 = new DefaultDataBufferFactory().wrap(jsonResponse1.getBytes(StandardCharsets.UTF_8));
+            DataBuffer dataBuffer2 = new DefaultDataBufferFactory().wrap(jsonResponse2.getBytes(StandardCharsets.UTF_8));
             when(responseSpec.bodyToFlux(DataBuffer.class)).thenReturn(Flux.just(dataBuffer1, dataBuffer2));
+
+            AgentResponseDto agentResponse1 = new AgentResponseDto();
+            agentResponse1.setContent("chunk-1");
+            AgentResponseDto agentResponse2 = new AgentResponseDto();
+            agentResponse2.setContent("chunk-2");
+            
+            when(objectMapper.readValue(jsonResponse1, AgentResponseDto.class)).thenReturn(agentResponse1);
+            when(objectMapper.readValue(jsonResponse2, AgentResponseDto.class)).thenReturn(agentResponse2);
 
             // When
             Flux<String> result = assistantService.invokeAssistant(validRequestDto);
@@ -402,6 +422,124 @@ public class AssistantServiceTest extends BaseTest {
                     "memberId", VALID_MEMBER_ID
             );
             verify(requestBodySpec).bodyValue(expectedPayload);
+        }
+
+        @Test
+        @DisplayName("Should handle JSON parsing error and fallback to plain text")
+        void shouldHandleJsonParsingError_AndFallbackToPlainText() throws Exception {
+            // Given
+            when(authorizationService.validateAuthorization(
+                    VALID_MEMBER_ID,
+                    VALID_CHANNEL_ID,
+                    AuthorizationConstants.INVOKE_ASSISTANT,
+                    INVOKE_ASSISTANT_OPERATION
+            )).thenReturn(mockAuthorizationContext);
+
+            setupWebClientMocks();
+
+            String invalidJson = "plain text response";
+            DataBuffer dataBuffer = new DefaultDataBufferFactory().wrap(invalidJson.getBytes(StandardCharsets.UTF_8));
+            when(responseSpec.bodyToFlux(DataBuffer.class)).thenReturn(Flux.just(dataBuffer));
+
+            when(objectMapper.readValue(invalidJson, AgentResponseDto.class))
+                    .thenThrow(new RuntimeException("Invalid JSON"));
+
+            // When & Then
+            StepVerifier.create(assistantService.invokeAssistant(validRequestDto))
+                    .expectNext("plain text response")
+                    .expectComplete()
+                    .verify(Duration.ofSeconds(1));
+        }
+
+        @Test
+        @DisplayName("Should filter out empty content responses")
+        void shouldFilterOutEmptyContentResponses() throws Exception {
+            // Given
+            when(authorizationService.validateAuthorization(
+                    VALID_MEMBER_ID,
+                    VALID_CHANNEL_ID,
+                    AuthorizationConstants.INVOKE_ASSISTANT,
+                    INVOKE_ASSISTANT_OPERATION
+            )).thenReturn(mockAuthorizationContext);
+
+            setupWebClientMocks();
+
+            String emptyContentJson = "{\"content\":\"\"}";
+            String validContentJson = "{\"content\":\"valid content\"}";
+            DataBuffer dataBuffer1 = new DefaultDataBufferFactory().wrap(emptyContentJson.getBytes(StandardCharsets.UTF_8));
+            DataBuffer dataBuffer2 = new DefaultDataBufferFactory().wrap(validContentJson.getBytes(StandardCharsets.UTF_8));
+            when(responseSpec.bodyToFlux(DataBuffer.class)).thenReturn(Flux.just(dataBuffer1, dataBuffer2));
+
+            AgentResponseDto emptyResponse = new AgentResponseDto();
+            emptyResponse.setContent("");
+            AgentResponseDto validResponse = new AgentResponseDto();
+            validResponse.setContent("valid content");
+            
+            when(objectMapper.readValue(emptyContentJson, AgentResponseDto.class)).thenReturn(emptyResponse);
+            when(objectMapper.readValue(validContentJson, AgentResponseDto.class)).thenReturn(validResponse);
+
+            // When & Then
+            StepVerifier.create(assistantService.invokeAssistant(validRequestDto))
+                    .expectNext("valid content")
+                    .expectComplete()
+                    .verify(Duration.ofSeconds(1));
+        }
+
+        @Test
+        @DisplayName("Should handle null content in JSON response")
+        void shouldHandleNullContentInJsonResponse() throws Exception {
+            // Given
+            when(authorizationService.validateAuthorization(
+                    VALID_MEMBER_ID,
+                    VALID_CHANNEL_ID,
+                    AuthorizationConstants.INVOKE_ASSISTANT,
+                    INVOKE_ASSISTANT_OPERATION
+            )).thenReturn(mockAuthorizationContext);
+
+            setupWebClientMocks();
+
+            String nullContentJson = "{\"content\":null}";
+            DataBuffer dataBuffer = new DefaultDataBufferFactory().wrap(nullContentJson.getBytes(StandardCharsets.UTF_8));
+            when(responseSpec.bodyToFlux(DataBuffer.class)).thenReturn(Flux.just(dataBuffer));
+
+            AgentResponseDto nullContentResponse = new AgentResponseDto();
+            nullContentResponse.setContent(null);
+            when(objectMapper.readValue(nullContentJson, AgentResponseDto.class)).thenReturn(nullContentResponse);
+
+            // When & Then - null content should be filtered out, so stream completes without emitting
+            StepVerifier.create(assistantService.invokeAssistant(validRequestDto))
+                    .expectComplete()
+                    .verify(Duration.ofSeconds(1));
+        }
+
+        @Test
+        @DisplayName("Should handle agent response with tool metadata")
+        void shouldHandleAgentResponseWithToolMetadata() throws Exception {
+            // Given
+            when(authorizationService.validateAuthorization(
+                    VALID_MEMBER_ID,
+                    VALID_CHANNEL_ID,
+                    AuthorizationConstants.INVOKE_ASSISTANT,
+                    INVOKE_ASSISTANT_OPERATION
+            )).thenReturn(mockAuthorizationContext);
+
+            setupWebClientMocks();
+
+            String jsonWithMetadata = "{\"content\":\"Tool executed successfully\",\"tool_name\":\"test_tool\",\"type\":\"interrupt\"}";
+            DataBuffer dataBuffer = new DefaultDataBufferFactory().wrap(jsonWithMetadata.getBytes(StandardCharsets.UTF_8));
+            when(responseSpec.bodyToFlux(DataBuffer.class)).thenReturn(Flux.just(dataBuffer));
+
+            AgentResponseDto responseWithMetadata = new AgentResponseDto();
+            responseWithMetadata.setContent("Tool executed successfully");
+            responseWithMetadata.setToolName("test_tool");
+            responseWithMetadata.setType("interrupt");
+            when(objectMapper.readValue(jsonWithMetadata, AgentResponseDto.class)).thenReturn(responseWithMetadata);
+
+            // When & Then
+            StepVerifier.create(assistantService.invokeAssistant(validRequestDto))
+                    .expectNext("Tool executed successfully")
+                    .expectComplete()
+                    .verify(Duration.ofSeconds(1));
         }
     }
 

@@ -2,10 +2,15 @@ package com.quip.backend;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import com.quip.backend.config.SpringConfigurator;
+import com.quip.backend.config.redis.RedisProperties;
+import com.quip.backend.config.redis.RedisCacheProperties;
+import com.quip.backend.config.redis.AppRedisProperties;
+import org.springframework.lang.NonNull;
 
 /**
  * Main application class for the Quip backend service.
@@ -15,6 +20,11 @@ import com.quip.backend.config.SpringConfigurator;
  * </p>
  */
 @SpringBootApplication
+@EnableConfigurationProperties({
+		RedisProperties.class,
+		RedisCacheProperties.class,
+		AppRedisProperties.class
+})
 // Configure MyBatis to scan for mapper interfaces in these packages
 @MapperScan({
 		"com.quip.backend.member.mapper.database",
@@ -23,6 +33,7 @@ import com.quip.backend.config.SpringConfigurator;
 		"com.quip.backend.server.mapper.database",
 		"com.quip.backend.channel.mapper.database",
 		"com.quip.backend.authorization.mapper.database",
+		"com.quip.backend.tool.mapper.database"
 })
 public class BackendApplication implements ApplicationContextAware {
 
@@ -31,7 +42,7 @@ public class BackendApplication implements ApplicationContextAware {
 	 * This allows components to access Spring beans from non-Spring managed classes.
 	 */
 	@Override
-	public void setApplicationContext(ApplicationContext applicationContext) {
+	public void setApplicationContext(@NonNull ApplicationContext applicationContext) {
 		SpringConfigurator.setApplicationContext(applicationContext);
 	}
 

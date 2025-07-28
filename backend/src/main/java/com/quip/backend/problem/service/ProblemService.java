@@ -5,6 +5,7 @@ import com.quip.backend.authorization.context.AuthorizationContext;
 import com.quip.backend.authorization.service.AuthorizationService;
 import com.quip.backend.channel.service.ChannelService;
 import com.quip.backend.common.exception.ValidationException;
+import com.quip.backend.config.redis.CacheConfiguration;
 import com.quip.backend.member.service.MemberService;
 import com.quip.backend.problem.dto.request.CreateProblemChoiceRequestDto;
 import com.quip.backend.problem.dto.request.CreateProblemRequestDto;
@@ -23,6 +24,8 @@ import com.quip.backend.problem.model.ProblemChoice;
 import com.quip.backend.server.service.ServerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -85,16 +88,19 @@ public class ProblemService {
     // TODO: Change other feature's file structure on DTOs as well as naming
 
     /**
-     * Retrieves a list of problems belonging to a specific category.
+     * Retrieves a list of problems belonging to a specific category with caching.
      * <p>
      * This method first validates that the requesting member has permission to view problems
      * in the specified channel, then retrieves all problems associated with the given category.
+     * Results are cached to improve performance for frequently accessed problem data.
      * </p>
      *
      * @param getProblemRequestDto DTO containing member ID, channel ID, and problem category ID
      * @return List of problem response DTOs
      * @throws ValidationException If the member lacks proper authorization or if the category doesn't exist
      */
+    @Cacheable(value = CacheConfiguration.TEMPORARY_DATA_CACHE, 
+               key = "'problems:category:' + #getProblemRequestDto.problemCategoryId")
     public List<GetProblemListItemResponseDto> getProblemsByCategory(GetProblemRequestDto getProblemRequestDto) {
         // Verify member has permission to view problems in this channel
         authorizationService.validateAuthorization(
@@ -106,6 +112,8 @@ public class ProblemService {
         
         // Validate that the requested problem category exists
         ProblemCategory problemCategory = problemCategoryService.validateProblemCategory(getProblemRequestDto.getProblemCategoryId(), RETRIEVE_PROBLEM);
+
+        log.debug("Retrieving problems from database for problemCategoryId for dto return: {}", problemCategory.getId());
 
         // Retrieve all problems for the category and convert to DTOs
         List<Problem> problems = problemMapper.selectByProblemCategoryId(problemCategory.getId());
@@ -119,11 +127,29 @@ public class ProblemService {
     }
 
     /**
-     * Adds a new problem to the system with its associated choices.
+     * Retrieves problems by category ID with caching.
+     * <p>
+     * This method provides direct access to problems by category ID
+     * with caching support for improved performance.
+     * </p>
+     *
+     * @param problemCategoryId the problem category ID
+     * @return List of problems for the category
+     */
+    @Cacheable(value = CacheConfiguration.TEMPORARY_DATA_CACHE, 
+               key = "'problems:category:' + #problemCategoryId")
+    public List<Problem> getProblemsByCategoryId(Long problemCategoryId) {
+        log.debug("Retrieving problems from database for problemCategoryId: {}", problemCategoryId);
+        return problemMapper.selectByProblemCategoryId(problemCategoryId);
+    }
+
+    /**
+     * Adds a new problem to the system with its associated choices and evicts related cache.
      * <p>
      * This method creates a new problem in the database along with any associated choices.
      * It performs validation on the input data and ensures that the requesting member
      * has proper authorization to manage problems in the specified channel.
+     * Cache is evicted to ensure consistency.
      * </p>
      * <p>
      * The method is transactional to ensure that both the problem and its choices
@@ -135,6 +161,8 @@ public class ProblemService {
      * @throws IllegalStateException If the problem insertion fails to return an ID
      */
     @Transactional
+    @CacheEvict(value = CacheConfiguration.TEMPORARY_DATA_CACHE, 
+                key = "'problems:category:' + #problemCreateDto.problemCategoryId")
     public void addProblem(CreateProblemRequestDto problemCreateDto) {
         if (problemCreateDto == null) {
             throw new ValidationException(CREATE_PROBLEM, "body", "must not be null");
@@ -175,6 +203,36 @@ public class ProblemService {
                 log.info("Inserted problem choice for problemId: {}", problem.getId());
             }
         }
+        
+        log.debug("Added new problem and evicted cache for problemCategoryId: {}", problemCreateDto.getProblemCategoryId());
+    }
+
+    /**
+     * Evicts problems cache for a specific category.
+     * <p>
+     * This method removes cached problem data for a category,
+     * typically called when problem data is modified.
+     * </p>
+     *
+     * @param problemCategoryId the problem category ID to evict cache for
+     */
+    @CacheEvict(value = CacheConfiguration.TEMPORARY_DATA_CACHE, 
+                key = "'problems:category:' + #problemCategoryId")
+    public void evictProblemsCache(Long problemCategoryId) {
+        log.debug("Evicting problems cache for problemCategoryId: {}", problemCategoryId);
+    }
+
+    /**
+     * Evicts all problems cache entries.
+     * <p>
+     * This method removes all cached problem data,
+     * typically called during bulk operations or system maintenance.
+     * </p>
+     */
+    @CacheEvict(value = CacheConfiguration.TEMPORARY_DATA_CACHE, 
+                allEntries = true)
+    public void evictAllProblemsCache() {
+        log.debug("Evicting all problems cache entries");
     }
 
     /**

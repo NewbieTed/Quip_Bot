@@ -6,15 +6,13 @@ import com.quip.backend.tool.mapper.database.ToolWhitelistMapper;
 import com.quip.backend.tool.mapper.dto.response.ToolWhitelistResponseDtoMapper;
 import com.quip.backend.tool.model.ToolWhitelist;
 import com.quip.backend.tool.dto.request.UpdateToolWhitelistRequestDto;
-import com.quip.backend.config.CacheConfiguration;
+import com.quip.backend.config.redis.CacheConfiguration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -64,8 +62,7 @@ public class ToolWhitelistService {
      * @return List of active tool whitelist entries for the member
      */
     @Cacheable(value = CacheConfiguration.TOOL_WHITELIST_CACHE, 
-               key = "#serverId + ':member:' + #memberId",
-               keyGenerator = "customCacheKeyGenerator")
+               key = "#serverId + ':member:' + #memberId")
     public List<ToolWhitelist> getActiveToolWhitelistByMemberAndServer(Long memberId, Long serverId) {
         log.debug("Retrieving active tool whitelist from database for memberId: {} and serverId: {}", memberId, serverId);
         return toolWhitelistMapper.selectActiveByMemberIdAndServerId(memberId, serverId, java.time.OffsetDateTime.now());
@@ -84,8 +81,7 @@ public class ToolWhitelistService {
      * @return true if the member has permission, false otherwise
      */
     @Cacheable(value = CacheConfiguration.TOOL_WHITELIST_CACHE, 
-               key = "#serverId + ':member:' + #memberId + ':tool:' + #toolId",
-               keyGenerator = "customCacheKeyGenerator")
+               key = "#serverId + ':member:' + #memberId + ':tool:' + #toolId")
     public boolean hasToolPermission(Long memberId, Long serverId, Long toolId) {
         log.debug("Checking tool permission from database for memberId: {}, serverId: {}, toolId: {}", 
                  memberId, serverId, toolId);
@@ -142,8 +138,7 @@ public class ToolWhitelistService {
      * @param serverId the server ID to evict cache for
      */
     @CacheEvict(value = CacheConfiguration.TOOL_WHITELIST_CACHE, 
-                key = "#serverId",
-                keyGenerator = "customCacheKeyGenerator")
+                key = "#serverId")
     public void evictToolWhitelistCache(Long serverId) {
         log.debug("Evicting tool whitelist cache for serverId: {}", serverId);
     }
@@ -159,8 +154,7 @@ public class ToolWhitelistService {
      * @param memberId the member ID
      */
     @CacheEvict(value = CacheConfiguration.TOOL_WHITELIST_CACHE, 
-                key = "#serverId + ':member:' + #memberId",
-                keyGenerator = "customCacheKeyGenerator")
+                key = "#serverId + ':member:' + #memberId")
     public void evictToolWhitelistMemberCache(Long serverId, Long memberId) {
         log.debug("Evicting tool whitelist cache for serverId: {} and memberId: {}", serverId, memberId);
     }
@@ -191,8 +185,7 @@ public class ToolWhitelistService {
      * @return List of all active tool whitelist entries for the server
      */
     @Cacheable(value = CacheConfiguration.TOOL_WHITELIST_CACHE, 
-               key = "#serverId + ':server:all'",
-               keyGenerator = "customCacheKeyGenerator")
+               key = "#serverId + ':server:all'")
     public List<ToolWhitelist> getAllActiveToolWhitelistByServer(Long serverId) {
         log.debug("Retrieving all active tool whitelist entries from database for serverId: {}", serverId);
         // Note: This would require a new mapper method to be implemented
@@ -212,8 +205,7 @@ public class ToolWhitelistService {
      * @param toolId the tool ID to remove from whitelist
      */
     @CacheEvict(value = CacheConfiguration.TOOL_WHITELIST_CACHE, 
-                key = "#serverId + ':member:' + #memberId",
-                keyGenerator = "customCacheKeyGenerator")
+                key = "#serverId + ':member:' + #memberId")
     public void removeToolWhitelist(Long memberId, Long serverId, Long toolId) {
         log.debug("Removing tool whitelist entry for memberId: {}, serverId: {}, toolId: {}", 
                  memberId, serverId, toolId);
@@ -247,8 +239,7 @@ public class ToolWhitelistService {
      * @param toolId the tool ID
      */
     @CacheEvict(value = CacheConfiguration.TOOL_WHITELIST_CACHE, 
-                key = "#serverId + ':member:' + #memberId + ':tool:' + #toolId",
-                keyGenerator = "customCacheKeyGenerator")
+                key = "#serverId + ':member:' + #memberId + ':tool:' + #toolId")
     public void evictToolPermissionCache(Long memberId, Long serverId, Long toolId) {
         log.debug("Evicting tool permission cache for memberId: {}, serverId: {}, toolId: {}", 
                  memberId, serverId, toolId);

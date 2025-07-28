@@ -46,12 +46,15 @@ public class GlobalExceptionHandler {
             // Use the first path element to determine the target class (if available)
             Class<?> targetClass = mismatchedInputException.getPath().stream()
                     .findFirst()
-                    .map(ref -> ref.getFrom() != null ? ref.getFrom().getClass() : null)
+                    .map(ref -> {
+                        Object from = ref.getFrom();
+                        return from != null ? from.getClass() : null;
+                    })
                     .orElse(null);
 
             // Dynamically determine the expected type
             String expectedType = "unknown";
-            if (targetClass != null) {
+            if (targetClass != null && !fieldName.equals("unknown")) {
                 try {
                     expectedType = targetClass.getDeclaredField(fieldName).getType().getSimpleName();
                 } catch (NoSuchFieldException | SecurityException e) {
@@ -69,7 +72,7 @@ public class GlobalExceptionHandler {
         }
 
         // Log the detailed error message
-        logger.error("HttpMessageNotReadableException: {}", detailedMessage, ex);
+        logger.error("HttpMessageNotReadableException: {} - {}", detailedMessage, ex.getMessage());
 
         // Return the error response
         return BaseResponse.failure(HttpStatus.BAD_REQUEST.value(), detailedMessage);

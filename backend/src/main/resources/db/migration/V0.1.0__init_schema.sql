@@ -1340,8 +1340,9 @@ BEGIN
         BEFORE UPDATE ON reaction_role
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
-END$$;DO 
-$
+END$$;
+
+DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_agent_conversation'
@@ -1350,9 +1351,9 @@ BEGIN
         BEFORE UPDATE ON agent_conversation
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
-END$;
+END$$;
 
-DO $
+DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_mcp_server'
@@ -1361,9 +1362,9 @@ BEGIN
         BEFORE UPDATE ON mcp_server
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
-END$;
+END$$;
 
-DO $
+DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_tool'
@@ -1372,9 +1373,9 @@ BEGIN
         BEFORE UPDATE ON tool
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
-END$;
+END$$;
 
-DO $
+DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_tool_whitelist'
@@ -1383,4 +1384,4 @@ BEGIN
         BEFORE UPDATE ON tool_whitelist
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
-END$;
+END$$;

@@ -68,9 +68,11 @@
     </select>
 
     <delete id="deleteExpiredEntries">
+        <![CDATA[
         DELETE FROM tool_whitelist
         WHERE expires_at IS NOT NULL
         AND expires_at <= #{currentTime}
+        ]]>
     </delete>
 
 </mapper>

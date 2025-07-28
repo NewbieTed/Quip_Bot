@@ -6,6 +6,63 @@ spring:
     driver-class-name: org.postgresql.Driver
   main:
     allow-bean-definition-overriding: true
+  # Jackson configuration for JSON serialization
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+  # Redis Configuration
+  # Enable/disable Redis integration (default: true)
+  redis:
+    enabled: ${REDIS_ENABLED:true}
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: ${REDIS_DATABASE:0}
+    timeout: ${REDIS_TIMEOUT:2000ms}
+    connect-timeout: ${REDIS_CONNECT_TIMEOUT:2000ms}
+    # Lettuce connection pool configuration
+    lettuce:
+      pool:
+        max-active: ${REDIS_POOL_MAX_ACTIVE:8}    # Maximum number of connections
+        max-idle: ${REDIS_POOL_MAX_IDLE:8}        # Maximum idle connections
+        min-idle: ${REDIS_POOL_MIN_IDLE:0}        # Minimum idle connections
+        max-wait: ${REDIS_POOL_MAX_WAIT:-1ms}     # Maximum wait time for connection
+        time-between-eviction-runs: 30s           # Eviction thread run interval
+      shutdown-timeout: 100ms
+    # SSL configuration (uncomment for production with SSL)
+    # ssl: true
+    # ssl-bundle: redis-ssl
+  
+  # Spring Cache Configuration with Redis
+  cache:
+    type: redis
+    redis:
+      time-to-live: ${CACHE_DEFAULT_TTL:3600000}  # Default TTL: 1 hour (in milliseconds)
+      cache-null-values: false                    # Don't cache null values
+      key-prefix: "quip:backend:"                 # Application-specific key prefix
+      use-key-prefix: true                        # Enable key prefix usage
+      enable-statistics: true                     # Enable cache statistics
+    # Predefined cache names for different data types
+    cache-names:
+      - toolWhitelist      # Tool whitelist data (TTL: 1 hour)
+      - problemCategories  # Problem categories (TTL: 24 hours)
+      - serverData        # Server information (TTL: 6 hours)
+      - memberData        # Member information (TTL: 30 minutes)
+      - assistantSession  # Assistant session data (TTL: 2 hours)
+      - temporaryData     # Short-term temporary data (TTL: 5 minutes)
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+  health:
+    redis:
+      enabled: true
 
 logging:
   file:
@@ -29,3 +86,24 @@ app:
   assets:
     base-url: http://localhost:8080/assets/
     base-path: src/main/resources/static/
+  # Application-specific Redis configuration
+  redis:
+    default-ttl: ${APP_REDIS_DEFAULT_TTL:3600}              # Default TTL in seconds (1 hour)
+    key-prefix: "quip:backend:"                             # Application key prefix
+    health-check-interval: ${APP_REDIS_HEALTH_INTERVAL:30000}  # Health check interval in ms
+    # Cache-specific TTL settings (in seconds)
+    cache-ttl:
+      tool-whitelist: ${CACHE_TTL_TOOL_WHITELIST:3600}      # 1 hour
+      problem-categories: ${CACHE_TTL_PROBLEM_CATEGORIES:86400}  # 24 hours
+      server-data: ${CACHE_TTL_SERVER_DATA:21600}           # 6 hours
+      member-data: ${CACHE_TTL_MEMBER_DATA:1800}            # 30 minutes
+      assistant-session: ${CACHE_TTL_ASSISTANT_SESSION:7200} # 2 hours
+      temporary-data: ${CACHE_TTL_TEMPORARY_DATA:300}       # 5 minutes
+    # Redis operation settings
+    retry:
+      max-attempts: ${REDIS_RETRY_MAX_ATTEMPTS:3}           # Maximum retry attempts
+      delay: ${REDIS_RETRY_DELAY:1000}                      # Retry delay in ms
+    # Circuit breaker settings
+    circuit-breaker:
+      failure-threshold: ${REDIS_CB_FAILURE_THRESHOLD:5}    # Failures before opening circuit
+      recovery-timeout: ${REDIS_CB_RECOVERY_TIMEOUT:30000}  # Recovery timeout in ms

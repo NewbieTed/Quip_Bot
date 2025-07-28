@@ -1,0 +1,75 @@
+# Production Environment Configuration
+spring:
+  # Production Redis Configuration
+  redis:
+    enabled: true
+    host: ${REDIS_HOST:redis-cluster.production.local}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD}  # Required in production
+    database: ${REDIS_DATABASE:0}
+    timeout: 3000ms
+    connect-timeout: 3000ms
+    # SSL configuration for production
+    ssl: ${REDIS_SSL_ENABLED:true}
+    lettuce:
+      pool:
+        max-active: 16       # Larger pool for production load
+        max-idle: 8
+        min-idle: 2
+        max-wait: 1000ms
+        time-between-eviction-runs: 60s
+      shutdown-timeout: 200ms
+  
+  # Production Cache Configuration
+  cache:
+    redis:
+      time-to-live: 3600000  # 1 hour default
+      cache-null-values: false
+      enable-statistics: true
+      # Production-optimized serialization
+      value-serializer: org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer
+
+# Production-specific Redis settings
+app:
+  redis:
+    default-ttl: 3600        # 1 hour
+    health-check-interval: 30000  # 30 seconds
+    cache-ttl:
+      tool-whitelist: 7200   # 2 hours (more stable in production)
+      problem-categories: 86400  # 24 hours
+      server-data: 21600     # 6 hours
+      member-data: 3600      # 1 hour
+      assistant-session: 7200 # 2 hours
+      temporary-data: 300    # 5 minutes
+    retry:
+      max-attempts: 5        # More retries in production
+      delay: 2000
+    circuit-breaker:
+      failure-threshold: 10  # Higher threshold for production stability
+      recovery-timeout: 60000
+
+# Production logging - less verbose
+logging:
+  level:
+    com.quip.backend.redis: INFO
+    com.quip.backend.cache: INFO
+    org.springframework.cache: WARN
+    io.lettuce.core: WARN
+
+# Production management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  health:
+    redis:
+      enabled: true

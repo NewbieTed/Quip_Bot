@@ -23,6 +23,7 @@ dependencies {
     // Spring Boot Starters
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation' // For @Valid annotations
+    implementation 'org.springframework.boot:spring-boot-starter-actuator' // For health indicators
 
     // Database
     runtimeOnly 'org.postgresql:postgresql'
@@ -30,6 +31,11 @@ dependencies {
     implementation 'com.baomidou:mybatis-plus-boot-starter:3.5.6'
     implementation 'org.flywaydb:flyway-core:11.10.1'
     implementation 'org.flywaydb:flyway-database-postgresql:11.10.1'
+
+    // Redis
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'io.lettuce:lettuce-core'
+    implementation 'org.apache.commons:commons-pool2'
 
     // Utilities
     implementation 'me.paulschwarz:spring-dotenv:3.0.0' // For .env file support
@@ -48,6 +54,9 @@ dependencies {
     implementation 'org.mapstruct:mapstruct:1.5.5.Final'
     annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
 
+    // Jackson support for Java 8 date/time types
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
     // Validation (explicitly added for clarity, though starter-validation pulls some)
     implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
     implementation 'org.hibernate.validator:hibernate-validator:8.0.1.Final'
@@ -57,6 +66,7 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testImplementation 'io.projectreactor:reactor-test:3.6.2'
+    testRuntimeOnly 'com.h2database:h2' // In-memory database for testing
 
     // Mutation Testing
     testImplementation 'org.pitest:pitest-junit5-plugin:1.2.1'
