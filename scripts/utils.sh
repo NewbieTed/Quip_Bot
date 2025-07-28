@@ -179,6 +179,33 @@ cache_stats() {
     fi
 }
 
+# Validate Redis configuration
+validate_redis_config() {
+    local environment=${1:-dev}
+    
+    log_info "Validating Redis configuration for $environment..."
+    
+    if [ -f "$SCRIPT_DIR/redis-config.sh" ]; then
+        "$SCRIPT_DIR/redis-config.sh" validate
+        "$SCRIPT_DIR/redis-config.sh" show "$environment"
+    else
+        log_warning "Redis configuration validator not found"
+        
+        # Basic validation
+        if [ "$environment" = "prod" ]; then
+            local config_file="$PROJECT_ROOT/redis/redis-prod.conf"
+        else
+            local config_file="$PROJECT_ROOT/redis/redis.conf"
+        fi
+        
+        if [ -f "$config_file" ]; then
+            log_success "Redis config file found: $config_file"
+        else
+            log_error "Redis config file not found: $config_file"
+        fi
+    fi
+}
+
 # Show help
 show_help() {
     echo "Quip Backend Utility Script"
@@ -193,6 +220,7 @@ show_help() {
     echo "  cleanup                   - Clean up Docker resources"
     echo "  reset-redis [env]         - Reset Redis data (env: dev|prod)"
     echo "  cache-stats [env]         - Show cache statistics (env: dev|prod)"
+    echo "  validate-redis [env]      - Validate Redis configuration (env: dev|prod)"
     echo "  help                      - Show this help message"
     echo
     echo "Examples:"
@@ -226,6 +254,9 @@ main() {
             ;;
         "cache-stats")
             cache_stats "$2"
+            ;;
+        "validate-redis")
+            validate_redis_config "$2"
             ;;
         "help"|*)
             show_help

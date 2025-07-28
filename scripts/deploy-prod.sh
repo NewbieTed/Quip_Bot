@@ -67,6 +67,24 @@ check_prerequisites() {
         exit 1
     fi
     
+    # Check Redis production configuration files
+    log_info "Checking Redis production configuration files..."
+    if [ ! -f "${PROJECT_ROOT}/redis/redis-prod.conf" ]; then
+        log_error "Redis production configuration file not found: ${PROJECT_ROOT}/redis/redis-prod.conf"
+        exit 1
+    fi
+    
+    if [ ! -f "${PROJECT_ROOT}/redis/init-redis.sh" ]; then
+        log_error "Redis initialization script not found: ${PROJECT_ROOT}/redis/init-redis.sh"
+        exit 1
+    fi
+    
+    # Make init script executable if it isn't
+    if [ ! -x "${PROJECT_ROOT}/redis/init-redis.sh" ]; then
+        chmod +x "${PROJECT_ROOT}/redis/init-redis.sh"
+        log_info "Made Redis initialization script executable"
+    fi
+    
     # Validate required production environment variables
     source "$ENV_FILE"
     
@@ -78,6 +96,16 @@ check_prerequisites() {
     if [ -z "$DB_PASSWORD" ]; then
         log_error "DB_PASSWORD must be set in production environment"
         exit 1
+    fi
+    
+    # Validate Redis production config has security settings
+    if ! grep -q "requirepass" "${PROJECT_ROOT}/redis/redis-prod.conf"; then
+        log_error "Redis production config must have 'requirepass' configured"
+        exit 1
+    fi
+    
+    if ! grep -q "rename-command.*FLUSHALL" "${PROJECT_ROOT}/redis/redis-prod.conf"; then
+        log_warning "Redis production config should disable dangerous commands"
     fi
     
     log_success "Production prerequisites check completed."

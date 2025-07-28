@@ -75,6 +75,24 @@ check_prerequisites() {
         fi
     fi
     
+    # Check Redis configuration files
+    log_info "Checking Redis configuration files..."
+    if [ ! -f "${PROJECT_ROOT}/redis/redis.conf" ]; then
+        log_error "Redis configuration file not found: ${PROJECT_ROOT}/redis/redis.conf"
+        exit 1
+    fi
+    
+    if [ ! -f "${PROJECT_ROOT}/redis/init-redis.sh" ]; then
+        log_error "Redis initialization script not found: ${PROJECT_ROOT}/redis/init-redis.sh"
+        exit 1
+    fi
+    
+    # Make init script executable if it isn't
+    if [ ! -x "${PROJECT_ROOT}/redis/init-redis.sh" ]; then
+        chmod +x "${PROJECT_ROOT}/redis/init-redis.sh"
+        log_info "Made Redis initialization script executable"
+    fi
+    
     log_success "Prerequisites check completed."
 }
 

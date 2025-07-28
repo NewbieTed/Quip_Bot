@@ -63,6 +63,21 @@ Utility script for common development and maintenance tasks.
 - `cleanup` - Clean up Docker resources
 - `reset-redis [env]` - Reset Redis data
 - `cache-stats [env]` - Show cache statistics
+- `validate-redis [env]` - Validate Redis configuration
+
+### `redis-config.sh`
+Redis configuration management and validation script.
+
+**Usage:**
+```bash
+./scripts/redis-config.sh [command] [options]
+```
+
+**Commands:**
+- `validate` - Validate all Redis configuration files
+- `show [env]` - Show configuration summary
+- `test [env]` - Test Redis configuration
+- `template [env]` - Generate configuration template
 
 ## Quick Start Examples
 
@@ -104,8 +119,26 @@ cp .env.prod.example .env
 # View cache statistics
 ./scripts/utils.sh cache-stats
 
+# Validate Redis configuration
+./scripts/utils.sh validate-redis
+
 # Clean up resources
 ./scripts/utils.sh cleanup
+```
+
+### Redis Configuration Management
+```bash
+# Validate all Redis config files
+./scripts/redis-config.sh validate
+
+# Show Redis configuration summary
+./scripts/redis-config.sh show prod
+
+# Test Redis configuration
+./scripts/redis-config.sh test dev
+
+# Generate configuration template
+./scripts/redis-config.sh template prod
 ```
 
 ## Environment Configuration

@@ -57,3 +57,5 @@ src/main/resources/static/
 logs/
 */logs/
 **/logs/*.log
+
+**/redis-prod.conf
