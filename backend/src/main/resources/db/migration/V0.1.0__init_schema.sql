@@ -413,9 +413,8 @@ CREATE TABLE reaction_role (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE agent_conversation (
+CREATE TABLE assistant_conversation (
     id BIGSERIAL PRIMARY KEY,
-    conversation_id BIGINT NOT NULL,
     server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
     member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
     is_active BOOLEAN DEFAULT FALSE NOT NULL,
@@ -427,6 +426,10 @@ CREATE TABLE agent_conversation (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE UNIQUE INDEX uniq_active_conversation_per_member_server
+ON assistant_conversation (member_id, server_id)
+WHERE is_active = true;
 
 CREATE TABLE mcp_server (
     id BIGSERIAL PRIMARY KEY,
@@ -460,7 +463,7 @@ CREATE TABLE tool_whitelist (
     member_id BIGINT NOT NULL REFERENCES member(id) ON DELETE CASCADE,
     tool_id BIGINT NOT NULL REFERENCES tool(id) ON DELETE CASCADE,
     server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
-    agent_conversation_id BIGINT DEFAULT 0 NOT NULL REFERENCES agent_conversation(id) ON DELETE CASCADE,
+    assistant_conversation_id BIGINT DEFAULT 0 NOT NULL REFERENCES assistant_conversation(id) ON DELETE CASCADE,
     scope tool_whitelist_scope NOT NULL,
     expires_at TIMESTAMP WITH TIME ZONE,
 
@@ -469,7 +472,7 @@ CREATE TABLE tool_whitelist (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
-    PRIMARY KEY (member_id, tool_id, server_id, agent_conversation_id)
+    PRIMARY KEY (member_id, tool_id, server_id, assistant_conversation_id)
 );
 
 -- ===========================
@@ -505,7 +508,7 @@ COMMENT ON TABLE file IS 'Stores uploaded files metadata.';
 COMMENT ON TABLE file_type IS 'Stores server-scoped file type definitions for uploaded files.';
 COMMENT ON TABLE file_path IS 'Stores various storage paths for files.';
 COMMENT ON TABLE problem_answer_history IS 'Tracks member quiz answer submissions and correctness.';
-COMMENT ON TABLE agent_conversation IS 'Stores conversation state for human-in-the-loop agent interactions.';
+COMMENT ON TABLE assistant_conversation IS 'Stores conversation state for human-in-the-loop agent interactions.';
 COMMENT ON TABLE mcp_server IS 'Stores MCP (Model Context Protocol) server definitions.';
 COMMENT ON TABLE tool IS 'Stores available tools and their associated MCP servers.';
 COMMENT ON TABLE tool_whitelist IS 'Stores member tool approval permissions with scope and expiration.';
@@ -881,18 +884,17 @@ COMMENT ON COLUMN member_achievement.updated_at IS 'Timestamp when record was la
 -- AGENT/AI SYSTEM TABLES
 -- ===========================
 
--- agent_conversation table
-COMMENT ON COLUMN agent_conversation.id IS 'Primary key - auto-incrementing conversation record ID';
-COMMENT ON COLUMN agent_conversation.conversation_id IS 'Frontend-generated unique conversation identifier';
-COMMENT ON COLUMN agent_conversation.server_id IS 'Foreign key to server table (Discord server where conversation occurs)';
-COMMENT ON COLUMN agent_conversation.member_id IS 'Foreign key to member table (member participating in conversation)';
-COMMENT ON COLUMN agent_conversation.is_active IS 'Whether this conversation is currently active for the member';
-COMMENT ON COLUMN agent_conversation.is_interrupt IS 'Whether the agent is paused awaiting user approval for tool usage';
-COMMENT ON COLUMN agent_conversation.is_processing IS 'Whether the agent is currently processing a request';
-COMMENT ON COLUMN agent_conversation.created_by IS 'Member ID who created this record (audit trail)';
-COMMENT ON COLUMN agent_conversation.updated_by IS 'Member ID who last modified this record (audit trail)';
-COMMENT ON COLUMN agent_conversation.created_at IS 'Timestamp when record was created (audit trail)';
-COMMENT ON COLUMN agent_conversation.updated_at IS 'Timestamp when record was last modified (audit trail)';
+-- assistant_conversation table
+COMMENT ON COLUMN assistant_conversation.id IS 'Primary key - auto-incrementing conversation record ID';
+COMMENT ON COLUMN assistant_conversation.server_id IS 'Foreign key to server table (Discord server where conversation occurs)';
+COMMENT ON COLUMN assistant_conversation.member_id IS 'Foreign key to member table (member participating in conversation)';
+COMMENT ON COLUMN assistant_conversation.is_active IS 'Whether this conversation is currently active for the member';
+COMMENT ON COLUMN assistant_conversation.is_interrupt IS 'Whether the agent is paused awaiting user approval for tool usage';
+COMMENT ON COLUMN assistant_conversation.is_processing IS 'Whether the agent is currently processing a request';
+COMMENT ON COLUMN assistant_conversation.created_by IS 'Member ID who created this record (audit trail)';
+COMMENT ON COLUMN assistant_conversation.updated_by IS 'Member ID who last modified this record (audit trail)';
+COMMENT ON COLUMN assistant_conversation.created_at IS 'Timestamp when record was created (audit trail)';
+COMMENT ON COLUMN assistant_conversation.updated_at IS 'Timestamp when record was last modified (audit trail)';
 
 -- mcp_server table
 COMMENT ON COLUMN mcp_server.id IS 'Primary key - auto-incrementing MCP server ID';
@@ -918,7 +920,7 @@ COMMENT ON COLUMN tool.updated_at IS 'Timestamp when record was last modified (a
 -- tool_whitelist table
 COMMENT ON COLUMN tool_whitelist.member_id IS 'Foreign key to member table (member who approved the tool)';
 COMMENT ON COLUMN tool_whitelist.tool_id IS 'Foreign key to tool table (tool that was approved)';
-COMMENT ON COLUMN tool_whitelist.agent_conversation_id IS 'Foreign key to agent_conversation table (for conversation-scoped approvals)';
+COMMENT ON COLUMN tool_whitelist.assistant_conversation_id IS 'Foreign key to assistant_conversation table (for conversation-scoped approvals)';
 COMMENT ON COLUMN tool_whitelist.scope IS 'Scope of approval: "global" (all contexts), "server" (server-wide), or "conversation" (specific conversation only)';
 COMMENT ON COLUMN tool_whitelist.expires_at IS 'Optional expiration timestamp for the tool approval (NULL for permanent)';
 COMMENT ON COLUMN tool_whitelist.created_by IS 'Member ID who created this record (audit trail)';
@@ -997,13 +999,12 @@ CREATE INDEX idx_member_channel_authorization_member_id ON member_channel_author
 CREATE INDEX idx_member_channel_authorization_channel_id ON member_channel_authorization(channel_id);
 CREATE INDEX idx_member_channel_authorization_authorization_type_id ON member_channel_authorization(authorization_type_id);
 
--- agent_conversation
-CREATE INDEX idx_agent_conversation_conversation_id ON agent_conversation(conversation_id);
-CREATE INDEX idx_agent_conversation_server_id ON agent_conversation(server_id);
-CREATE INDEX idx_agent_conversation_member_id ON agent_conversation(member_id);
-CREATE INDEX idx_agent_conversation_is_active ON agent_conversation(is_active);
-CREATE INDEX idx_agent_conversation_is_interrupt ON agent_conversation(is_interrupt);
-CREATE INDEX idx_agent_conversation_is_processing ON agent_conversation(is_processing);
+-- assistant_conversation
+CREATE INDEX idx_assistant_conversation_server_id ON assistant_conversation(server_id);
+CREATE INDEX idx_assistant_conversation_member_id ON assistant_conversation(member_id);
+CREATE INDEX idx_assistant_conversation_is_active ON assistant_conversation(is_active);
+CREATE INDEX idx_assistant_conversation_is_interrupt ON assistant_conversation(is_interrupt);
+CREATE INDEX idx_assistant_conversation_is_processing ON assistant_conversation(is_processing);
 
 -- mcp_server
 CREATE INDEX idx_mcp_server_server_name ON mcp_server(server_name);
@@ -1015,7 +1016,7 @@ CREATE INDEX idx_tool_mcp_server_id ON tool(mcp_server_id);
 -- tool_whitelist
 CREATE INDEX idx_tool_whitelist_member_id ON tool_whitelist(member_id);
 CREATE INDEX idx_tool_whitelist_tool_id ON tool_whitelist(tool_id);
-CREATE INDEX idx_tool_whitelist_conversation_id ON tool_whitelist(agent_conversation_id);
+CREATE INDEX idx_tool_whitelist_conversation_id ON tool_whitelist(assistant_conversation_id);
 CREATE INDEX idx_tool_whitelist_scope ON tool_whitelist(scope);
 CREATE INDEX idx_tool_whitelist_expires_at ON tool_whitelist(expires_at);
 
@@ -1345,10 +1346,10 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_agent_conversation'
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_updated_at_assistant_conversation'
     ) THEN
-        CREATE TRIGGER trigger_set_updated_at_agent_conversation
-        BEFORE UPDATE ON agent_conversation
+        CREATE TRIGGER trigger_set_updated_at_assistant_conversation
+        BEFORE UPDATE ON assistant_conversation
         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
     END IF;
 END$$;
