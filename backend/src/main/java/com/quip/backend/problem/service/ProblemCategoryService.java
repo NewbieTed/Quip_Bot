@@ -1,5 +1,6 @@
 package com.quip.backend.problem.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.quip.backend.authorization.constants.AuthorizationConstants;
 import com.quip.backend.authorization.context.AuthorizationContext;
 import com.quip.backend.authorization.service.AuthorizationService;
@@ -75,7 +76,8 @@ public class ProblemCategoryService {
         log.debug("Retrieving problem categories from database for serverId to return dto: {}", authorizationContext.server().getId());
 
         // Retrieve all categories for the server and convert to DTOs
-        List<ProblemCategory> problemCategories = problemCategoryMapper.selectByServerId(authorizationContext.server().getId());
+        List<ProblemCategory> problemCategories = problemCategoryMapper.selectList(new QueryWrapper<ProblemCategory>()
+                .eq("server_id", authorizationContext.server().getId()));
         List<GetProblemCategoryResponseDto> getProblemCategoryResponseDtos = new ArrayList<>();
         for (ProblemCategory problemCategory : problemCategories) {
             getProblemCategoryResponseDtos.add(getProblemCategoryResponseDtoMapper.toProblemCategoryDto(problemCategory));
@@ -98,7 +100,8 @@ public class ProblemCategoryService {
                key = "#serverId")
     public List<ProblemCategory> getProblemCategoriesByServerId(Long serverId) {
         log.debug("Retrieving problem categories from database for serverId: {}", serverId);
-        return problemCategoryMapper.selectByServerId(serverId);
+        return problemCategoryMapper.selectList(new QueryWrapper<ProblemCategory>()
+                .eq("server_id", serverId));
     }
 
     /**

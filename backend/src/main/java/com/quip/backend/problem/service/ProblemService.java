@@ -12,6 +12,7 @@ import com.quip.backend.problem.dto.request.CreateProblemRequestDto;
 import com.quip.backend.problem.dto.request.GetProblemRequestDto;
 import com.quip.backend.problem.dto.response.GetProblemListItemResponseDto;
 import com.quip.backend.problem.dto.response.GetProblemResponseDto;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.quip.backend.problem.mapper.database.ProblemCategoryMapper;
 import com.quip.backend.problem.mapper.database.ProblemChoiceMapper;
 import com.quip.backend.problem.mapper.database.ProblemMapper;
@@ -116,7 +117,8 @@ public class ProblemService {
         log.debug("Retrieving problems from database for problemCategoryId for dto return: {}", problemCategory.getId());
 
         // Retrieve all problems for the category and convert to DTOs
-        List<Problem> problems = problemMapper.selectByProblemCategoryId(problemCategory.getId());
+        List<Problem> problems = problemMapper.selectList(new QueryWrapper<Problem>()
+                .eq("problem_category_id", problemCategory.getId()));
         List<GetProblemListItemResponseDto> getProblemResponseDtos = new ArrayList<>();
 
         for (Problem problem : problems) {
@@ -140,7 +142,8 @@ public class ProblemService {
                key = "'problems:category:' + #problemCategoryId")
     public List<Problem> getProblemsByCategoryId(Long problemCategoryId) {
         log.debug("Retrieving problems from database for problemCategoryId: {}", problemCategoryId);
-        return problemMapper.selectByProblemCategoryId(problemCategoryId);
+        return problemMapper.selectList(new QueryWrapper<Problem>()
+                .eq("problem_category_id", problemCategoryId));
     }
 
     /**

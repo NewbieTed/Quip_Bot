@@ -21,20 +21,6 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <select id="selectByMemberIdAndServerId" resultMap="ToolWhitelistResultMap">
-        SELECT member_id, tool_id, server_id, agent_conversation_id, scope, expires_at, created_by, updated_by, created_at, updated_at
-        FROM tool_whitelist
-        WHERE member_id = #{memberId}
-        AND server_id = #{serverId}
-    </select>
-
-    <select id="selectByMemberIdServerIdAndConversationId" resultMap="ToolWhitelistResultMap">
-        SELECT member_id, tool_id, server_id, agent_conversation_id, scope, expires_at, created_by, updated_by, created_at, updated_at
-        FROM tool_whitelist
-        WHERE member_id = #{memberId}
-        AND server_id = #{serverId}
-        AND agent_conversation_id = #{agentConversationId}
-    </select>
 
     <select id="selectActiveByMemberIdAndServerId" resultMap="ToolWhitelistResultMap">
         SELECT member_id, tool_id, server_id, agent_conversation_id, scope, expires_at, created_by, updated_by, created_at, updated_at
@@ -44,35 +30,14 @@
         AND (expires_at IS NULL OR expires_at > #{currentTime})
     </select>
 
-    <select id="selectByToolId" resultMap="ToolWhitelistResultMap">
-        SELECT member_id, tool_id, server_id, agent_conversation_id, scope, expires_at, created_by, updated_by, created_at, updated_at
-        FROM tool_whitelist
-        WHERE tool_id = #{toolId}
-    </select>
 
-    <select id="selectByScope" resultMap="ToolWhitelistResultMap">
-        SELECT member_id, tool_id, server_id, agent_conversation_id, scope, expires_at, created_by, updated_by, created_at, updated_at
-        FROM tool_whitelist
-        WHERE scope = #{scope}
-    </select>
-
-    <select id="selectActiveWhitelistEntry" resultMap="ToolWhitelistResultMap">
+    <select id="selectActiveByMemberAndServerForNewConversation" resultMap="ToolWhitelistResultMap">
         SELECT member_id, tool_id, server_id, agent_conversation_id, scope, expires_at, created_by, updated_by, created_at, updated_at
         FROM tool_whitelist
         WHERE member_id = #{memberId}
-        AND tool_id = #{toolId}
         AND server_id = #{serverId}
-        AND agent_conversation_id = #{agentConversationId}
+        AND scope IN ('GLOBAL', 'SERVER')
         AND (expires_at IS NULL OR expires_at > #{currentTime})
-        LIMIT 1
     </select>
-
-    <delete id="deleteExpiredEntries">
-        <![CDATA[
-        DELETE FROM tool_whitelist
-        WHERE expires_at IS NOT NULL
-        AND expires_at <= #{currentTime}
-        ]]>
-    </delete>
 
 </mapper>

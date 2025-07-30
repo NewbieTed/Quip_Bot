@@ -1,19 +1,40 @@
 package com.quip.backend.tool.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.quip.backend.assistant.model.database.AssistantConversation;
+import com.quip.backend.assistant.service.AssistantConversationService;
+import com.quip.backend.authorization.constants.AuthorizationConstants;
+import com.quip.backend.authorization.context.AuthorizationContext;
 import com.quip.backend.authorization.service.AuthorizationService;
+import com.quip.backend.channel.service.ChannelService;
+import com.quip.backend.member.service.MemberService;
+import com.quip.backend.tool.enums.ToolWhitelistScope;
 import com.quip.backend.tool.mapper.database.ToolWhitelistMapper;
 import com.quip.backend.tool.mapper.dto.response.ToolWhitelistResponseDtoMapper;
+import com.quip.backend.tool.model.Tool;
 import com.quip.backend.tool.model.ToolWhitelist;
 import com.quip.backend.tool.dto.request.UpdateToolWhitelistRequestDto;
+import com.quip.backend.tool.dto.request.AddToolWhitelistRequestDto;
+import com.quip.backend.tool.dto.request.RemoveToolWhitelistRequestDto;
 import com.quip.backend.config.redis.CacheConfiguration;
+import com.quip.backend.common.exception.ConversationInProgressException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Service responsible for managing tool whitelist permissions in the system.
@@ -33,22 +54,109 @@ import java.util.List;
 public class ToolWhitelistService {
 
     // Service dependencies
+    private final MemberService memberService;
+    private final ChannelService channelService;
     private final AuthorizationService authorizationService;
     private final ToolService toolService;
+    private final AssistantConversationService assistantConversationService;
 
     // Database mappers
     private final ToolWhitelistMapper toolWhitelistMapper;
 
     // DTO mappers
-    private final ToolWhitelistResponseDtoMapper toolWhitelistResponseDtoMapper;
+//    private final ToolWhitelistResponseDtoMapper toolWhitelistResponseDtoMapper;
+    
+    // HTTP client for agent communication
+    private final RestTemplate restTemplate;
+    
+    // Configuration
+    @Value("${app.agent.url}")
+    private String agentUrl;
 
-    // Authorization operation constants
     private static final String ADD_TOOL_WHITELIST = "Tool Whitelist Addition";
     private static final String UPDATE_TOOL_WHITELIST = "Tool Whitelist Update";
     private static final String REMOVE_TOOL_WHITELIST = "Tool Whitelist Removal";
-    private static final String VIEW_TOOL_WHITELIST = "Tool Whitelist Retrieval";
-    private static final String MANAGE_TOOL_WHITELIST = "Tool Whitelist Management";
-    private static final String CHECK_TOOL_PERMISSION = "Tool Permission Check";
+//    private static final String RETRIEVE_TOOL_WHITELIST = "Tool Whitelist Retrieval";
+//    private static final String MANAGE_TOOL_WHITELIST = "Tool Whitelist Management";
+//    private static final String CHECK_TOOL_PERMISSION = "Tool Permission Check";
+
+    // TODO: Update tool whitelist handler
+
+    /**
+     * Gets the list of whitelisted tool names for a specific member and server context.
+     * <p>
+     * This method retrieves tools that are whitelisted for the member at different scopes:
+     * - Global scope: Tools available to the member across all servers
+     * - Server scope: Tools available to the member within the specific server
+     * - Conversation scope: Tools available to the member within a specific conversation (if provided)
+     * </p>
+     * <p>
+     * This method uses the cached ToolWhitelistService to improve performance for
+     * frequently accessed tool whitelist data.
+     * </p>
+     *
+     * @param memberId The ID of the member
+     * @param serverId The ID of the server
+     * @return List of whitelisted tool names
+     */
+    public List<String> getWhitelistedToolNamesForNewConversation(Long memberId, Long serverId) {
+        try {
+            // Get valid tool whitelist entries with GLOBAL or SERVER scope
+            List<ToolWhitelist> whitelistEntries = toolWhitelistMapper.selectActiveByMemberAndServerForNewConversation(
+                    memberId, serverId, java.time.OffsetDateTime.now());
+
+            if (whitelistEntries.isEmpty()) {
+                log.debug("No whitelisted tools found for member {} in server {}", memberId, serverId);
+                return List.of();
+            }
+
+            // Extract tool IDs from the whitelist entries
+            Set<Long> whitelistedToolIds = whitelistEntries.stream()
+                    .map(ToolWhitelist::getToolId)
+                    .collect(Collectors.toSet());
+
+            // Get all tools by IDs using ToolService
+            List<Tool> tools = toolService.getToolsByIds(whitelistedToolIds);
+
+            // Filter enabled tools and extract tool names
+            List<String> toolNames = tools.stream()
+                    .filter(tool -> tool.getEnabled() != null && tool.getEnabled())
+                    .map(Tool::getToolName)
+                    .collect(Collectors.toList());
+
+            log.info("Found {} whitelisted tools for member {} in server {}: {}",
+                    toolNames.size(), memberId, serverId, toolNames);
+
+            return toolNames;
+        } catch (Exception e) {
+            log.error("Error retrieving whitelisted tools for member {} in server {}: {}",
+                    memberId, serverId, e.getMessage(), e);
+            return List.of();
+        }
+    }
+
+    /**
+     * Checks if a whitelist entry is applicable for the current context.
+     * <p>
+     * An entry is applicable if:
+     * - It's a GLOBAL scope entry
+     * - It's a SERVER scope entry
+     * - It's a CONVERSATION scope entry and the conversation ID matches
+     * </p>
+     *
+     * @param entry The whitelist entry to check
+     * @param conversationId The current conversation ID (can be null)
+     * @return true if the entry is applicable, false otherwise
+     */
+    private boolean isEntryApplicable(ToolWhitelist entry, Long conversationId) {
+        ToolWhitelistScope scope = entry.getScope();
+
+        return switch (scope) {
+            case GLOBAL, SERVER -> true;
+            case CONVERSATION -> conversationId != null && conversationId.equals(entry.getAgentConversationId());
+        };
+    }
+
 
     /**
      * Retrieves active tool whitelist entries for a specific member and server with caching.
@@ -98,34 +206,182 @@ public class ToolWhitelistService {
      * <p>
      * This method updates the database and evicts related cache entries to ensure
      * cache consistency. It evicts both member-specific and tool-specific caches.
+     * Process deletion requests first, then addition requests to handle scope changes properly.
      * </p>
      *
      * @param updateRequest the update request containing new whitelist data
-     * @return the created/updated tool whitelist entry
      */
-    public ToolWhitelist updateToolWhitelist(UpdateToolWhitelistRequestDto updateRequest) {
-        log.debug("Updating tool whitelist for targetMemberId: {}, toolId: {}", 
-                 updateRequest.getTargetMemberId(), updateRequest.getToolId());
+    public void updateToolWhitelist(UpdateToolWhitelistRequestDto updateRequest) {
+        Long memberId = updateRequest.getMemberId();
+        Long channelId = updateRequest.getChannelId();
+
+        memberService.validateMember(memberId, UPDATE_TOOL_WHITELIST);
+        channelService.validateChannel(channelId, UPDATE_TOOL_WHITELIST);
+
+        AuthorizationContext authorizationContext = authorizationService.validateAuthorization(
+                memberId,
+                channelId,
+                AuthorizationConstants.MANAGE_TOOL_WHITELIST,
+                UPDATE_TOOL_WHITELIST
+        );
+
+        // Get server ID from authorization context
+        Long serverId = authorizationContext.server().getId();
+
+        // Check if conversation state is fine to update the whitelist (conversation must be either not active, or not being processed).
+        // Being processing implies the conversation is both active and not interrupted
+        AssistantConversation assistantConversation = assistantConversationService.getActiveAssistantConversation(memberId, serverId);
+        if (assistantConversation != null && assistantConversation.getIsProcessing()) {
+            // Cannot perform change, abort
+            throw new ConversationInProgressException(
+                "Cannot update tool whitelist while conversation is being processed. " +
+                        "Please wait for the conversation to complete before making changes."
+            );
+        }
+
+        // Process removal requests first (important for scope changes)
+        if (updateRequest.getRemoveRequests() != null && !updateRequest.getRemoveRequests().isEmpty()) {
+            for (RemoveToolWhitelistRequestDto removeRequest : updateRequest.getRemoveRequests()) {
+                processRemoveRequest(removeRequest, memberId, serverId);
+            }
+        }
+
+        // Process addition requests after removals
+        if (updateRequest.getAddRequests() != null && !updateRequest.getAddRequests().isEmpty()) {
+            for (AddToolWhitelistRequestDto addRequest : updateRequest.getAddRequests()) {
+                processAddRequest(addRequest, memberId, serverId);
+            }
+        }
+
+        // Evict cache for the member and server
+        evictToolWhitelistMemberCache(serverId, memberId);
+
+        // Send HTTP request to agent to notify about whitelist update
+        List<String> addedToolNames = updateRequest.getAddRequests() != null ? 
+                updateRequest.getAddRequests().stream()
+                        .map(AddToolWhitelistRequestDto::getToolName)
+                        .collect(Collectors.toList()) : new ArrayList<>();
         
-        // Create a new ToolWhitelist entity from the request
-        ToolWhitelist toolWhitelist = ToolWhitelist.builder()
-                .memberId(updateRequest.getTargetMemberId())
-                .toolId(updateRequest.getToolId())
-                .agentConversationId(updateRequest.getAgentConversationId())
-                .scope(updateRequest.getScope())
-                .expiresAt(updateRequest.getExpiresAt())
+        List<String> removedToolNames = updateRequest.getRemoveRequests() != null ? 
+                updateRequest.getRemoveRequests().stream()
+                        .map(RemoveToolWhitelistRequestDto::getToolName)
+                        .collect(Collectors.toList()) : new ArrayList<>();
+        
+        notifyAgentOfWhitelistUpdate(memberId, serverId, addedToolNames, removedToolNames);
+    }
+
+    /**
+     * Processes a single remove request for tool whitelist.
+     *
+     * @param removeRequest the remove request
+     * @param memberId the member ID
+     * @param serverId the server ID
+     */
+    private void processRemoveRequest(RemoveToolWhitelistRequestDto removeRequest, Long memberId, Long serverId) {
+        // Validate and get tool by name
+        Tool tool = toolService.validateTool(removeRequest.getToolName(), REMOVE_TOOL_WHITELIST);
+
+        // Build query conditions for deletion
+        QueryWrapper<ToolWhitelist> queryWrapper = new QueryWrapper<ToolWhitelist>()
+                .eq("member_id", memberId)
+                .eq("server_id", serverId)
+                .eq("tool_id", tool.getId())
+                .eq("scope", removeRequest.getScope().getValue());
+
+        // Add conversation ID condition if scope is CONVERSATION
+        if (removeRequest.getScope() == ToolWhitelistScope.CONVERSATION) {
+            if (removeRequest.getAgentConversationId() != null) {
+                queryWrapper.eq("agent_conversation_id", removeRequest.getAgentConversationId());
+            } else {
+                log.warn("Conversation ID is required for CONVERSATION scope removal");
+                return;
+            }
+        }
+
+        // Delete the whitelist entry
+        int deletedCount = toolWhitelistMapper.delete(queryWrapper);
+        
+        if (deletedCount > 0) {
+            log.info("Removed tool whitelist entry: tool={}, member={}, server={}, scope={}", 
+                    removeRequest.getToolName(), memberId, serverId, removeRequest.getScope());
+            
+            // Evict specific tool permission cache
+            evictToolPermissionCache(memberId, serverId, tool.getId());
+        } else {
+            log.debug("No whitelist entry found to remove: tool={}, member={}, server={}, scope={}", 
+                    removeRequest.getToolName(), memberId, serverId, removeRequest.getScope());
+        }
+    }
+
+    /**
+     * Processes a single add request for tool whitelist.
+     *
+     * @param addRequest the add request
+     * @param memberId the member ID
+     * @param serverId the server ID
+     * @return the created tool whitelist entry
+     */
+    private ToolWhitelist processAddRequest(AddToolWhitelistRequestDto addRequest, Long memberId, Long serverId) {
+        // Validate and get tool by name
+        Tool tool = toolService.validateTool(addRequest.getToolName(), ADD_TOOL_WHITELIST);
+
+        // Validate conversation ID for CONVERSATION scope
+        Long conversationId = 0L; // Default value for non-conversation scoped entries
+        if (addRequest.getScope() == ToolWhitelistScope.CONVERSATION) {
+            if (addRequest.getAgentConversationId() != null) {
+                conversationId = addRequest.getAgentConversationId();
+            } else {
+                log.warn("Conversation ID is required for CONVERSATION scope addition");
+                return null;
+            }
+        }
+
+        // Create new whitelist entry
+        ToolWhitelist newEntry = ToolWhitelist.builder()
+                .memberId(memberId)
+                .toolId(tool.getId())
+                .serverId(serverId)
+                .agentConversationId(conversationId)
+                .scope(addRequest.getScope())
+                .expiresAt(addRequest.getExpiresAt())
+                .createdBy(memberId)
+                .updatedBy(memberId)
+                .createdAt(java.time.OffsetDateTime.now())
+                .updatedAt(java.time.OffsetDateTime.now())
                 .build();
+
+        // Insert or update the entry (using MyBatis Plus insertOrUpdate equivalent)
+        // First try to find existing entry
+        QueryWrapper<ToolWhitelist> queryWrapper = new QueryWrapper<ToolWhitelist>()
+                .eq("member_id", memberId)
+                .eq("server_id", serverId)
+                .eq("tool_id", tool.getId())
+                .eq("scope", addRequest.getScope().getValue())
+                .eq("agent_conversation_id", conversationId);
+
+        ToolWhitelist existingEntry = toolWhitelistMapper.selectOne(queryWrapper);
         
-        // Insert or update the whitelist entry
-        toolWhitelistMapper.insert(toolWhitelist);
-        
-        // Evict related cache entries to ensure consistency
-        // Note: We need to determine the serverId from the channel context
-        // For now, we'll evict member-specific cache and tool permission cache
-        evictToolWhitelistMemberCache(updateRequest.getChannelId(), updateRequest.getTargetMemberId());
-        evictToolPermissionCache(updateRequest.getTargetMemberId(), updateRequest.getChannelId(), updateRequest.getToolId());
-        
-        return toolWhitelist;
+        if (existingEntry != null) {
+            // Update existing entry
+            existingEntry.setExpiresAt(addRequest.getExpiresAt());
+            existingEntry.setUpdatedBy(memberId);
+            existingEntry.setUpdatedAt(java.time.OffsetDateTime.now());
+            
+            toolWhitelistMapper.updateById(existingEntry);
+            
+            log.info("Updated tool whitelist entry: tool={}, member={}, server={}, scope={}", 
+                    addRequest.getToolName(), memberId, serverId, addRequest.getScope());
+            
+            return existingEntry;
+        } else {
+            // Insert new entry
+            toolWhitelistMapper.insert(newEntry);
+            
+            log.info("Added tool whitelist entry: tool={}, member={}, server={}, scope={}", 
+                    addRequest.getToolName(), memberId, serverId, addRequest.getScope());
+            
+            return newEntry;
+        }
     }
 
     /**
@@ -210,13 +466,6 @@ public class ToolWhitelistService {
         log.debug("Removing tool whitelist entry for memberId: {}, serverId: {}, toolId: {}", 
                  memberId, serverId, toolId);
         
-        // Create a whitelist entry to identify the record to delete
-        ToolWhitelist toDelete = ToolWhitelist.builder()
-                .memberId(memberId)
-                .serverId(serverId)
-                .toolId(toolId)
-                .build();
-        
         // Delete the whitelist entry using QueryWrapper for composite key
         toolWhitelistMapper.delete(new QueryWrapper<ToolWhitelist>()
                 .eq("member_id", memberId)
@@ -243,6 +492,58 @@ public class ToolWhitelistService {
     public void evictToolPermissionCache(Long memberId, Long serverId, Long toolId) {
         log.debug("Evicting tool permission cache for memberId: {}, serverId: {}, toolId: {}", 
                  memberId, serverId, toolId);
+    }
+
+    /**
+     * Notifies the agent service about tool whitelist updates.
+     * <p>
+     * This method sends a blocking HTTP request to the agent service to inform it about
+     * changes to a member's tool whitelist. The agent can then update its internal
+     * state or cache accordingly.
+     * </p>
+     *
+     * @param memberId the member ID whose whitelist was updated
+     * @param serverId the server ID where the update occurred
+     * @param addedToolNames list of tool names that were added
+     * @param removedToolNames list of tool names that were removed
+     */
+    private void notifyAgentOfWhitelistUpdate(Long memberId, Long serverId, List<String> addedToolNames, List<String> removedToolNames) {
+        try {
+            // Prepare the request payload with only the changes
+            Map<String, Object> requestBody = Map.of(
+                "serverId", serverId,
+                "memberId", memberId,
+                "addedTools", addedToolNames,
+                "removedTools", removedToolNames
+            );
+            
+            // Set up HTTP headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            
+            // Create HTTP entity with body and headers
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(requestBody, headers);
+            
+            // Send blocking HTTP POST request to agent
+            String agentEndpoint = agentUrl + "/tool-whitelist/update";
+            ResponseEntity<String> response = restTemplate.postForEntity(agentEndpoint, requestEntity, String.class);
+            
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("Successfully notified agent of whitelist update for member {} in server {}: {}", 
+                        memberId, serverId, response.getBody());
+                
+                // Agent notified successfully
+                log.debug("Agent response parsed successfully");
+            } else {
+                log.warn("Agent notification returned non-success status {} for member {} in server {}: {}", 
+                        response.getStatusCode(), memberId, serverId, response.getBody());
+            }
+                    
+        } catch (Exception e) {
+            // Don't let agent notification failures break the main operation
+            log.error("Failed to notify agent of whitelist update for member {} in server {}: {}", 
+                    memberId, serverId, e.getMessage(), e);
+        }
     }
 
 }

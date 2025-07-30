@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.quip.backend.common.exception.ValidationException;
 import com.quip.backend.dto.BaseResponse;
 import com.quip.backend.common.exception.EntityNotFoundException;
+import com.quip.backend.common.exception.ConversationInProgressException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -102,6 +103,17 @@ public class GlobalExceptionHandler {
         String errorMessage = ex.getMessage();
         logger.error("ValidationException: {}", errorMessage, ex);
         return BaseResponse.failure(HttpStatus.UNPROCESSABLE_ENTITY.value(), errorMessage);
+    }
+
+    /**
+     * Handles conversation in progress exceptions.
+     * Returns a conflict status when operations cannot be completed due to active conversation processing.
+     */
+    @ExceptionHandler(ConversationInProgressException.class)
+    public BaseResponse<String> handleConversationInProgressException(ConversationInProgressException ex) {
+        String errorMessage = ex.getMessage();
+        logger.error("ConversationInProgressException: {}", errorMessage, ex);
+        return BaseResponse.failure(HttpStatus.CONFLICT.value(), errorMessage);
     }
 
     /**

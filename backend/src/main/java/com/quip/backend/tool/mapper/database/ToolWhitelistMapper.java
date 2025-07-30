@@ -31,4 +31,17 @@ public interface ToolWhitelistMapper extends BaseMapper<ToolWhitelist> {
     List<ToolWhitelist> selectActiveByMemberIdAndServerId(@Param("memberId") Long memberId, 
                                                          @Param("serverId") Long serverId, 
                                                          @Param("currentTime") OffsetDateTime currentTime);
+
+    /**
+     * Retrieves active whitelist entries for a member and server with GLOBAL or SERVER scope only.
+     * This is used for new conversations where CONVERSATION scope entries are not applicable.
+     *
+     * @param memberId The ID of the member
+     * @param serverId The ID of the server
+     * @param currentTime The current timestamp to check for expired entries
+     * @return List of active ToolWhitelist entries with GLOBAL or SERVER scope
+     */
+    List<ToolWhitelist> selectActiveByMemberAndServerForNewConversation(@Param("memberId") Long memberId,
+                                                                        @Param("serverId") Long serverId,
+                                                                        @Param("currentTime") OffsetDateTime currentTime);
 }

@@ -1,5 +1,9 @@
 package com.quip.backend.tool.enums;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+
 /**
  * Enumeration representing the scope of tool whitelist permissions.
  * <p>
@@ -9,6 +13,8 @@ package com.quip.backend.tool.enums;
  * - CONVERSATION: Tool is approved for use within a specific conversation only
  * </p>
  */
+@Getter
+@RequiredArgsConstructor
 public enum ToolWhitelistScope {
     /**
      * Tool is approved for use in all contexts globally.
@@ -26,19 +32,6 @@ public enum ToolWhitelistScope {
     CONVERSATION("conversation");
 
     private final String value;
-
-    ToolWhitelistScope(String value) {
-        this.value = value;
-    }
-
-    /**
-     * Gets the string value of the enum as stored in the database.
-     *
-     * @return the string representation of the scope
-     */
-    public String getValue() {
-        return value;
-    }
 
     /**
      * Converts a string value to the corresponding enum value.

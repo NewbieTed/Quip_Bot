@@ -19,10 +19,4 @@
     </resultMap>
 
 
-    <select id="selectByServerId" resultMap="ProblemCategoryResultMap">
-        SELECT id, server_id, category_name, description, created_by, updated_by, created_at, updated_at
-        FROM problem_category
-        WHERE server_id = #{serverId}
-    </select>
-
 </mapper>

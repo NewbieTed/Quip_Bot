@@ -17,19 +17,6 @@ import java.util.List;
  */
 @Mapper
 public interface ProblemMapper extends BaseMapper<Problem> {
-//    /**
-//     * Retrieves a random problem from the database.
-//     * This method is currently commented out for future implementation.
-//     *
-//     * @return A randomly selected Problem entity
-//     */
-//    public Problem getRandomProblem();
 
-    /**
-     * Retrieves all problems belonging to a specific category.
-     *
-     * @param problemCategoryId The ID of the problem category to filter by
-     * @return A list of Problem entities in the specified category
-     */
-    List<Problem> selectByProblemCategoryId(@Param("problemCategoryId") Long problemCategoryId);
+
 }

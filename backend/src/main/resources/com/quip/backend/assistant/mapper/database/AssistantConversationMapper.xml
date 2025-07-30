@@ -1,20 +1,25 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<!-- 
+<!--
   AuthorizationTypeMapper.xml - MyBatis mapper for authorization types
-  
+
   This mapper provides SQL queries and mappings for the AuthorizationType entity,
   handling database operations related to authorization types in the system.
 -->
-<mapper namespace="com.quip.backend.authorization.mapper.database.AuthorizationTypeMapper">
+<mapper namespace="com.quip.backend.assistant.mapper.database.AssistantConversationMapper">
 
-    <resultMap id="AuthorizationTypeResultMap" type="com.quip.backend.authorization.model.AuthorizationType">
+    <resultMap id="AssistantConversationResultMap" type="com.quip.backend.assistant.model.database.AssistantConversation">
         <id property="id" column="id"/>
-        <result property="authorizationTypeName" column="authorization_type_name"/>
+        <result property="serverId" column="server_id"/>
+        <result property="memberId" column="member_id"/>
+        <result property="isActive" column="is_active"/>
+        <result property="isInterrupt" column="is_interrupt"/>
+        <result property="isProcessing" column="is_processing"/>
         <result property="createdBy" column="created_by"/>
         <result property="updatedBy" column="updated_by"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
+
 
 </mapper>

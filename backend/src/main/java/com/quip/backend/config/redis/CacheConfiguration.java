@@ -42,6 +42,7 @@ public class CacheConfiguration {
     public static final String SERVER_DATA_CACHE = "serverData";
     public static final String MEMBER_DATA_CACHE = "memberData";
     public static final String ASSISTANT_SESSION_CACHE = "assistantSession";
+    public static final String ASSISTANT_CONVERSATION_CACHE = "assistantConversation";
     public static final String TEMPORARY_DATA_CACHE = "temporaryData";
 
     private final RedisCacheProperties cacheProperties;
@@ -144,6 +145,10 @@ public class CacheConfiguration {
         // Assistant session cache - short-term (15 minutes)
         cacheConfigurations.put(ASSISTANT_SESSION_CACHE, 
                 baseConfig.entryTtl(Duration.ofMinutes(15)));
+
+        // Assistant conversation cache - medium-term (30 minutes)
+        cacheConfigurations.put(ASSISTANT_CONVERSATION_CACHE, 
+                baseConfig.entryTtl(Duration.ofMinutes(30)));
 
         // Temporary data cache - very short-term (5 minutes)
         cacheConfigurations.put(TEMPORARY_DATA_CACHE, 

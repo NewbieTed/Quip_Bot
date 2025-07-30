@@ -20,30 +20,5 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <select id="selectByDiscordServerId" resultMap="McpServerResultMap">
-        SELECT id, discord_server_id, server_name, server_url, description, created_by, updated_by, created_at, updated_at
-        FROM mcp_server
-        WHERE discord_server_id = #{discordServerId}
-    </select>
-
-    <select id="selectGlobalServers" resultMap="McpServerResultMap">
-        SELECT id, discord_server_id, server_name, server_url, description, created_by, updated_by, created_at, updated_at
-        FROM mcp_server
-        WHERE discord_server_id IS NULL
-    </select>
-
-    <select id="selectByNameAndDiscordServerId" resultMap="McpServerResultMap">
-        SELECT id, discord_server_id, server_name, server_url, description, created_by, updated_by, created_at, updated_at
-        FROM mcp_server
-        WHERE server_name = #{serverName}
-        <choose>
-            <when test="discordServerId != null">
-                AND discord_server_id = #{discordServerId}
-            </when>
-            <otherwise>
-                AND discord_server_id IS NULL
-            </otherwise>
-        </choose>
-    </select>
 
 </mapper>

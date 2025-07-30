@@ -1,5 +1,6 @@
 package com.quip.backend.authorization.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.quip.backend.authorization.context.AuthorizationContext;
 import com.quip.backend.authorization.mapper.database.MemberChannelAuthorizationMapper;
 import com.quip.backend.authorization.mapper.database.AuthorizationTypeMapper;
@@ -70,7 +71,11 @@ public class AuthorizationService {
 
         // Check if member has the specific permission for this channel
         long authorizationTypeId = this.getPermissionTypeId(authorizationType);
-        MemberChannelAuthorization memberChannelAuthorization = memberChannelAuthorizationMapper.selectByIds(memberId, channelId, authorizationTypeId);
+        MemberChannelAuthorization memberChannelAuthorization = memberChannelAuthorizationMapper.selectOne(
+                new QueryWrapper<MemberChannelAuthorization>()
+                        .eq("member_id", memberId)
+                        .eq("channel_id", channelId)
+                        .eq("authorization_type_id", authorizationTypeId));
         if (memberChannelAuthorization == null) {
             throw new ValidationException(operation, "member", "does not have authorization to " + authorizationType.toLowerCase());
         }
@@ -88,7 +93,8 @@ public class AuthorizationService {
      */
     private long getPermissionTypeId(String authorizationTypeName) {
         // Look up the authorization type by name
-        AuthorizationType authorizationType = authorizationTypeMapper.selectByAuthorizationTypeName(authorizationTypeName);
+        AuthorizationType authorizationType = authorizationTypeMapper.selectOne(new QueryWrapper<AuthorizationType>()
+                .eq("authorization_type_name", authorizationTypeName));
         if (authorizationType == null) {
             // Throw system-level exception if the authorization type doesn't exist
             throw new EntityNotFoundException("AuthorizationType not found for name: " + authorizationTypeName);

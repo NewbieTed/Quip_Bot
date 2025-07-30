@@ -255,3 +255,8 @@ async def run_new_agent(
         yield message
 
     _log_agent_complete(member_id)
+
+
+def update_tool_whitelist(server_id: int, member_id: int, tool_whitelist: List[str]):
+
+    pass

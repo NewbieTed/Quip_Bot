@@ -424,7 +424,14 @@ CREATE TABLE assistant_conversation (
     created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_valid_conversation_state CHECK (
+        (is_active = FALSE AND is_interrupt = FALSE AND is_processing = FALSE) OR  -- Not active
+        (is_active = TRUE  AND is_interrupt = FALSE AND is_processing = TRUE) OR   -- Processing
+        (is_active = TRUE  AND is_interrupt = TRUE  AND is_processing = FALSE) OR  -- Interrupted
+        (is_active = TRUE  AND is_interrupt = FALSE  AND is_processing = FALSE)    -- Waiting for user input (idle)
+    )
 );
 
 CREATE UNIQUE INDEX uniq_active_conversation_per_member_server

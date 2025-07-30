@@ -86,6 +86,8 @@ app:
   assets:
     base-url: http://localhost:8080/assets/
     base-path: src/main/resources/static/
+  agent:
+    url: ${AGENT_URL:http://localhost:5001}
   # Application-specific Redis configuration
   redis:
     default-ttl: ${APP_REDIS_DEFAULT_TTL:3600}              # Default TTL in seconds (1 hour)

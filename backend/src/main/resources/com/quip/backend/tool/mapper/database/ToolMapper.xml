@@ -20,39 +20,4 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <select id="selectByMcpServerId" resultMap="ToolResultMap">
-        SELECT id, mcp_server_id, tool_name, description, enabled, created_by, updated_by, created_at, updated_at
-        FROM tool
-        WHERE mcp_server_id = #{mcpServerId}
-    </select>
-
-    <select id="selectEnabledTools" resultMap="ToolResultMap">
-        SELECT id, mcp_server_id, tool_name, description, enabled, created_by, updated_by, created_at, updated_at
-        FROM tool
-        WHERE enabled = true
-    </select>
-
-    <select id="selectEnabledToolsByMcpServerId" resultMap="ToolResultMap">
-        SELECT id, mcp_server_id, tool_name, description, enabled, created_by, updated_by, created_at, updated_at
-        FROM tool
-        WHERE mcp_server_id = #{mcpServerId}
-        AND enabled = true
-    </select>
-
-    <select id="selectByNameAndMcpServerId" resultMap="ToolResultMap">
-        SELECT id, mcp_server_id, tool_name, description, enabled, created_by, updated_by, created_at, updated_at
-        FROM tool
-        WHERE tool_name = #{toolName}
-        AND mcp_server_id = #{mcpServerId}
-    </select>
-
-    <select id="selectByNames" resultMap="ToolResultMap">
-        SELECT id, mcp_server_id, tool_name, description, enabled, created_by, updated_by, created_at, updated_at
-        FROM tool
-        WHERE tool_name IN
-        <foreach item="toolName" collection="toolNames" open="(" separator="," close=")">
-            #{toolName}
-        </foreach>
-    </select>
-
 </mapper>
