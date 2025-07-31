@@ -420,6 +420,7 @@ CREATE TABLE assistant_conversation (
     is_active BOOLEAN DEFAULT FALSE NOT NULL,
     is_interrupt BOOLEAN DEFAULT FALSE NOT NULL,
     is_processing BOOLEAN DEFAULT FALSE NOT NULL,
+    interrupted_tool_id BIGINT DEFAULT NULL REFERENCES tool(id) ON DELETE SET NULL,
 
     created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
     updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
@@ -431,6 +432,10 @@ CREATE TABLE assistant_conversation (
         (is_active = TRUE  AND is_interrupt = FALSE AND is_processing = TRUE) OR   -- Processing
         (is_active = TRUE  AND is_interrupt = TRUE  AND is_processing = FALSE) OR  -- Interrupted
         (is_active = TRUE  AND is_interrupt = FALSE  AND is_processing = FALSE)    -- Waiting for user input (idle)
+    ),
+    CONSTRAINT chk_interrupted_tool_id CHECK (
+        (is_interrupt = FALSE AND interrupted_tool_id IS NULL) OR
+        (is_interrupt = TRUE AND interrupted_tool_id IS NOT NULL)
     )
 );
 
@@ -454,7 +459,7 @@ CREATE TABLE mcp_server (
 CREATE TABLE tool (
     id BIGSERIAL PRIMARY KEY,
     mcp_server_id BIGINT NOT NULL REFERENCES mcp_server(id) ON DELETE CASCADE,
-    tool_name TEXT NOT NULL,
+    tool_name TEXT NOT NULL UNIQUE,
     description TEXT,
     enabled BOOLEAN DEFAULT FALSE NOT NULL,
 
@@ -898,6 +903,7 @@ COMMENT ON COLUMN assistant_conversation.member_id IS 'Foreign key to member tab
 COMMENT ON COLUMN assistant_conversation.is_active IS 'Whether this conversation is currently active for the member';
 COMMENT ON COLUMN assistant_conversation.is_interrupt IS 'Whether the agent is paused awaiting user approval for tool usage';
 COMMENT ON COLUMN assistant_conversation.is_processing IS 'Whether the agent is currently processing a request';
+COMMENT ON COLUMN assistant_conversation.interrupted_tool_id IS 'Foreign key to tool table - ID of the tool that caused the interruption (required when is_interrupt is true, NULL otherwise)';
 COMMENT ON COLUMN assistant_conversation.created_by IS 'Member ID who created this record (audit trail)';
 COMMENT ON COLUMN assistant_conversation.updated_by IS 'Member ID who last modified this record (audit trail)';
 COMMENT ON COLUMN assistant_conversation.created_at IS 'Timestamp when record was created (audit trail)';
@@ -1017,7 +1023,7 @@ CREATE INDEX idx_assistant_conversation_is_processing ON assistant_conversation(
 CREATE INDEX idx_mcp_server_server_name ON mcp_server(server_name);
 
 -- tool
-CREATE INDEX idx_tool_tool_name ON tool(tool_name);
+CREATE UNIQUE INDEX uniq_tool_name ON tool(tool_name);
 CREATE INDEX idx_tool_mcp_server_id ON tool(mcp_server_id);
 
 -- tool_whitelist
