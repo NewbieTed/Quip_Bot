@@ -98,7 +98,7 @@ public class ProblemCategoryServiceTest extends BaseTest {
             ProblemCategory problemCategory = new ProblemCategory();
             problemCategory.setServerId(VALID_SERVER_ID);
 
-            when(problemCategoryMapper.selectByServerId(VALID_SERVER_ID)).thenReturn(List.of(problemCategory));
+            when(problemCategoryMapper.selectList(any())).thenReturn(List.of(problemCategory));
             when(getProblemCategoryResponseDtoMapper.toProblemCategoryDto(problemCategory))
                     .thenReturn(new GetProblemCategoryResponseDto());
 
@@ -110,7 +110,7 @@ public class ProblemCategoryServiceTest extends BaseTest {
             assertNotNull(result);
             assertFalse(result.isEmpty());
 
-            verify(problemCategoryMapper).selectByServerId(VALID_SERVER_ID);
+            verify(problemCategoryMapper).selectList(any());
             verify(getProblemCategoryResponseDtoMapper).toProblemCategoryDto(problemCategory);
             verify(authorizationService).validateAuthorization(VALID_MEMBER_ID, VALID_CHANNEL_ID, AUTH_TYPE_VIEW_CATEGORY, GET_OPERATION);
         }

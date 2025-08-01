@@ -23,16 +23,25 @@ import static org.junit.jupiter.api.Assertions.*;
 class ToolWhitelistServiceCacheTest {
 
     @Mock
+    private com.quip.backend.member.service.MemberService memberService;
+
+    @Mock
+    private com.quip.backend.channel.service.ChannelService channelService;
+
+    @Mock
     private AuthorizationService authorizationService;
 
     @Mock
     private ToolService toolService;
 
     @Mock
+    private com.quip.backend.assistant.service.AssistantConversationService assistantConversationService;
+
+    @Mock
     private ToolWhitelistMapper toolWhitelistMapper;
 
     @Mock
-    private ToolWhitelistResponseDtoMapper toolWhitelistResponseDtoMapper;
+    private org.springframework.web.client.RestTemplate restTemplate;
 
     private ToolWhitelistService toolWhitelistService;
     private CacheManager cacheManager;
@@ -45,10 +54,13 @@ class ToolWhitelistServiceCacheTest {
         );
         
         toolWhitelistService = new ToolWhitelistService(
+            memberService,
+            channelService,
             authorizationService,
             toolService,
+            assistantConversationService,
             toolWhitelistMapper,
-            toolWhitelistResponseDtoMapper
+            restTemplate
         );
     }
 
@@ -94,8 +106,8 @@ class ToolWhitelistServiceCacheTest {
                 com.quip.backend.tool.dto.request.UpdateToolWhitelistRequestDto.class);
             
             assertNotNull(method, "updateToolWhitelist method should exist");
-            assertEquals(ToolWhitelist.class, method.getReturnType(),
-                "Method should return ToolWhitelist");
+            assertEquals(void.class, method.getReturnType(),
+                "Method should return void");
         });
     }
 

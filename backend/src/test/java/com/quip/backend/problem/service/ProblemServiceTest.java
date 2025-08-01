@@ -160,7 +160,7 @@ public class ProblemServiceTest extends BaseTest {
             mockProblem.setId(1L);
             mockProblem.setQuestion(VALID_QUESTION);
             
-            when(problemMapper.selectByProblemCategoryId(VALID_CATEGORY_ID)).thenReturn(List.of(mockProblem));
+            when(problemMapper.selectList(any())).thenReturn(List.of(mockProblem));
             
             GetProblemListItemResponseDto mockResponseDto = new GetProblemListItemResponseDto();
             when(getProblemListItemResponseDtoMapper.toGetProblemListResponseDto(mockProblem))
@@ -177,7 +177,7 @@ public class ProblemServiceTest extends BaseTest {
 
             verify(authorizationService).validateAuthorization(VALID_MEMBER_ID, VALID_CHANNEL_ID, "VIEW_PROBLEM", RETRIEVE_OPERATION);
             verify(problemCategoryService).validateProblemCategory(VALID_CATEGORY_ID, RETRIEVE_OPERATION);
-            verify(problemMapper).selectByProblemCategoryId(VALID_CATEGORY_ID);
+            verify(problemMapper).selectList(any());
             verify(getProblemListItemResponseDtoMapper).toGetProblemListResponseDto(mockProblem);
         }
 
@@ -188,7 +188,7 @@ public class ProblemServiceTest extends BaseTest {
             when(authorizationService.validateAuthorization(anyLong(), anyLong(), anyString(), anyString()))
                     .thenReturn(mockAuthorizationContext);
             when(problemCategoryService.validateProblemCategory(anyLong(), anyString())).thenReturn(mockProblemCategory);
-            when(problemMapper.selectByProblemCategoryId(VALID_CATEGORY_ID)).thenReturn(Collections.emptyList());
+            when(problemMapper.selectList(any())).thenReturn(Collections.emptyList());
 
             // When
             List<GetProblemListItemResponseDto> result = problemService.getProblemsByCategory(validGetProblemRequest);
@@ -197,7 +197,7 @@ public class ProblemServiceTest extends BaseTest {
             assertNotNull(result);
             assertTrue(result.isEmpty());
 
-            verify(problemMapper).selectByProblemCategoryId(VALID_CATEGORY_ID);
+            verify(problemMapper).selectList(any());
             verifyNoInteractions(getProblemListItemResponseDtoMapper);
         }
 
@@ -214,7 +214,7 @@ public class ProblemServiceTest extends BaseTest {
             Problem problem2 = new Problem();
             problem2.setId(2L);
             
-            when(problemMapper.selectByProblemCategoryId(VALID_CATEGORY_ID)).thenReturn(List.of(problem1, problem2));
+            when(problemMapper.selectList(any())).thenReturn(List.of(problem1, problem2));
             
             GetProblemListItemResponseDto responseDto1 = new GetProblemListItemResponseDto();
             GetProblemListItemResponseDto responseDto2 = new GetProblemListItemResponseDto();
