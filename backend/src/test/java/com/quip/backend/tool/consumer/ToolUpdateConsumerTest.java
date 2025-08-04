@@ -3,6 +3,7 @@ package com.quip.backend.tool.consumer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quip.backend.redis.service.RedisService;
+import com.quip.backend.tool.handler.ToolUpdateMessageHandler;
 import com.quip.backend.tool.model.ToolUpdateMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,11 +36,14 @@ class ToolUpdateConsumerTest {
     @Mock
     private ObjectMapper objectMapper;
 
+    @Mock
+    private ToolUpdateMessageHandler messageHandler;
+
     private ToolUpdateConsumer consumer;
 
     @BeforeEach
     void setUp() {
-        consumer = new ToolUpdateConsumer(redisService, objectMapper);
+        consumer = new ToolUpdateConsumer(redisService, objectMapper, messageHandler);
         
         // Set configuration properties
         ReflectionTestUtils.setField(consumer, "consumerEnabled", true);
@@ -94,11 +98,14 @@ class ToolUpdateConsumerTest {
 
         when(objectMapper.readValue(messageJson, ToolUpdateMessage.class))
                 .thenReturn(testMessage);
+        when(messageHandler.handleToolUpdates(testMessage))
+                .thenReturn(true);
 
         // Use reflection to call the private processMessage method
         ReflectionTestUtils.invokeMethod(consumer, "processMessage", messageJson);
 
         verify(objectMapper).readValue(messageJson, ToolUpdateMessage.class);
+        verify(messageHandler).handleToolUpdates(testMessage);
     }
 
     @Test
@@ -115,10 +122,13 @@ class ToolUpdateConsumerTest {
 
         when(objectMapper.readValue(messageJson, ToolUpdateMessage.class))
                 .thenReturn(testMessage);
+        when(messageHandler.handleToolUpdates(testMessage))
+                .thenReturn(true);
 
         ReflectionTestUtils.invokeMethod(consumer, "processMessage", messageJson);
 
         verify(objectMapper).readValue(messageJson, ToolUpdateMessage.class);
+        verify(messageHandler).handleToolUpdates(testMessage);
     }
 
     @Test
@@ -135,10 +145,13 @@ class ToolUpdateConsumerTest {
 
         when(objectMapper.readValue(messageJson, ToolUpdateMessage.class))
                 .thenReturn(testMessage);
+        when(messageHandler.handleToolUpdates(testMessage))
+                .thenReturn(true);
 
         ReflectionTestUtils.invokeMethod(consumer, "processMessage", messageJson);
 
         verify(objectMapper).readValue(messageJson, ToolUpdateMessage.class);
+        verify(messageHandler).handleToolUpdates(testMessage);
     }
 
     @Test
@@ -167,197 +180,26 @@ class ToolUpdateConsumerTest {
     }
 
     @Test
-    void testInvalidMessageSkipped() throws Exception {
-        ToolUpdateMessage invalidMessage = ToolUpdateMessage.builder()
-                .messageId(null)
+    void testMessageHandlerFailure() throws Exception {
+        ToolUpdateMessage testMessage = ToolUpdateMessage.builder()
+                .messageId("test-message-fail")
                 .timestamp(OffsetDateTime.now())
-                .addedTools(List.of())
+                .addedTools(List.of("tool1"))
                 .removedTools(List.of())
                 .source("agent")
                 .build();
 
-        String messageJson = "{\"messageId\":null}";
+        String messageJson = "{\"messageId\":\"test-message-fail\"}";
 
         when(objectMapper.readValue(messageJson, ToolUpdateMessage.class))
-                .thenReturn(invalidMessage);
+                .thenReturn(testMessage);
+        when(messageHandler.handleToolUpdates(testMessage))
+                .thenReturn(false);
 
         ReflectionTestUtils.invokeMethod(consumer, "processMessage", messageJson);
 
         verify(objectMapper).readValue(messageJson, ToolUpdateMessage.class);
-    }
-
-    @Test
-    void testMessageValidation_NullMessage() {
-        boolean result = (Boolean) ReflectionTestUtils.invokeMethod(consumer, "isValidMessage", (Object) null);
-        assertFalse(result);
-    }
-
-    @Test
-    void testMessageValidation_NullMessageId() {
-        ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .messageId(null)
-                .timestamp(OffsetDateTime.now())
-                .addedTools(List.of())
-                .removedTools(List.of())
-                .source("agent")
-                .build();
-
-        boolean result = (Boolean) ReflectionTestUtils.invokeMethod(consumer, "isValidMessage", message);
-        assertFalse(result);
-    }
-
-    @Test
-    void testMessageValidation_EmptyMessageId() {
-        ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .messageId("")
-                .timestamp(OffsetDateTime.now())
-                .addedTools(List.of())
-                .removedTools(List.of())
-                .source("agent")
-                .build();
-
-        boolean result = (Boolean) ReflectionTestUtils.invokeMethod(consumer, "isValidMessage", message);
-        assertFalse(result);
-    }
-
-    @Test
-    void testMessageValidation_BlankMessageId() {
-        ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .messageId("   ")
-                .timestamp(OffsetDateTime.now())
-                .addedTools(List.of())
-                .removedTools(List.of())
-                .source("agent")
-                .build();
-
-        boolean result = (Boolean) ReflectionTestUtils.invokeMethod(consumer, "isValidMessage", message);
-        assertFalse(result);
-    }
-
-    @Test
-    void testMessageValidation_NullTimestamp() {
-        ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .messageId("test-123")
-                .timestamp(null)
-                .addedTools(List.of())
-                .removedTools(List.of())
-                .source("agent")
-                .build();
-
-        boolean result = (Boolean) ReflectionTestUtils.invokeMethod(consumer, "isValidMessage", message);
-        assertFalse(result);
-    }
-
-    @Test
-    void testMessageValidation_NullSource() {
-        ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .messageId("test-123")
-                .timestamp(OffsetDateTime.now())
-                .addedTools(List.of())
-                .removedTools(List.of())
-                .source(null)
-                .build();
-
-        boolean result = (Boolean) ReflectionTestUtils.invokeMethod(consumer, "isValidMessage", message);
-        assertFalse(result);
-    }
-
-    @Test
-    void testMessageValidation_EmptySource() {
-        ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .messageId("test-123")
-                .timestamp(OffsetDateTime.now())
-                .addedTools(List.of())
-                .removedTools(List.of())
-                .source("")
-                .build();
-
-        boolean result = (Boolean) ReflectionTestUtils.invokeMethod(consumer, "isValidMessage", message);
-        assertFalse(result);
-    }
-
-    @Test
-    void testMessageValidation_BlankSource() {
-        ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .messageId("test-123")
-                .timestamp(OffsetDateTime.now())
-                .addedTools(List.of())
-                .removedTools(List.of())
-                .source("   ")
-                .build();
-
-        boolean result = (Boolean) ReflectionTestUtils.invokeMethod(consumer, "isValidMessage", message);
-        assertFalse(result);
-    }
-
-    @Test
-    void testMessageValidation_NullAddedTools() {
-        ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .messageId("test-123")
-                .timestamp(OffsetDateTime.now())
-                .addedTools(null)
-                .removedTools(List.of())
-                .source("agent")
-                .build();
-
-        boolean result = (Boolean) ReflectionTestUtils.invokeMethod(consumer, "isValidMessage", message);
-        assertFalse(result);
-    }
-
-    @Test
-    void testMessageValidation_NullRemovedTools() {
-        ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .messageId("test-123")
-                .timestamp(OffsetDateTime.now())
-                .addedTools(List.of())
-                .removedTools(null)
-                .source("agent")
-                .build();
-
-        boolean result = (Boolean) ReflectionTestUtils.invokeMethod(consumer, "isValidMessage", message);
-        assertFalse(result);
-    }
-
-    @Test
-    void testMessageValidation_NoChanges() {
-        ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .messageId("test-123")
-                .timestamp(OffsetDateTime.now())
-                .addedTools(List.of())
-                .removedTools(List.of())
-                .source("agent")
-                .build();
-
-        boolean result = (Boolean) ReflectionTestUtils.invokeMethod(consumer, "isValidMessage", message);
-        assertFalse(result);
-    }
-
-    @Test
-    void testMessageValidation_InvalidToolNames() {
-        ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .messageId("test-123")
-                .timestamp(OffsetDateTime.now())
-                .addedTools(List.of("invalid tool name!"))
-                .removedTools(List.of())
-                .source("agent")
-                .build();
-
-        boolean result = (Boolean) ReflectionTestUtils.invokeMethod(consumer, "isValidMessage", message);
-        assertFalse(result);
-    }
-
-    @Test
-    void testMessageValidation_ValidMessage() {
-        ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .messageId("test-123")
-                .timestamp(OffsetDateTime.now())
-                .addedTools(List.of("new-tool"))
-                .removedTools(List.of())
-                .source("agent")
-                .build();
-
-        boolean result = (Boolean) ReflectionTestUtils.invokeMethod(consumer, "isValidMessage", message);
-        assertTrue(result);
+        verify(messageHandler).handleToolUpdates(testMessage);
     }
 
     @Test
@@ -475,6 +317,8 @@ class ToolUpdateConsumerTest {
         
         when(objectMapper.readValue("test-message", ToolUpdateMessage.class))
                 .thenReturn(testMessage);
+        when(messageHandler.handleToolUpdates(testMessage))
+                .thenReturn(true);
         
         // Start consumer and let it run briefly
         consumer.startConsumer();

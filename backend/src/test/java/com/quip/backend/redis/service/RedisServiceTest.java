@@ -1010,4 +1010,619 @@ class RedisServiceTest {
         );
         assertEquals("Keys list cannot be null or empty", exception.getMessage());
     }
+
+    // ========== Additional Tests for Mutation Coverage ==========
+
+    @Test
+    void setWithTtl_WithWhitespaceKey_ShouldThrowException() {
+        // Given
+        String key = "   ";
+        String value = "test value";
+        Duration ttl = Duration.ofMinutes(5);
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.set(key, value, ttl)
+        );
+        assertEquals("Key cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void setExpire_WithWhitespaceKey_ShouldThrowException() {
+        // Given
+        String key = "   ";
+        Duration ttl = Duration.ofMinutes(5);
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.setExpire(key, ttl)
+        );
+        assertEquals("Key cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void hget_WithWhitespaceKey_ShouldThrowException() {
+        // Given
+        String key = "   ";
+        String field = "field1";
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.hget(key, field, String.class)
+        );
+        assertEquals("Key cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void hdel_WithWhitespaceKey_ShouldThrowException() {
+        // Given
+        String key = "   ";
+        String field = "field1";
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.hdel(key, field)
+        );
+        assertEquals("Key cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void hgetAll_WithWhitespaceKey_ShouldThrowException() {
+        // Given
+        String key = "   ";
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.hgetAll(key)
+        );
+        assertEquals("Key cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void hexists_WithWhitespaceKey_ShouldThrowException() {
+        // Given
+        String key = "   ";
+        String field = "field1";
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.hexists(key, field)
+        );
+        assertEquals("Key cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void lpush_WithWhitespaceKey_ShouldThrowException() {
+        // Given
+        String key = "   ";
+        String value = "value1";
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.lpush(key, value)
+        );
+        assertEquals("Key cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void lpush_WithMultipleValues_WithWhitespaceKey_ShouldThrowException() {
+        // Given
+        String key = "   ";
+        Object[] values = {"value1", "value2"};
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.lpush(key, values)
+        );
+        assertEquals("Key cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void rpop_WithWhitespaceKey_ShouldThrowException() {
+        // Given
+        String key = "   ";
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.rpop(key, String.class)
+        );
+        assertEquals("Key cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void llen_WithWhitespaceKey_ShouldThrowException() {
+        // Given
+        String key = "   ";
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.llen(key)
+        );
+        assertEquals("Key cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void lrange_WithWhitespaceKey_ShouldThrowException() {
+        // Given
+        String key = "   ";
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.lrange(key, 0, 5)
+        );
+        assertEquals("Key cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void mset_WithInvalidKeyInMap_ShouldThrowException() {
+        // Given
+        Map<String, Object> keyValueMap = Map.of(
+            "validKey", "value1",
+            "   ", "value2"  // whitespace key
+        );
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.mset(keyValueMap)
+        );
+        assertEquals("Key cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void mget_WithInvalidKeyInList_ShouldThrowException() {
+        // Given
+        List<String> keys = List.of("validKey", "   ");  // whitespace key
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.mget(keys)
+        );
+        assertEquals("Key cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void mdel_WithInvalidKeyInList_ShouldThrowException() {
+        // Given
+        List<String> keys = List.of("validKey", "   ");  // whitespace key
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.mdel(keys)
+        );
+        assertEquals("Key cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void mexists_WithInvalidKeyInList_ShouldThrowException() {
+        // Given
+        List<String> keys = List.of("validKey", "   ");  // whitespace key
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.mexists(keys)
+        );
+        assertEquals("Key cannot be null or empty", exception.getMessage());
+    }
+
+    // ========== Tests for Metrics Service Calls ==========
+
+    @Test
+    void set_WithException_ShouldRecordMetricsError() {
+        // Given
+        String key = "test:key";
+        String value = "test value";
+        RuntimeException testException = new RuntimeException("Redis error");
+        
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        
+        // Reset and configure exception handler to throw exception
+        reset(exceptionHandler);
+        doThrow(testException).when(exceptionHandler).handleRedisOperation(any(Runnable.class));
+
+        // When & Then
+        RuntimeException exception = assertThrows(
+            RuntimeException.class,
+            () -> redisService.set(key, value)
+        );
+        
+        assertEquals("Redis error", exception.getMessage());
+        verify(metricsService).recordCacheError("set", testException);
+        verify(metricsService).recordSetOperation(any(Duration.class), eq(false));
+    }
+
+    @Test
+    void setWithTtl_WithException_ShouldRecordMetricsError() {
+        // Given
+        String key = "test:key";
+        String value = "test value";
+        Duration ttl = Duration.ofMinutes(5);
+        RuntimeException testException = new RuntimeException("Redis error");
+        
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        
+        // Reset and configure exception handler to throw exception
+        reset(exceptionHandler);
+        doThrow(testException).when(exceptionHandler).handleRedisOperation(any(Runnable.class));
+
+        // When & Then
+        RuntimeException exception = assertThrows(
+            RuntimeException.class,
+            () -> redisService.set(key, value, ttl)
+        );
+        
+        assertEquals("Redis error", exception.getMessage());
+        verify(metricsService).recordCacheError("set", testException);
+        verify(metricsService).recordSetOperation(any(Duration.class), eq(false));
+    }
+
+    @Test
+    void get_WithException_ShouldRecordMetricsError() {
+        // Given
+        String key = "test:key";
+        RuntimeException testException = new RuntimeException("Redis error");
+        
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        
+        // Reset and configure exception handler to throw exception
+        reset(exceptionHandler);
+        when(exceptionHandler.handleRedisOperation(any(Supplier.class), any(Supplier.class)))
+            .thenThrow(testException);
+
+        // When & Then
+        RuntimeException exception = assertThrows(
+            RuntimeException.class,
+            () -> redisService.get(key, String.class)
+        );
+        
+        assertEquals("Redis error", exception.getMessage());
+        verify(metricsService).recordCacheError("get", testException);
+        verify(metricsService).recordGetOperation(any(Duration.class), eq(false));
+    }
+
+    @Test
+    void get_WithSuccessfulHit_ShouldRecordCacheHit() {
+        // Given
+        String key = "test:key";
+        String expectedValue = "test value";
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(key)).thenReturn(expectedValue);
+
+        // When
+        String result = redisService.get(key, String.class);
+
+        // Then
+        assertEquals(expectedValue, result);
+        verify(metricsService).recordCacheHit(key);
+        verify(metricsService, never()).recordCacheMiss(key);
+        verify(metricsService).recordGetOperation(any(Duration.class), eq(true));
+    }
+
+    @Test
+    void get_WithCacheMiss_ShouldRecordCacheMiss() {
+        // Given
+        String key = "test:key";
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(key)).thenReturn(null);
+
+        // When
+        String result = redisService.get(key, String.class);
+
+        // Then
+        assertNull(result);
+        verify(metricsService).recordCacheMiss(key);
+        verify(metricsService, never()).recordCacheHit(key);
+        verify(metricsService).recordGetOperation(any(Duration.class), eq(true));
+    }
+
+    @Test
+    void delete_WithException_ShouldRecordMetricsError() {
+        // Given
+        String key = "test:key";
+        RuntimeException testException = new RuntimeException("Redis error");
+        
+        // Reset and configure exception handler to throw exception
+        reset(exceptionHandler);
+        when(exceptionHandler.handleRedisOperation(any(Supplier.class), any(Supplier.class)))
+            .thenThrow(testException);
+
+        // When & Then
+        RuntimeException exception = assertThrows(
+            RuntimeException.class,
+            () -> redisService.delete(key)
+        );
+        
+        assertEquals("Redis error", exception.getMessage());
+        verify(metricsService).recordCacheError("delete", testException);
+        verify(metricsService).recordDeleteOperation(any(Duration.class), eq(false));
+    }
+
+    @Test
+    void delete_WithSuccess_ShouldRecordMetrics() {
+        // Given
+        String key = "test:key";
+        when(redisTemplate.delete(key)).thenReturn(true);
+
+        // When
+        boolean result = redisService.delete(key);
+
+        // Then
+        assertTrue(result);
+        verify(metricsService).recordDeleteOperation(any(Duration.class), eq(true));
+        verify(metricsService, never()).recordCacheError(eq("delete"), any());
+    }
+
+    @Test
+    void exists_WithException_ShouldRecordMetricsError() {
+        // Given
+        String key = "test:key";
+        RuntimeException testException = new RuntimeException("Redis error");
+        
+        // Reset and configure exception handler to throw exception
+        reset(exceptionHandler);
+        when(exceptionHandler.handleRedisOperation(any(Supplier.class), any(Supplier.class)))
+            .thenThrow(testException);
+
+        // When & Then
+        RuntimeException exception = assertThrows(
+            RuntimeException.class,
+            () -> redisService.exists(key)
+        );
+        
+        assertEquals("Redis error", exception.getMessage());
+        verify(metricsService).recordCacheError("exists", testException);
+        verify(metricsService).recordExistsOperation(any(Duration.class), eq(false));
+    }
+
+    @Test
+    void exists_WithSuccess_ShouldRecordMetrics() {
+        // Given
+        String key = "test:key";
+        when(redisTemplate.hasKey(key)).thenReturn(true);
+
+        // When
+        boolean result = redisService.exists(key);
+
+        // Then
+        assertTrue(result);
+        verify(metricsService).recordExistsOperation(any(Duration.class), eq(true));
+        verify(metricsService, never()).recordCacheError(eq("exists"), any());
+    }
+
+    @Test
+    void set_WithSuccess_ShouldRecordMetrics() {
+        // Given
+        String key = "test:key";
+        String value = "test value";
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        // When
+        redisService.set(key, value);
+
+        // Then
+        verify(metricsService).recordSetOperation(any(Duration.class), eq(true));
+        verify(metricsService, never()).recordCacheError(eq("set"), any());
+    }
+
+    @Test
+    void setWithTtl_WithSuccess_ShouldRecordMetrics() {
+        // Given
+        String key = "test:key";
+        String value = "test value";
+        Duration ttl = Duration.ofMinutes(5);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        // When
+        redisService.set(key, value, ttl);
+
+        // Then
+        verify(metricsService).recordSetOperation(any(Duration.class), eq(true));
+        verify(metricsService, never()).recordCacheError(eq("set"), any());
+    }
+
+    // ========== Additional Edge Cases ==========
+
+    @Test
+    void keys_WithWhitespacePattern_ShouldThrowException() {
+        // Given
+        String pattern = "   ";
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.keys(pattern)
+        );
+        assertEquals("Pattern cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void deleteByPattern_WithWhitespacePattern_ShouldThrowException() {
+        // Given
+        String pattern = "   ";
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.deleteByPattern(pattern)
+        );
+        assertEquals("Pattern cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void hset_WithWhitespaceField_ShouldThrowException() {
+        // Given
+        String key = "test:hash";
+        String field = "   ";
+        String value = "value1";
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.hset(key, field, value)
+        );
+        assertEquals("Field cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void hget_WithWhitespaceField_ShouldThrowException() {
+        // Given
+        String key = "test:hash";
+        String field = "   ";
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.hget(key, field, String.class)
+        );
+        assertEquals("Field cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void hdel_WithWhitespaceField_ShouldThrowException() {
+        // Given
+        String key = "test:hash";
+        String field = "   ";
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.hdel(key, field)
+        );
+        assertEquals("Field cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void hexists_WithWhitespaceField_ShouldThrowException() {
+        // Given
+        String key = "test:hash";
+        String field = "   ";
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> redisService.hexists(key, field)
+        );
+        assertEquals("Field cannot be null or empty", exception.getMessage());
+    }
+
+    @Test
+    void deleteByPattern_WithNullKeysReturned_ShouldReturnZero() {
+        // Given
+        String pattern = "test:*";
+        when(redisTemplate.keys(pattern)).thenReturn(null);
+
+        // When
+        long result = redisService.deleteByPattern(pattern);
+
+        // Then
+        assertEquals(0L, result);
+        verify(redisTemplate).keys(pattern);
+        verify(redisTemplate, never()).delete(any(Set.class));
+    }
+
+    @Test
+    void hdel_WithNullResult_ShouldReturnFalse() {
+        // Given
+        String key = "test:hash";
+        String field = "field1";
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(hashOperations.delete(key, field)).thenReturn(null);
+
+        // When
+        boolean result = redisService.hdel(key, field);
+
+        // Then
+        assertFalse(result);
+        verify(hashOperations).delete(key, field);
+    }
+
+    @Test
+    void lpush_WithNullResult_ShouldReturnZero() {
+        // Given
+        String key = "test:list";
+        String value = "value1";
+        when(redisTemplate.opsForList()).thenReturn(listOperations);
+        when(listOperations.leftPush(key, value)).thenReturn(null);
+
+        // When
+        long result = redisService.lpush(key, value);
+
+        // Then
+        assertEquals(0L, result);
+        verify(listOperations).leftPush(key, value);
+    }
+
+    @Test
+    void lpush_WithMultipleValues_WithNullResult_ShouldReturnZero() {
+        // Given
+        String key = "test:list";
+        Object[] values = {"value1", "value2"};
+        when(redisTemplate.opsForList()).thenReturn(listOperations);
+        when(listOperations.leftPushAll(key, values)).thenReturn(null);
+
+        // When
+        long result = redisService.lpush(key, values);
+
+        // Then
+        assertEquals(0L, result);
+        verify(listOperations).leftPushAll(key, values);
+    }
+
+    @Test
+    void llen_WithNullResult_ShouldReturnZero() {
+        // Given
+        String key = "test:list";
+        when(redisTemplate.opsForList()).thenReturn(listOperations);
+        when(listOperations.size(key)).thenReturn(null);
+
+        // When
+        long result = redisService.llen(key);
+
+        // Then
+        assertEquals(0L, result);
+        verify(listOperations).size(key);
+    }
+
+    @Test
+    void mget_WithNullResult_ShouldReturnEmptyList() {
+        // Given
+        List<String> keys = List.of("key1", "key2");
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.multiGet(keys)).thenReturn(null);
+
+        // When
+        List<Object> result = redisService.mget(keys);
+
+        // Then
+        assertTrue(result.isEmpty());
+        verify(valueOperations).multiGet(keys);
+    }
+
+    @Test
+    void mdel_WithNullResult_ShouldReturnZero() {
+        // Given
+        List<String> keys = List.of("key1", "key2");
+        when(redisTemplate.delete(keys)).thenReturn(null);
+
+        // When
+        long result = redisService.mdel(keys);
+
+        // Then
+        assertEquals(0L, result);
+        verify(redisTemplate).delete(keys);
+    }
 }
