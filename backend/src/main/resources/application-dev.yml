@@ -41,10 +41,30 @@ app:
       failure-threshold: 3   # Lower threshold for faster feedback
       recovery-timeout: 15000
 
+# Development-specific tool sync configuration
+app:
+  tool-sync:
+    recovery:
+      enabled: true
+      timeout: 15000              # Longer timeout for development debugging
+      max-retries: 2              # Fewer retries for faster feedback
+      initial-delay: 500          # Shorter delay for development
+      failure-threshold:
+        consecutive-failures: 3   # Lower threshold for faster testing
+        invalid-messages: 5       # Lower threshold for development
+        time-window: 30000        # Shorter time window for development
+      agent:
+        base-url: http://localhost:5001
+        connect-timeout: 3000
+        read-timeout: 15000
+
 # Enhanced logging for development
 logging:
   level:
     com.quip.backend.redis: DEBUG
     com.quip.backend.cache: DEBUG
+    com.quip.backend.tool.sync: DEBUG
+    com.quip.backend.tool.consumer: DEBUG
+    com.quip.backend.tool.handler: DEBUG
     org.springframework.cache: DEBUG
     io.lettuce.core: INFO

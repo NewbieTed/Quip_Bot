@@ -68,9 +68,17 @@ logging:
   file:
     name: logs/backend.log
   level:
-    com.quip.backend: INFO
-    org.springframework: WARN
-    org.mybatis: WARN
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.quip.backend: ${LOG_LEVEL_QUIP_BACKEND:INFO}
+    com.quip.backend.redis: ${LOG_LEVEL_REDIS:INFO}
+    com.quip.backend.cache: ${LOG_LEVEL_CACHE:INFO}
+    com.quip.backend.tool.sync: ${LOG_LEVEL_TOOL_SYNC:INFO}
+    com.quip.backend.tool.consumer: ${LOG_LEVEL_TOOL_CONSUMER:INFO}
+    com.quip.backend.tool.handler: ${LOG_LEVEL_TOOL_HANDLER:INFO}
+    org.springframework: ${LOG_LEVEL_SPRING:WARN}
+    org.springframework.cache: ${LOG_LEVEL_SPRING_CACHE:WARN}
+    org.mybatis: ${LOG_LEVEL_MYBATIS:WARN}
+    io.lettuce.core: ${LOG_LEVEL_LETTUCE:INFO}
   pattern:
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
@@ -109,3 +117,25 @@ app:
     circuit-breaker:
       failure-threshold: ${REDIS_CB_FAILURE_THRESHOLD:5}    # Failures before opening circuit
       recovery-timeout: ${REDIS_CB_RECOVERY_TIMEOUT:30000}  # Recovery timeout in ms
+  # Tool synchronization configuration
+  tool-sync:
+    consumer:
+      enabled: ${TOOL_SYNC_CONSUMER_ENABLED:true}           # Enable/disable tool update consumer
+      polling-timeout: ${TOOL_SYNC_POLLING_TIMEOUT:5}       # Redis polling timeout in seconds
+    # Sync recovery configuration for handling Redis message processing failures
+    recovery:
+      enabled: ${TOOL_SYNC_RECOVERY_ENABLED:true}           # Enable/disable sync recovery feature
+      timeout: ${TOOL_SYNC_RECOVERY_TIMEOUT:10000}          # HTTP request timeout in milliseconds
+      max-retries: ${TOOL_SYNC_RECOVERY_MAX_RETRIES:3}      # Maximum retry attempts for HTTP requests
+      initial-delay: ${TOOL_SYNC_RECOVERY_INITIAL_DELAY:1000} # Initial retry delay in milliseconds
+      # Failure detection thresholds
+      failure-threshold:
+        consecutive-failures: ${TOOL_SYNC_FAILURE_CONSECUTIVE:5}     # Consecutive failures before recovery
+        invalid-messages: ${TOOL_SYNC_FAILURE_INVALID_MESSAGES:10}   # Invalid messages per minute threshold
+        time-window: ${TOOL_SYNC_FAILURE_TIME_WINDOW:60000}          # Time window for failure detection (ms)
+      # Agent HTTP endpoint configuration
+      agent:
+        base-url: ${TOOL_SYNC_AGENT_URL:http://localhost:5001}       # Agent HTTP server base URL
+        resync-endpoint: ${TOOL_SYNC_AGENT_RESYNC_ENDPOINT:/api/tools/resync} # Resync endpoint path
+        connect-timeout: ${TOOL_SYNC_AGENT_CONNECT_TIMEOUT:5000}     # Connection timeout in milliseconds
+        read-timeout: ${TOOL_SYNC_AGENT_READ_TIMEOUT:10000}          # Read timeout in milliseconds

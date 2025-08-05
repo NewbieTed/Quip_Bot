@@ -48,13 +48,36 @@ app:
       failure-threshold: 10  # Higher threshold for production stability
       recovery-timeout: 60000
 
-# Production logging - less verbose
+# Production-specific tool sync configuration
+app:
+  tool-sync:
+    recovery:
+      enabled: true
+      timeout: 10000              # Standard timeout for production
+      max-retries: 3              # Standard retries for production
+      initial-delay: 1000         # Standard delay for production
+      failure-threshold:
+        consecutive-failures: 5   # Higher threshold for production stability
+        invalid-messages: 10      # Higher threshold for production
+        time-window: 60000        # Standard time window
+      agent:
+        base-url: ${TOOL_SYNC_AGENT_URL:http://agent-service:5001}  # Production service name
+        connect-timeout: 5000
+        read-timeout: 10000
+
+# Production logging - less verbose, environment variable overrides
 logging:
   level:
-    com.quip.backend.redis: INFO
-    com.quip.backend.cache: INFO
-    org.springframework.cache: WARN
-    io.lettuce.core: WARN
+    com.quip.backend.redis: ${LOG_LEVEL_REDIS:INFO}
+    com.quip.backend.cache: ${LOG_LEVEL_CACHE:INFO}
+    com.quip.backend.tool.sync: ${LOG_LEVEL_TOOL_SYNC:INFO}
+    com.quip.backend.tool.consumer: ${LOG_LEVEL_TOOL_CONSUMER:INFO}
+    com.quip.backend.tool.handler: ${LOG_LEVEL_TOOL_HANDLER:INFO}
+    org.springframework.cache: ${LOG_LEVEL_SPRING_CACHE:WARN}
+    io.lettuce.core: ${LOG_LEVEL_LETTUCE:WARN}
+    com.quip.backend: ${LOG_LEVEL_QUIP_BACKEND:INFO}
+    org.springframework: ${LOG_LEVEL_SPRING:WARN}
+    org.mybatis: ${LOG_LEVEL_MYBATIS:WARN}
 
 # Production management endpoints
 management:

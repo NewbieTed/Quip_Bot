@@ -44,13 +44,36 @@ app:
       failure-threshold: 5
       recovery-timeout: 30000
 
+# Staging-specific tool sync configuration
+app:
+  tool-sync:
+    recovery:
+      enabled: true
+      timeout: 15000              # Longer timeout for staging debugging
+      max-retries: 2              # Fewer retries for faster feedback
+      initial-delay: 500          # Shorter delay for staging
+      failure-threshold:
+        consecutive-failures: 3   # Lower threshold for faster testing
+        invalid-messages: 5       # Lower threshold for staging
+        time-window: 30000        # Shorter time window for staging
+      agent:
+        base-url: ${TOOL_SYNC_AGENT_URL:http://quip-agent-staging:5001}
+        connect-timeout: 3000
+        read-timeout: 15000
+
 # Staging logging - more verbose than production
 logging:
   level:
-    com.quip.backend.redis: INFO
-    com.quip.backend.cache: INFO
-    org.springframework.cache: INFO
-    io.lettuce.core: INFO
+    com.quip.backend.redis: ${LOG_LEVEL_REDIS:INFO}
+    com.quip.backend.cache: ${LOG_LEVEL_CACHE:INFO}
+    com.quip.backend.tool.sync: ${LOG_LEVEL_TOOL_SYNC:DEBUG}
+    com.quip.backend.tool.consumer: ${LOG_LEVEL_TOOL_CONSUMER:DEBUG}
+    com.quip.backend.tool.handler: ${LOG_LEVEL_TOOL_HANDLER:DEBUG}
+    org.springframework.cache: ${LOG_LEVEL_SPRING_CACHE:INFO}
+    io.lettuce.core: ${LOG_LEVEL_LETTUCE:INFO}
+    com.quip.backend: ${LOG_LEVEL_QUIP_BACKEND:INFO}
+    org.springframework: ${LOG_LEVEL_SPRING:WARN}
+    org.mybatis: ${LOG_LEVEL_MYBATIS:WARN}
 
 # Staging management endpoints
 management:
