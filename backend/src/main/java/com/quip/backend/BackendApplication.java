@@ -32,6 +32,7 @@ import org.springframework.lang.NonNull;
 		"com.quip.backend.file.mapper.database",
 		"com.quip.backend.server.mapper.database",
 		"com.quip.backend.channel.mapper.database",
+		"com.quip.backend.assistant.mapper.database",
 		"com.quip.backend.authorization.mapper.database",
 		"com.quip.backend.tool.mapper.database"
 })

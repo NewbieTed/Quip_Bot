@@ -27,7 +27,7 @@ class PromptLoader:
         Load a prompt from a text file using the configured prompt key.
         
         Args:
-            prompt_key: Key from the prompts configuration (e.g., 'main_system', 'human_confirmation')
+            prompt_key: Key from the prompts' configuration (e.g., 'main_system', 'human_confirmation')
             
         Returns:
             The prompt content as a string
@@ -64,7 +64,7 @@ class PromptLoader:
         Reload a prompt from file, bypassing cache.
         
         Args:
-            prompt_key: Key from the prompts configuration (e.g., 'main_system', 'human_confirmation')
+            prompt_key: Key from the prompts' configuration (e.g., 'main_system', 'human_confirmation')
             
         Returns:
             The prompt content as a string
@@ -101,7 +101,7 @@ def reload_prompt(prompt_key: str) -> str:
     Convenience function to reload a prompt, bypassing cache.
     
     Args:
-        prompt_key: Key from the prompts configuration (e.g., 'main_system', 'human_confirmation')
+        prompt_key: Key from the prompts' configuration (e.g., 'main_system', 'human_confirmation')
         
     Returns:
         The prompt content as a string

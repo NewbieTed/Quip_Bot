@@ -98,7 +98,7 @@ python -m mcp_server.main
 
 ## 🔧 Configuration
 
-### Environment Variables
+### Quick Configuration
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -108,14 +108,38 @@ python -m mcp_server.main
 | `BACKEND_URL` | Backend service URL | `http://localhost:8080` |
 | `AGENT_URL` | Agent service URL | `http://localhost:5000` |
 | `MCP_SERVER_URL` | MCP server URL | `http://localhost:8000` |
+| `REDIS_HOST` | Redis server hostname | `localhost` |
+| `REDIS_PASSWORD` | Redis authentication password | Optional |
+| `TOOL_SYNC_AGENT_URL` | Agent tool sync endpoint | `http://localhost:5001` |
 
 ### Service Ports
 
 - **Frontend (Discord Bot)**: 3000
 - **Backend (Spring Boot)**: 8080
-- **Agent (FastAPI)**: 5001
+- **Agent (FastAPI)**: 5001 (includes tool sync HTTP server)
 - **MCP Server**: 8000
 - **PostgreSQL**: 5432
+- **Redis**: 6379
+
+### Comprehensive Configuration Guides
+
+For detailed configuration options across different environments:
+
+- **[Deployment Configuration Guide](DEPLOYMENT_CONFIGURATION.md)** - Complete environment variable reference
+- **[Environment-Specific Configuration](ENVIRONMENT_CONFIGURATION.md)** - Development, staging, and production settings
+- **[Agent Tool Sync Configuration](agent/TOOL_SYNC_CONFIGURATION.md)** - Agent HTTP server and tool discovery settings
+- **[Backend Sync Recovery Configuration](backend/SYNC_RECOVERY_CONFIGURATION.md)** - Backend tool synchronization settings
+
+### Configuration Validation
+
+Validate your configuration before deployment:
+
+```bash
+# Validate configuration for your environment
+./scripts/validate-config.sh development
+./scripts/validate-config.sh staging
+./scripts/validate-config.sh production
+```
 
 ## 🧪 Testing
 
@@ -216,13 +240,6 @@ lsof -i :8080
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [Spring Boot](https://spring.io/projects/spring-boot) - Backend framework
-- [FastAPI](https://fastapi.tiangolo.com/) - Agent service framework
-- [Discord.js](https://discord.js.org/) - Discord API wrapper
-- [Model Context Protocol](https://modelcontextprotocol.io/) - Tool integration standard
 
 ---
 

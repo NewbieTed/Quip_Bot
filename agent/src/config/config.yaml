@@ -54,3 +54,19 @@ agent:
 memory:
   type: "in_memory"
   checkpoint_interval: 100
+
+# Tool Synchronization Configuration
+tool_sync:
+  enabled: true
+  discovery_on_startup: true
+  # HTTP server configuration for sync recovery
+  http_server:
+    enabled: true                                           # Enable/disable HTTP sync endpoints
+    host: "0.0.0.0"                                        # HTTP server host
+    port: 5001                                             # HTTP server port
+    timeout: 10                                            # Request timeout in seconds
+    # Tool discovery configuration for resync requests
+    discovery:
+      timeout: 10                                          # Tool discovery timeout in seconds
+      retry_attempts: 2                                    # Retry attempts for failed discovery
+      retry_delay: 1                                       # Delay between retries in seconds

@@ -61,10 +61,10 @@ app:
 # Enhanced logging for development
 logging:
   level:
-    com.quip.backend.redis: DEBUG
-    com.quip.backend.cache: DEBUG
-    com.quip.backend.tool.sync: DEBUG
-    com.quip.backend.tool.consumer: DEBUG
-    com.quip.backend.tool.handler: DEBUG
-    org.springframework.cache: DEBUG
+    com.quip.backend.redis: INFO
+    com.quip.backend.cache: INFO
+    com.quip.backend.tool.sync: INFO
+    com.quip.backend.tool.consumer: INFO
+    com.quip.backend.tool.handler: INFO
+    org.springframework.cache: INFO
     io.lettuce.core: INFO

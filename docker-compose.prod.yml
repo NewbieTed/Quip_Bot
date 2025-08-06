@@ -109,6 +109,30 @@ services:
       REDIS_RETRY_DELAY: ${REDIS_RETRY_DELAY:-2000}
       REDIS_CB_FAILURE_THRESHOLD: ${REDIS_CB_FAILURE_THRESHOLD:-10}
       REDIS_CB_RECOVERY_TIMEOUT: ${REDIS_CB_RECOVERY_TIMEOUT:-60000}
+      # Tool Sync Configuration
+      TOOL_SYNC_CONSUMER_ENABLED: ${TOOL_SYNC_CONSUMER_ENABLED:-true}
+      TOOL_SYNC_POLLING_TIMEOUT: ${TOOL_SYNC_POLLING_TIMEOUT:-5}
+      # Tool Sync Recovery Configuration (Production)
+      TOOL_SYNC_RECOVERY_ENABLED: ${TOOL_SYNC_RECOVERY_ENABLED:-true}
+      TOOL_SYNC_RECOVERY_TIMEOUT: ${TOOL_SYNC_RECOVERY_TIMEOUT:-10000}
+      TOOL_SYNC_RECOVERY_MAX_RETRIES: ${TOOL_SYNC_RECOVERY_MAX_RETRIES:-3}
+      TOOL_SYNC_RECOVERY_INITIAL_DELAY: ${TOOL_SYNC_RECOVERY_INITIAL_DELAY:-1000}
+      # Tool Sync Failure Detection (Production thresholds)
+      TOOL_SYNC_FAILURE_CONSECUTIVE: ${TOOL_SYNC_FAILURE_CONSECUTIVE:-5}
+      TOOL_SYNC_FAILURE_INVALID_MESSAGES: ${TOOL_SYNC_FAILURE_INVALID_MESSAGES:-10}
+      TOOL_SYNC_FAILURE_TIME_WINDOW: ${TOOL_SYNC_FAILURE_TIME_WINDOW:-60000}
+      # Agent HTTP Endpoint Configuration
+      TOOL_SYNC_AGENT_URL: ${TOOL_SYNC_AGENT_URL:-http://quip-agent:5001}
+      TOOL_SYNC_AGENT_RESYNC_ENDPOINT: ${TOOL_SYNC_AGENT_RESYNC_ENDPOINT:-/api/tools/resync}
+      TOOL_SYNC_AGENT_CONNECT_TIMEOUT: ${TOOL_SYNC_AGENT_CONNECT_TIMEOUT:-5000}
+      TOOL_SYNC_AGENT_READ_TIMEOUT: ${TOOL_SYNC_AGENT_READ_TIMEOUT:-10000}
+      # Logging Configuration (Production)
+      LOG_LEVEL_TOOL_SYNC: ${LOG_LEVEL_TOOL_SYNC:-INFO}
+      LOG_LEVEL_TOOL_CONSUMER: ${LOG_LEVEL_TOOL_CONSUMER:-INFO}
+      LOG_LEVEL_TOOL_HANDLER: ${LOG_LEVEL_TOOL_HANDLER:-INFO}
+      LOG_LEVEL_REDIS: ${LOG_LEVEL_REDIS:-INFO}
+      LOG_LEVEL_CACHE: ${LOG_LEVEL_CACHE:-INFO}
+      LOG_LEVEL_LETTUCE: ${LOG_LEVEL_LETTUCE:-WARN}
       # Other Configuration
       AGENT_URL: ${AGENT_URL}
       # JVM Options for production
@@ -142,13 +166,51 @@ services:
     build: ./agent
     container_name: quip-agent-prod
     ports:
-      - "${AGENT_PORT:-5001}:5000"
+      - "${AGENT_PORT:-5001}:5001"  # Updated to expose port 5001 for tool sync HTTP server
     environment:
+      # Environment Configuration
+      ENVIRONMENT: prod
+      # API Keys
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # MCP Server Configuration
       MCP_SERVER_URL_QUIPMCPSERVER: ${MCP_SERVER_URL_QUIPMCPSERVER}
       MCP_SERVER_URL: ${MCP_SERVER_URL}
       BACKEND_URL: http://quip-backend-app:8080
+      # Redis Configuration (Production)
+      REDIS_HOST: quip-redis
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_RETRY_MAX_ATTEMPTS: ${REDIS_RETRY_MAX_ATTEMPTS:-5}
+      REDIS_RETRY_BASE_DELAY: ${REDIS_RETRY_BASE_DELAY:-2.0}
+      REDIS_RETRY_MAX_DELAY: ${REDIS_RETRY_MAX_DELAY:-60.0}
+      # Tool Sync HTTP Server Configuration (Production)
+      TOOL_SYNC_HTTP_ENABLED: ${TOOL_SYNC_HTTP_ENABLED:-true}
+      TOOL_SYNC_HTTP_HOST: ${TOOL_SYNC_HTTP_HOST:-0.0.0.0}
+      TOOL_SYNC_HTTP_PORT: ${TOOL_SYNC_HTTP_PORT:-5001}
+      TOOL_SYNC_HTTP_TIMEOUT: ${TOOL_SYNC_HTTP_TIMEOUT:-10}
+      # Tool Discovery Configuration (Production)
+      TOOL_DISCOVERY_TIMEOUT: ${TOOL_DISCOVERY_TIMEOUT:-10}
+      TOOL_DISCOVERY_RETRY_ATTEMPTS: ${TOOL_DISCOVERY_RETRY_ATTEMPTS:-3}
+      TOOL_DISCOVERY_RETRY_DELAY: ${TOOL_DISCOVERY_RETRY_DELAY:-2}
+      # Logging Configuration (Production)
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-%(asctime)s - %(name)s - %(levelname)s - %(message)s}
+      LOG_FILE_PATH: ${LOG_FILE_PATH:-logs/agent.log}
+      LOG_LEVEL_TOOL_SYNC: ${LOG_LEVEL_TOOL_SYNC:-INFO}
+      LOG_LEVEL_TOOL_DISCOVERY: ${LOG_LEVEL_TOOL_DISCOVERY:-INFO}
+      LOG_LEVEL_REDIS: ${LOG_LEVEL_REDIS:-WARN}
+      LOG_LEVEL_MCP: ${LOG_LEVEL_MCP:-WARN}
+      # Tool Sync Configuration
+      TOOL_SYNC_ENABLED: ${TOOL_SYNC_ENABLED:-true}
+      TOOL_SYNC_DISCOVERY_ON_STARTUP: ${TOOL_SYNC_DISCOVERY_ON_STARTUP:-true}
+      # Python Options for production
+      PYTHONUNBUFFERED: 1
+      PYTHONOPTIMIZE: 1
     depends_on:
       quip-backend-app:
+        condition: service_healthy
+      quip-redis:
         condition: service_healthy
     networks:
       - quip-network-prod
@@ -158,6 +220,11 @@ services:
         limits:
           memory: 512M
           cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   quip-mcp-server:
     build: ./mcp-server

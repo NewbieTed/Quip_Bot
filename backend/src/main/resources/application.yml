@@ -121,7 +121,7 @@ app:
   tool-sync:
     consumer:
       enabled: ${TOOL_SYNC_CONSUMER_ENABLED:true}           # Enable/disable tool update consumer
-      polling-timeout: ${TOOL_SYNC_POLLING_TIMEOUT:5}       # Redis polling timeout in seconds
+      polling-timeout: ${TOOL_SYNC_POLLING_TIMEOUT:30}      # Redis polling timeout in seconds
     # Sync recovery configuration for handling Redis message processing failures
     recovery:
       enabled: ${TOOL_SYNC_RECOVERY_ENABLED:true}           # Enable/disable sync recovery feature
