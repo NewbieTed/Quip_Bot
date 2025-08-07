@@ -6,6 +6,7 @@ import com.quip.backend.common.exception.ValidationException;
 import com.quip.backend.tool.mapper.database.ToolMapper;
 import com.quip.backend.tool.mapper.dto.response.ToolResponseDtoMapper;
 import com.quip.backend.tool.model.Tool;
+import com.quip.backend.tool.monitoring.ToolSyncMetricsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +40,9 @@ class ToolServiceTest {
     @Mock
     private ToolResponseDtoMapper toolResponseDtoMapper;
 
+    @Mock
+    private ToolSyncMetricsService metricsService;
+
     private ToolService toolService;
 
     @BeforeEach
@@ -46,6 +50,7 @@ class ToolServiceTest {
         toolService = new ToolService(
             authorizationService,
             mcpServerService,
+            metricsService,
             toolMapper,
             toolResponseDtoMapper
         );
@@ -444,12 +449,12 @@ class ToolServiceTest {
     void testServiceConstructorRequiresAllDependencies() {
         // Test that constructor accepts all dependencies (Lombok @RequiredArgsConstructor doesn't add null checks)
         assertDoesNotThrow(() -> {
-            new ToolService(authorizationService, mcpServerService, toolMapper, toolResponseDtoMapper);
+            new ToolService(authorizationService, mcpServerService, metricsService, toolMapper, toolResponseDtoMapper);
         }, "Constructor should accept all valid dependencies");
         
         // Test that constructor can be called with null values (no null checks in Lombok)
         assertDoesNotThrow(() -> {
-            new ToolService(null, null, null, null);
+            new ToolService(null, null, null, null, null);
         }, "Constructor should accept null values as Lombok doesn't add null checks");
     }
 
@@ -510,5 +515,621 @@ class ToolServiceTest {
         Tool tool = createTestTool(1L, "valid", true);
         when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(tool);
         assertNotNull(toolService.validateTool("valid", operation));
+    }
+
+    // Tests for createOrUpdateToolFromAgent method
+    @Test
+    void createOrUpdateToolFromAgent_WithNewTool_CreatesNewTool() {
+        // Arrange
+        String toolName = "new-agent-tool";
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(null); // Tool doesn't exist
+        when(toolMapper.insert(any(Tool.class))).thenReturn(1); // Successful insert
+
+        // Act
+        assertDoesNotThrow(() -> toolService.createOrUpdateToolFromAgent(toolName));
+
+        // Assert
+        verify(toolMapper).selectOne(any(QueryWrapper.class)); // Check if tool exists
+        ArgumentCaptor<Tool> toolCaptor = ArgumentCaptor.forClass(Tool.class);
+        verify(toolMapper).insert(toolCaptor.capture());
+        
+        Tool insertedTool = toolCaptor.getValue();
+        assertEquals(toolName, insertedTool.getToolName());
+        assertEquals("Tool discovered by agent", insertedTool.getDescription());
+        assertTrue(insertedTool.getEnabled());
+        assertNull(insertedTool.getMcpServerId());
+        assertNull(insertedTool.getCreatedBy());
+        assertNull(insertedTool.getUpdatedBy());
+        assertNotNull(insertedTool.getCreatedAt());
+        assertNotNull(insertedTool.getUpdatedAt());
+    }
+
+    @Test
+    void createOrUpdateToolFromAgent_WithExistingDisabledTool_EnablesTool() {
+        // Arrange
+        String toolName = "existing-disabled-tool";
+        Tool existingTool = createTestTool(1L, toolName, false); // Disabled tool
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(existingTool);
+        when(toolMapper.updateById(any(Tool.class))).thenReturn(1); // Successful update
+
+        // Act
+        assertDoesNotThrow(() -> toolService.createOrUpdateToolFromAgent(toolName));
+
+        // Assert
+        verify(toolMapper).selectOne(any(QueryWrapper.class)); // Check if tool exists
+        ArgumentCaptor<Tool> toolCaptor = ArgumentCaptor.forClass(Tool.class);
+        verify(toolMapper).updateById(toolCaptor.capture());
+        
+        Tool updatedTool = toolCaptor.getValue();
+        assertEquals(toolName, updatedTool.getToolName());
+        assertTrue(updatedTool.getEnabled());
+        assertNotNull(updatedTool.getUpdatedAt());
+    }
+
+    @Test
+    void createOrUpdateToolFromAgent_WithExistingEnabledTool_DoesNotUpdate() {
+        // Arrange
+        String toolName = "existing-enabled-tool";
+        Tool existingTool = createTestTool(1L, toolName, true); // Already enabled
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(existingTool);
+
+        // Act
+        assertDoesNotThrow(() -> toolService.createOrUpdateToolFromAgent(toolName));
+
+        // Assert
+        verify(toolMapper).selectOne(any(QueryWrapper.class)); // Check if tool exists
+        verify(toolMapper, never()).updateById(any(Tool.class)); // Should not update
+        verify(toolMapper, never()).insert(any(Tool.class)); // Should not insert
+    }
+
+    @Test
+    void createOrUpdateToolFromAgent_WithNullToolName_ThrowsValidationException() {
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () -> {
+            toolService.createOrUpdateToolFromAgent(null);
+        });
+
+        assertTrue(exception.getMessage().contains("toolName"));
+        assertTrue(exception.getMessage().contains("must not be null or empty"));
+        verifyNoInteractions(toolMapper);
+    }
+
+    @Test
+    void createOrUpdateToolFromAgent_WithEmptyToolName_ThrowsValidationException() {
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () -> {
+            toolService.createOrUpdateToolFromAgent("");
+        });
+
+        assertTrue(exception.getMessage().contains("toolName"));
+        assertTrue(exception.getMessage().contains("must not be null or empty"));
+        verifyNoInteractions(toolMapper);
+    }
+
+    @Test
+    void createOrUpdateToolFromAgent_WithWhitespaceToolName_ThrowsValidationException() {
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () -> {
+            toolService.createOrUpdateToolFromAgent("   ");
+        });
+
+        assertTrue(exception.getMessage().contains("toolName"));
+        assertTrue(exception.getMessage().contains("must not be null or empty"));
+        verifyNoInteractions(toolMapper);
+    }
+
+    @Test
+    void createOrUpdateToolFromAgent_WhenInsertFails_ThrowsRuntimeException() {
+        // Arrange
+        String toolName = "new-tool";
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(null); // Tool doesn't exist
+        when(toolMapper.insert(any(Tool.class))).thenReturn(0); // Failed insert
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            toolService.createOrUpdateToolFromAgent(toolName);
+        });
+
+        assertTrue(exception.getMessage().contains("Failed to process tool addition from agent"));
+        assertTrue(exception.getMessage().contains(toolName));
+        verify(toolMapper).insert(any(Tool.class));
+    }
+
+    @Test
+    void createOrUpdateToolFromAgent_WhenUpdateFails_ThrowsRuntimeException() {
+        // Arrange
+        String toolName = "existing-tool";
+        Tool existingTool = createTestTool(1L, toolName, false);
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(existingTool);
+        when(toolMapper.updateById(any(Tool.class))).thenReturn(0); // Failed update
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            toolService.createOrUpdateToolFromAgent(toolName);
+        });
+
+        assertTrue(exception.getMessage().contains("Failed to process tool addition from agent"));
+        assertTrue(exception.getMessage().contains(toolName));
+        verify(toolMapper).updateById(any(Tool.class));
+    }
+
+    @Test
+    void createOrUpdateToolFromAgent_WhenDatabaseThrowsException_ThrowsRuntimeException() {
+        // Arrange
+        String toolName = "problematic-tool";
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenThrow(new RuntimeException("Database error"));
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            toolService.createOrUpdateToolFromAgent(toolName);
+        });
+
+        assertTrue(exception.getMessage().contains("Failed to process tool addition from agent"));
+        assertTrue(exception.getMessage().contains(toolName));
+        assertNotNull(exception.getCause());
+        assertEquals("Database error", exception.getCause().getMessage());
+    }
+
+    // Tests for disableToolFromAgent method
+    @Test
+    void disableToolFromAgent_WithExistingEnabledTool_DisablesTool() {
+        // Arrange
+        String toolName = "existing-enabled-tool";
+        Tool existingTool = createTestTool(1L, toolName, true); // Enabled tool
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(existingTool);
+        when(toolMapper.updateById(any(Tool.class))).thenReturn(1); // Successful update
+
+        // Act
+        assertDoesNotThrow(() -> toolService.disableToolFromAgent(toolName));
+
+        // Assert
+        verify(toolMapper).selectOne(any(QueryWrapper.class)); // Check if tool exists
+        ArgumentCaptor<Tool> toolCaptor = ArgumentCaptor.forClass(Tool.class);
+        verify(toolMapper).updateById(toolCaptor.capture());
+        
+        Tool updatedTool = toolCaptor.getValue();
+        assertEquals(toolName, updatedTool.getToolName());
+        assertFalse(updatedTool.getEnabled());
+        assertNotNull(updatedTool.getUpdatedAt());
+    }
+
+    @Test
+    void disableToolFromAgent_WithExistingDisabledTool_DoesNotUpdate() {
+        // Arrange
+        String toolName = "existing-disabled-tool";
+        Tool existingTool = createTestTool(1L, toolName, false); // Already disabled
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(existingTool);
+
+        // Act
+        assertDoesNotThrow(() -> toolService.disableToolFromAgent(toolName));
+
+        // Assert
+        verify(toolMapper).selectOne(any(QueryWrapper.class)); // Check if tool exists
+        verify(toolMapper, never()).updateById(any(Tool.class)); // Should not update
+    }
+
+    @Test
+    void disableToolFromAgent_WithNonExistentTool_DoesNotThrow() {
+        // Arrange
+        String toolName = "non-existent-tool";
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(null); // Tool doesn't exist
+
+        // Act & Assert
+        assertDoesNotThrow(() -> toolService.disableToolFromAgent(toolName));
+
+        verify(toolMapper).selectOne(any(QueryWrapper.class)); // Check if tool exists
+        verify(toolMapper, never()).updateById(any(Tool.class)); // Should not update
+    }
+
+    @Test
+    void disableToolFromAgent_WithNullToolName_ThrowsValidationException() {
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () -> {
+            toolService.disableToolFromAgent(null);
+        });
+
+        assertTrue(exception.getMessage().contains("toolName"));
+        assertTrue(exception.getMessage().contains("must not be null or empty"));
+        verifyNoInteractions(toolMapper);
+    }
+
+    @Test
+    void disableToolFromAgent_WithEmptyToolName_ThrowsValidationException() {
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () -> {
+            toolService.disableToolFromAgent("");
+        });
+
+        assertTrue(exception.getMessage().contains("toolName"));
+        assertTrue(exception.getMessage().contains("must not be null or empty"));
+        verifyNoInteractions(toolMapper);
+    }
+
+    @Test
+    void disableToolFromAgent_WithWhitespaceToolName_ThrowsValidationException() {
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () -> {
+            toolService.disableToolFromAgent("   ");
+        });
+
+        assertTrue(exception.getMessage().contains("toolName"));
+        assertTrue(exception.getMessage().contains("must not be null or empty"));
+        verifyNoInteractions(toolMapper);
+    }
+
+    @Test
+    void disableToolFromAgent_WhenUpdateFails_ThrowsRuntimeException() {
+        // Arrange
+        String toolName = "existing-tool";
+        Tool existingTool = createTestTool(1L, toolName, true);
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(existingTool);
+        when(toolMapper.updateById(any(Tool.class))).thenReturn(0); // Failed update
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            toolService.disableToolFromAgent(toolName);
+        });
+
+        assertTrue(exception.getMessage().contains("Failed to process tool removal from agent"));
+        assertTrue(exception.getMessage().contains(toolName));
+        verify(toolMapper).updateById(any(Tool.class));
+    }
+
+    @Test
+    void disableToolFromAgent_WhenDatabaseThrowsException_ThrowsRuntimeException() {
+        // Arrange
+        String toolName = "problematic-tool";
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenThrow(new RuntimeException("Database error"));
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            toolService.disableToolFromAgent(toolName);
+        });
+
+        assertTrue(exception.getMessage().contains("Failed to process tool removal from agent"));
+        assertTrue(exception.getMessage().contains(toolName));
+        assertNotNull(exception.getCause());
+        assertEquals("Database error", exception.getCause().getMessage());
+    }
+
+    // Tests for getAllToolNames method
+    @Test
+    void getAllToolNames_WithExistingTools_ReturnsAllToolNames() {
+        // Arrange
+        List<Tool> allTools = Arrays.asList(
+            createTestTool(1L, "tool1", true),
+            createTestTool(2L, "tool2", false),
+            createTestTool(3L, "tool3", true)
+        );
+        when(toolMapper.selectList(any(QueryWrapper.class))).thenReturn(allTools);
+
+        // Act
+        List<String> result = toolService.getAllToolNames();
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(3, result.size());
+        assertTrue(result.contains("tool1"));
+        assertTrue(result.contains("tool2"));
+        assertTrue(result.contains("tool3"));
+        verify(toolMapper).selectList(any(QueryWrapper.class));
+    }
+
+    @Test
+    void getAllToolNames_WithNoTools_ReturnsEmptyList() {
+        // Arrange
+        when(toolMapper.selectList(any(QueryWrapper.class))).thenReturn(Collections.emptyList());
+
+        // Act
+        List<String> result = toolService.getAllToolNames();
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(toolMapper).selectList(any(QueryWrapper.class));
+    }
+
+    // Tests for syncToolsFromInventory method
+    @Test
+    void syncToolsFromInventory_WithNewTools_CreatesNewTools() {
+        // Arrange
+        List<String> currentTools = Arrays.asList("tool1", "tool2", "tool3");
+        List<Tool> existingTools = Collections.emptyList(); // No existing tools
+        
+        when(toolMapper.selectList(any(QueryWrapper.class))).thenReturn(existingTools);
+        when(toolMapper.insert(any(Tool.class))).thenReturn(1);
+
+        // Act
+        assertDoesNotThrow(() -> toolService.syncToolsFromInventory(currentTools));
+
+        // Assert
+        verify(toolMapper).selectList(any(QueryWrapper.class)); // Get existing tools
+        verify(toolMapper, times(3)).insert(any(Tool.class)); // Create 3 new tools
+        verify(metricsService).recordToolDatabaseOperation(eq("inventory_sync"), eq(true), anyLong());
+    }
+
+    @Test
+    void syncToolsFromInventory_WithToolsToDisable_DisablesTools() {
+        // Arrange
+        List<String> currentTools = Arrays.asList("tool1"); // Only tool1 exists in agent
+        List<Tool> existingTools = Arrays.asList(
+            createTestTool(1L, "tool1", true),
+            createTestTool(2L, "tool2", true) // tool2 should be disabled
+        );
+        
+        when(toolMapper.selectList(any(QueryWrapper.class))).thenReturn(existingTools);
+        when(toolMapper.selectOne(any(QueryWrapper.class)))
+            .thenReturn(existingTools.get(0)) // For tool1 (enable check)
+            .thenReturn(existingTools.get(1)); // For tool2 (disable)
+        when(toolMapper.updateById(any(Tool.class))).thenReturn(1);
+
+        // Act
+        assertDoesNotThrow(() -> toolService.syncToolsFromInventory(currentTools));
+
+        // Assert
+        verify(toolMapper).selectList(any(QueryWrapper.class)); // Get existing tools
+        verify(toolMapper, times(2)).selectOne(any(QueryWrapper.class)); // Check individual tools
+        verify(toolMapper, times(1)).updateById(any(Tool.class)); // Disable tool2
+        verify(metricsService).recordToolDatabaseOperation(eq("inventory_sync"), eq(true), anyLong());
+    }
+
+    @Test
+    void syncToolsFromInventory_WithMixedOperations_HandlesAllCorrectly() {
+        // Arrange
+        List<String> currentTools = Arrays.asList("tool1", "tool2", "tool3"); // tool1 exists, tool2 disabled, tool3 new
+        List<Tool> existingTools = Arrays.asList(
+            createTestTool(1L, "tool1", true),   // Already enabled
+            createTestTool(2L, "tool2", false),  // Needs enabling
+            createTestTool(4L, "tool4", true)    // Needs disabling
+        );
+        
+        when(toolMapper.selectList(any(QueryWrapper.class))).thenReturn(existingTools);
+        // Mock selectOne calls in the order they will be made:
+        // 1. For tool3 (new tool, doesn't exist) - called by createOrUpdateToolFromAgent
+        // 2. For tool4 (needs disabling) - called by disableToolFromAgent  
+        // 3. For tool1 (exists, check if needs enabling) - called by syncToolsFromInventory
+        // 4. For tool2 (exists, check if needs enabling) - called by syncToolsFromInventory
+        when(toolMapper.selectOne(any(QueryWrapper.class)))
+            .thenReturn(null)                 // For tool3 (doesn't exist, will be created)
+            .thenReturn(existingTools.get(2)) // For tool4 (exists, will be disabled)
+            .thenReturn(existingTools.get(0)) // For tool1 (already enabled, no change)
+            .thenReturn(existingTools.get(1)); // For tool2 (disabled, will be enabled)
+        when(toolMapper.insert(any(Tool.class))).thenReturn(1); // For tool3
+        when(toolMapper.updateById(any(Tool.class))).thenReturn(1); // For tool2 and tool4
+
+        // Act
+        assertDoesNotThrow(() -> toolService.syncToolsFromInventory(currentTools));
+
+        // Assert
+        verify(toolMapper).selectList(any(QueryWrapper.class)); // Get existing tools
+        verify(toolMapper, times(4)).selectOne(any(QueryWrapper.class)); // Check individual tools
+        verify(toolMapper, times(1)).insert(any(Tool.class)); // Create tool3
+        verify(toolMapper, times(2)).updateById(any(Tool.class)); // Enable tool2, disable tool4
+        verify(metricsService).recordToolDatabaseOperation(eq("inventory_sync"), eq(true), anyLong());
+    }
+
+    @Test
+    void syncToolsFromInventory_WithNullCurrentTools_ThrowsValidationException() {
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, () -> {
+            toolService.syncToolsFromInventory(null);
+        });
+
+        assertTrue(exception.getMessage().contains("currentTools"));
+        assertTrue(exception.getMessage().contains("must not be null"));
+        verifyNoInteractions(toolMapper);
+    }
+
+    @Test
+    void syncToolsFromInventory_WithEmptyCurrentTools_HandlesCorrectly() {
+        // Arrange
+        List<String> currentTools = Collections.emptyList();
+        List<Tool> existingTools = Arrays.asList(
+            createTestTool(1L, "tool1", true),
+            createTestTool(2L, "tool2", true)
+        );
+        
+        when(toolMapper.selectList(any(QueryWrapper.class))).thenReturn(existingTools);
+        when(toolMapper.selectOne(any(QueryWrapper.class)))
+            .thenReturn(existingTools.get(0))
+            .thenReturn(existingTools.get(1));
+        when(toolMapper.updateById(any(Tool.class))).thenReturn(1);
+
+        // Act
+        assertDoesNotThrow(() -> toolService.syncToolsFromInventory(currentTools));
+
+        // Assert
+        verify(toolMapper).selectList(any(QueryWrapper.class)); // Get existing tools
+        verify(toolMapper, times(2)).selectOne(any(QueryWrapper.class)); // Check tools to disable
+        verify(toolMapper, times(2)).updateById(any(Tool.class)); // Disable both tools
+        verify(metricsService).recordToolDatabaseOperation(eq("inventory_sync"), eq(true), anyLong());
+    }
+
+    @Test
+    void syncToolsFromInventory_WithNullAndEmptyToolNames_FiltersCorrectly() {
+        // Arrange
+        List<String> currentTools = Arrays.asList("tool1", null, "", "  ", "tool2");
+        List<Tool> existingTools = Collections.emptyList();
+        
+        when(toolMapper.selectList(any(QueryWrapper.class))).thenReturn(existingTools);
+        when(toolMapper.insert(any(Tool.class))).thenReturn(1);
+
+        // Act
+        assertDoesNotThrow(() -> toolService.syncToolsFromInventory(currentTools));
+
+        // Assert
+        verify(toolMapper).selectList(any(QueryWrapper.class)); // Get existing tools
+        verify(toolMapper, times(2)).insert(any(Tool.class)); // Only create tool1 and tool2
+        verify(metricsService).recordToolDatabaseOperation(eq("inventory_sync"), eq(true), anyLong());
+    }
+
+    @Test
+    void syncToolsFromInventory_WhenSomeOperationsFail_ContinuesProcessing() {
+        // Arrange
+        List<String> currentTools = Arrays.asList("tool1", "tool2");
+        List<Tool> existingTools = Collections.emptyList();
+        
+        when(toolMapper.selectList(any(QueryWrapper.class))).thenReturn(existingTools);
+        when(toolMapper.insert(any(Tool.class)))
+            .thenReturn(1)  // tool1 succeeds
+            .thenReturn(0); // tool2 fails
+
+        // Act
+        assertDoesNotThrow(() -> toolService.syncToolsFromInventory(currentTools));
+
+        // Assert
+        verify(toolMapper).selectList(any(QueryWrapper.class)); // Get existing tools
+        verify(toolMapper, times(2)).insert(any(Tool.class)); // Try to create both tools
+        verify(metricsService).recordToolDatabaseOperation(eq("inventory_sync"), eq(false), anyLong()); // Some failed
+    }
+
+    @Test
+    void syncToolsFromInventory_WhenDatabaseThrowsException_ThrowsRuntimeException() {
+        // Arrange
+        List<String> currentTools = Arrays.asList("tool1");
+        when(toolMapper.selectList(any(QueryWrapper.class))).thenThrow(new RuntimeException("Database error"));
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            toolService.syncToolsFromInventory(currentTools);
+        });
+
+        assertTrue(exception.getMessage().contains("Failed to sync tool inventory from agent"));
+        assertNotNull(exception.getCause());
+        assertEquals("Database error", exception.getCause().getMessage());
+    }
+
+    @Test
+    void syncToolsFromInventory_WithTransactionalBehavior_EnsuresAtomicity() {
+        // This test verifies that the method is annotated with @Transactional
+        // The actual transactional behavior is tested through integration tests
+        
+        // Arrange
+        List<String> currentTools = Arrays.asList("tool1");
+        List<Tool> existingTools = Collections.emptyList();
+        
+        when(toolMapper.selectList(any(QueryWrapper.class))).thenReturn(existingTools);
+        when(toolMapper.insert(any(Tool.class))).thenReturn(1);
+
+        // Act
+        assertDoesNotThrow(() -> toolService.syncToolsFromInventory(currentTools));
+
+        // Assert - verify the method has @Transactional annotation
+        try {
+            var method = ToolService.class.getMethod("syncToolsFromInventory", List.class);
+            assertTrue(method.isAnnotationPresent(org.springframework.transaction.annotation.Transactional.class));
+        } catch (NoSuchMethodException e) {
+            fail("syncToolsFromInventory method should exist");
+        }
+    }
+
+    // Edge case and mutation resistance tests for new methods
+    @Test
+    void createOrUpdateToolFromAgent_WithSpecialCharacters_HandlesCorrectly() {
+        // Arrange
+        String toolName = "tool-with-special_chars.123";
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(null);
+        when(toolMapper.insert(any(Tool.class))).thenReturn(1);
+
+        // Act & Assert
+        assertDoesNotThrow(() -> toolService.createOrUpdateToolFromAgent(toolName));
+        
+        ArgumentCaptor<Tool> toolCaptor = ArgumentCaptor.forClass(Tool.class);
+        verify(toolMapper).insert(toolCaptor.capture());
+        assertEquals(toolName, toolCaptor.getValue().getToolName());
+    }
+
+    @Test
+    void syncToolsFromInventory_MutationResistance_NullCheck() {
+        // Test that null check cannot be mutated
+        assertThrows(ValidationException.class, () -> toolService.syncToolsFromInventory(null));
+        
+        // Test with valid input
+        List<String> validTools = Arrays.asList("tool1");
+        when(toolMapper.selectList(any(QueryWrapper.class))).thenReturn(Collections.emptyList());
+        when(toolMapper.insert(any(Tool.class))).thenReturn(1);
+        assertDoesNotThrow(() -> toolService.syncToolsFromInventory(validTools));
+    }
+
+    @Test
+    void syncToolsFromInventory_MutationResistance_CollectionOperations() {
+        // Test that collection operations cannot be mutated
+        List<String> currentTools = Arrays.asList("tool1", "tool2");
+        List<Tool> existingTools = Arrays.asList(createTestTool(1L, "tool3", true));
+        
+        when(toolMapper.selectList(any(QueryWrapper.class))).thenReturn(existingTools);
+        when(toolMapper.selectOne(any(QueryWrapper.class)))
+            .thenReturn(null)  // For tool1 (doesn't exist)
+            .thenReturn(null)  // For tool2 (doesn't exist)
+            .thenReturn(existingTools.get(0)); // For tool3 (exists, needs disabling)
+        when(toolMapper.insert(any(Tool.class))).thenReturn(1);
+        when(toolMapper.updateById(any(Tool.class))).thenReturn(1);
+
+        assertDoesNotThrow(() -> toolService.syncToolsFromInventory(currentTools));
+        
+        // Verify correct operations were performed
+        verify(toolMapper, times(2)).insert(any(Tool.class)); // Add tool1, tool2
+        verify(toolMapper, times(1)).updateById(any(Tool.class)); // Disable tool3
+    }
+
+    @Test
+    void disableToolFromAgent_WithSpecialCharacters_HandlesCorrectly() {
+        // Arrange
+        String toolName = "tool-with-special_chars.123";
+        Tool existingTool = createTestTool(1L, toolName, true);
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(existingTool);
+        when(toolMapper.updateById(any(Tool.class))).thenReturn(1);
+
+        // Act & Assert
+        assertDoesNotThrow(() -> toolService.disableToolFromAgent(toolName));
+        verify(toolMapper).updateById(any(Tool.class));
+    }
+
+    @Test
+    void createOrUpdateToolFromAgent_MutationResistance_EnabledCheck() {
+        // Test that Boolean.TRUE.equals() check cannot be mutated
+        String toolName = "test-tool";
+        
+        // Test with null enabled (should be treated as false)
+        Tool toolWithNullEnabled = createTestTool(1L, toolName, null);
+        toolWithNullEnabled.setEnabled(null);
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(toolWithNullEnabled);
+        when(toolMapper.updateById(any(Tool.class))).thenReturn(1);
+        
+        assertDoesNotThrow(() -> toolService.createOrUpdateToolFromAgent(toolName));
+        verify(toolMapper).updateById(any(Tool.class));
+        
+        reset(toolMapper);
+        
+        // Test with false enabled
+        Tool toolWithFalseEnabled = createTestTool(1L, toolName, false);
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(toolWithFalseEnabled);
+        when(toolMapper.updateById(any(Tool.class))).thenReturn(1);
+        
+        assertDoesNotThrow(() -> toolService.createOrUpdateToolFromAgent(toolName));
+        verify(toolMapper).updateById(any(Tool.class));
+    }
+
+    @Test
+    void disableToolFromAgent_MutationResistance_EnabledCheck() {
+        // Test that Boolean.TRUE.equals() check cannot be mutated
+        String toolName = "test-tool";
+        
+        // Test with null enabled (should not update)
+        Tool toolWithNullEnabled = createTestTool(1L, toolName, null);
+        toolWithNullEnabled.setEnabled(null);
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(toolWithNullEnabled);
+        
+        assertDoesNotThrow(() -> toolService.disableToolFromAgent(toolName));
+        verify(toolMapper, never()).updateById(any(Tool.class));
+        
+        reset(toolMapper);
+        
+        // Test with false enabled (should not update)
+        Tool toolWithFalseEnabled = createTestTool(1L, toolName, false);
+        when(toolMapper.selectOne(any(QueryWrapper.class))).thenReturn(toolWithFalseEnabled);
+        
+        assertDoesNotThrow(() -> toolService.disableToolFromAgent(toolName));
+        verify(toolMapper, never()).updateById(any(Tool.class));
     }
 }

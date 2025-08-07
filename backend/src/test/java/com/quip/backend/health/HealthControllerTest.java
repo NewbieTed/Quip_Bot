@@ -89,7 +89,7 @@ class HealthControllerTest {
     @Test
     void detailedHealth_WithoutRedisHealthIndicator_ShouldShowDisabled() {
         // Given
-        healthController = new HealthController(null);
+        healthController = new HealthController(null, null, null);
 
         // When
         Map<String, Object> result = healthController.detailedHealth();
@@ -122,7 +122,7 @@ class HealthControllerTest {
     @Test
     void redisHealth_WithoutHealthIndicator_ShouldReturnDisabled() {
         // Given
-        healthController = new HealthController(null);
+        healthController = new HealthController(null, null, null);
 
         // When
         Map<String, Object> result = healthController.redisHealth();

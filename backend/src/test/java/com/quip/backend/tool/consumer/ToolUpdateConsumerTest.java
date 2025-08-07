@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quip.backend.redis.service.RedisService;
 import com.quip.backend.tool.handler.ToolUpdateMessageHandler;
 import com.quip.backend.tool.model.ToolUpdateMessage;
+import com.quip.backend.tool.monitoring.ToolSyncMetricsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,11 +40,14 @@ class ToolUpdateConsumerTest {
     @Mock
     private ToolUpdateMessageHandler messageHandler;
 
+    @Mock
+    private ToolSyncMetricsService metricsService;
+
     private ToolUpdateConsumer consumer;
 
     @BeforeEach
     void setUp() {
-        consumer = new ToolUpdateConsumer(redisService, objectMapper, messageHandler);
+        consumer = new ToolUpdateConsumer(redisService, objectMapper, messageHandler, metricsService, null);
         
         // Set configuration properties
         ReflectionTestUtils.setField(consumer, "consumerEnabled", true);
