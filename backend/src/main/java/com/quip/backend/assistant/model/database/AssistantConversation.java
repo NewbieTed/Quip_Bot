@@ -73,6 +73,13 @@ public class AssistantConversation {
     private Boolean isProcessing;
 
     /**
+     * ID of the tool that caused the interruption.
+     * Required when isInterrupt is true, null otherwise.
+     */
+    @TableField("interrupted_tool_id")
+    private Long interruptedToolId;
+
+    /**
      * ID of the member who created this choice.
      */
     @TableField("created_by")

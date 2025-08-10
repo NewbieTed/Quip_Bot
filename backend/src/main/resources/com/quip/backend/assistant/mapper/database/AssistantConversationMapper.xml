@@ -15,11 +15,28 @@
         <result property="isActive" column="is_active"/>
         <result property="isInterrupt" column="is_interrupt"/>
         <result property="isProcessing" column="is_processing"/>
+        <result property="interruptedToolId" column="interrupted_tool_id"/>
         <result property="createdBy" column="created_by"/>
         <result property="updatedBy" column="updated_by"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
+
+    <select id="getConflictingInterruptedToolNames" resultType="java.lang.String">
+        SELECT DISTINCT t.tool_name
+        FROM assistant_conversation ac
+        INNER JOIN tool t ON ac.interrupted_tool_id = t.id
+        WHERE ac.is_interrupt = true
+        AND ac.interrupted_tool_id IS NOT NULL
+        AND ac.id IN
+        <foreach collection="conversations" item="conversation" open="(" separator="," close=")">
+            #{conversation.id}
+        </foreach>
+        AND t.tool_name IN
+        <foreach collection="toolNames" item="toolName" open="(" separator="," close=")">
+            #{toolName}
+        </foreach>
+    </select>
 
 </mapper>

@@ -301,4 +301,148 @@ public class AssistantConversationService {
         );
     }
 
+    /**
+     * Retrieves all active assistant conversations for a member across all servers.
+     * This method queries the database directly since we need cross-server data.
+     *
+     * @param memberId the member ID
+     * @return list of all active conversations for the member
+     */
+    public List<AssistantConversation> getAllActiveConversationsForMember(Long memberId) {
+        if (memberId == null) {
+            throw new IllegalArgumentException("Member ID cannot be null");
+        }
+        
+        // Query for all active conversations for this member across all servers
+        QueryWrapper<AssistantConversation> queryWrapper = new QueryWrapper<AssistantConversation>()
+                .eq("member_id", memberId)
+                .eq("is_active", true);
+        
+        List<AssistantConversation> conversations = assistantConversationMapper.selectList(queryWrapper);
+        log.debug("Found {} active conversations for member {}", conversations.size(), memberId);
+        
+        return conversations;
+    }
+
+    /**
+     * Retrieves a conversation by its ID.
+     *
+     * @param conversationId the conversation ID
+     * @return the conversation, or null if not found
+     * @throws IllegalArgumentException if conversationId is null
+     */
+    public AssistantConversation getConversationById(Long conversationId) {
+        if (conversationId == null) {
+            throw new IllegalArgumentException("Conversation ID cannot be null");
+        }
+        
+        AssistantConversation conversation = assistantConversationMapper.selectById(conversationId);
+        log.debug("Retrieved conversation {} by ID", conversationId);
+        
+        return conversation;
+    }
+
+    /**
+     * Retrieves multiple conversations by their IDs in a single batch query.
+     * This method is more efficient than multiple individual getConversationById calls.
+     *
+     * @param conversationIds the list of conversation IDs
+     * @return list of conversations found (may be fewer than requested if some IDs don't exist)
+     * @throws IllegalArgumentException if conversationIds is null
+     */
+    public List<AssistantConversation> getConversationsByIds(List<Long> conversationIds) {
+        if (conversationIds == null) {
+            throw new IllegalArgumentException("Conversation IDs list cannot be null");
+        }
+        
+        if (conversationIds.isEmpty()) {
+            log.debug("Empty conversation IDs list provided, returning empty list");
+            return List.of();
+        }
+        
+        List<AssistantConversation> conversations = assistantConversationMapper.selectBatchIds(conversationIds);
+        log.debug("Retrieved {} conversations from {} requested IDs", conversations.size(), conversationIds.size());
+        
+        return conversations;
+    }
+
+    /**
+     * Retrieves all conversations (both active and inactive) for a member across all servers.
+     * This method is used when we need to notify all conversations about whitelist changes.
+     *
+     * @param memberId the member ID
+     * @return list of all conversations for the member
+     */
+    public List<AssistantConversation> getAllConversationsForMember(Long memberId) {
+        if (memberId == null) {
+            throw new IllegalArgumentException("Member ID cannot be null");
+        }
+        
+        // Query for all conversations for this member across all servers (both active and inactive)
+        QueryWrapper<AssistantConversation> queryWrapper = new QueryWrapper<AssistantConversation>()
+                .eq("member_id", memberId);
+        
+        List<AssistantConversation> conversations = assistantConversationMapper.selectList(queryWrapper);
+        log.debug("Found {} total conversations for member {}", conversations.size(), memberId);
+        
+        return conversations;
+    }
+
+    /**
+     * Retrieves all conversations (both active and inactive) for a member in a specific server.
+     * This method is more efficient than getting all conversations and filtering.
+     *
+     * @param memberId the member ID
+     * @param serverId the server ID
+     * @return list of conversations for the member in the specified server
+     */
+    public List<AssistantConversation> getAllConversationsForMemberInServer(Long memberId, Long serverId) {
+        if (memberId == null) {
+            throw new IllegalArgumentException("Member ID cannot be null");
+        }
+        if (serverId == null) {
+            throw new IllegalArgumentException("Server ID cannot be null");
+        }
+        
+        // Query for all conversations for this member in the specific server
+        QueryWrapper<AssistantConversation> queryWrapper = new QueryWrapper<AssistantConversation>()
+                .eq("member_id", memberId)
+                .eq("server_id", serverId);
+        
+        List<AssistantConversation> conversations = assistantConversationMapper.selectList(queryWrapper);
+        log.debug("Found {} conversations for member {} in server {}", conversations.size(), memberId, serverId);
+        
+        return conversations;
+    }
+
+
+    /**
+     * Gets the tool names that are both being added to whitelist and currently interrupting conversations.
+     * This method pushes all filtering to the database level for optimal performance.
+     *
+     * @param conversations list of conversations to check for interrupted tools
+     * @param toolNames list of tool names being added to whitelist
+     * @return list of conflicting tool names (both being added and currently interrupting)
+     * @throws IllegalArgumentException if conversations or toolNames is null
+     */
+    public List<String> getConflictingInterruptedToolNames(List<AssistantConversation> conversations, List<String> toolNames) {
+        if (conversations == null) {
+            throw new IllegalArgumentException("Conversations list cannot be null");
+        }
+        if (toolNames == null) {
+            throw new IllegalArgumentException("Tool names list cannot be null");
+        }
+        
+        if (conversations.isEmpty() || toolNames.isEmpty()) {
+            log.debug("No conversations or tool names provided, returning empty list");
+            return List.of();
+        }
+        
+        List<String> conflictingToolNames = assistantConversationMapper.getConflictingInterruptedToolNames(conversations, toolNames);
+        log.debug("Found {} conflicting tool names for {} conversations and {} tool names", 
+                 conflictingToolNames.size(), conversations.size(), toolNames.size());
+        
+        return conflictingToolNames;
+    }
+
 }

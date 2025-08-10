@@ -11,7 +11,15 @@ import java.util.List;
 public interface AssistantConversationMapper extends BaseMapper<AssistantConversation> {
 
 
-
-
+    /**
+     * Checks if any of the given tool names are currently interrupting any of the given conversations.
+     * Returns the conflicting tool names that are both being added and currently interrupting.
+     *
+     * @param conversations list of conversations to check for interrupted tools
+     * @param toolNames list of tool names being added to whitelist
+     * @return list of tool names that are both being added and currently interrupting
+     */
+    List<String> getConflictingInterruptedToolNames(@Param("conversations") List<AssistantConversation> conversations, 
+                                                   @Param("toolNames") List<String> toolNames);
 
 }
