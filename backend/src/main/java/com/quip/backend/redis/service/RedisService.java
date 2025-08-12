@@ -1,5 +1,6 @@
 package com.quip.backend.redis.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quip.backend.redis.exception.RedisExceptionHandler;
 import com.quip.backend.redis.metrics.RedisMetricsService;
 import lombok.RequiredArgsConstructor;
@@ -441,11 +442,26 @@ public class RedisService {
         return exceptionHandler.handleRedisOperation(() -> {
             Object value = redisTemplate.opsForList().rightPop(key);
             if (value == null) {
-                log.debug("List is empty or key not found: {}", key);
+                log.trace("List is empty or key not found: {}", key);
                 return null;
             }
             
             log.debug("Successfully popped value from right of list key: {}", key);
+            
+            // Special handling for String type when Redis returns deserialized objects
+            if (type == String.class && !(value instanceof String)) {
+                // Convert the deserialized object back to JSON string
+                try {
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    String jsonString = objectMapper.writeValueAsString(value);
+                    return type.cast(jsonString);
+                } catch (Exception e) {
+                    log.warn("Failed to serialize Redis value back to JSON string: {}", e.getMessage());
+                    // Fallback to toString if JSON serialization fails
+                    return type.cast(value.toString());
+                }
+            }
+            
             return type.cast(value);
         }, () -> null); // Fallback to null when Redis is unavailable
     }

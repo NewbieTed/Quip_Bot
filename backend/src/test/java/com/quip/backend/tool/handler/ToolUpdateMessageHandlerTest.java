@@ -1,5 +1,6 @@
 package com.quip.backend.tool.handler;
 
+import com.quip.backend.tool.model.ToolInfo;
 import com.quip.backend.tool.model.ToolUpdateMessage;
 import com.quip.backend.tool.service.ToolService;
 import com.quip.backend.tool.monitoring.ToolSyncMetricsService;
@@ -16,6 +17,7 @@ import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -48,9 +50,21 @@ class ToolUpdateMessageHandlerTest {
                 .messageId("test-message-123")
                 .timestamp(OffsetDateTime.now().minusMinutes(5))
                 .source("agent")
-                .addedTools(Arrays.asList("new-tool-1", "new-tool-2"))
-                .removedTools(Arrays.asList("old-tool-1"))
+                .addedTools(createToolInfoList("new-tool-1", "new-tool-2"))
+                .removedTools(createToolInfoList("old-tool-1"))
                 .build();
+    }
+
+    /**
+     * Helper method to create ToolInfo objects from tool names.
+     */
+    private List<ToolInfo> createToolInfoList(String... toolNames) {
+        return Arrays.stream(toolNames)
+                .map(name -> ToolInfo.builder()
+                        .name(name)
+                        .mcpServerName("test-server")
+                        .build())
+                .collect(Collectors.toList());
     }
 
     @Nested
@@ -139,7 +153,10 @@ class ToolUpdateMessageHandlerTest {
         @Test
         @DisplayName("Should reject message with invalid tool names")
         void shouldRejectInvalidToolNames() {
-            validMessage.setAddedTools(Arrays.asList("valid-tool", "invalid tool with spaces"));
+            validMessage.setAddedTools(Arrays.asList(
+                    ToolInfo.builder().name("valid-tool").mcpServerName("test-server").build(),
+                    ToolInfo.builder().name("invalid tool with spaces").mcpServerName("test-server").build()
+            ));
             boolean result = handler.validateMessage(validMessage);
             assertThat(result).isFalse();
         }
@@ -179,8 +196,8 @@ class ToolUpdateMessageHandlerTest {
         @Test
         @DisplayName("Should accept valid tool names with underscores and hyphens")
         void shouldAcceptValidToolNames() {
-            validMessage.setAddedTools(Arrays.asList("tool_with_underscores", "tool-with-hyphens", "tool123"));
-            validMessage.setRemovedTools(Arrays.asList("UPPERCASE_TOOL", "mixedCase_Tool-123"));
+            validMessage.setAddedTools(createToolInfoList("tool_with_underscores", "tool-with-hyphens", "tool123"));
+            validMessage.setRemovedTools(createToolInfoList("UPPERCASE_TOOL", "mixedCase_Tool-123"));
             boolean result = handler.validateMessage(validMessage);
             assertThat(result).isTrue();
         }
@@ -211,7 +228,7 @@ class ToolUpdateMessageHandlerTest {
             );
 
             for (String invalidToolName : invalidToolNames) {
-                validMessage.setAddedTools(Arrays.asList(invalidToolName));
+                validMessage.setAddedTools(createToolInfoList(invalidToolName));
                 boolean result = handler.validateMessage(validMessage);
                 assertThat(result)
                         .withFailMessage("Tool name '%s' should be rejected but was accepted", invalidToolName)
@@ -222,7 +239,7 @@ class ToolUpdateMessageHandlerTest {
         @Test
         @DisplayName("Should reject empty tool names")
         void shouldRejectEmptyToolNames() {
-            validMessage.setAddedTools(Arrays.asList("valid-tool", "", "another-valid-tool"));
+            validMessage.setAddedTools(createToolInfoList("valid-tool", "", "another-valid-tool"));
             boolean result = handler.validateMessage(validMessage);
             assertThat(result).isFalse();
         }
@@ -230,7 +247,11 @@ class ToolUpdateMessageHandlerTest {
         @Test
         @DisplayName("Should reject null tool names in list")
         void shouldRejectNullToolNamesInList() {
-            validMessage.setAddedTools(Arrays.asList("valid-tool", null, "another-valid-tool"));
+            validMessage.setAddedTools(Arrays.asList(
+                    ToolInfo.builder().name("valid-tool").mcpServerName("test-server").build(),
+                    null,
+                    ToolInfo.builder().name("another-valid-tool").mcpServerName("test-server").build()
+            ));
             boolean result = handler.validateMessage(validMessage);
             assertThat(result).isFalse();
         }
@@ -289,11 +310,11 @@ class ToolUpdateMessageHandlerTest {
         @DisplayName("Should handle large number of tools")
         void shouldHandleLargeNumberOfTools() {
             // Create lists with many tools
-            List<String> manyAddedTools = Arrays.asList(
+            List<ToolInfo> manyAddedTools = createToolInfoList(
                     "tool-1", "tool-2", "tool-3", "tool-4", "tool-5",
                     "tool-6", "tool-7", "tool-8", "tool-9", "tool-10"
             );
-            List<String> manyRemovedTools = Arrays.asList(
+            List<ToolInfo> manyRemovedTools = createToolInfoList(
                     "old-tool-1", "old-tool-2", "old-tool-3", "old-tool-4", "old-tool-5"
             );
 
@@ -336,7 +357,7 @@ class ToolUpdateMessageHandlerTest {
         @Test
         @DisplayName("Should handle duplicate tool names in same list")
         void shouldHandleDuplicateToolNames() {
-            validMessage.setAddedTools(Arrays.asList("duplicate-tool", "duplicate-tool", "unique-tool"));
+            validMessage.setAddedTools(createToolInfoList("duplicate-tool", "duplicate-tool", "unique-tool"));
             boolean result = handler.handleToolUpdates(validMessage);
             assertThat(result).isTrue();
         }
@@ -344,8 +365,8 @@ class ToolUpdateMessageHandlerTest {
         @Test
         @DisplayName("Should handle same tool in both added and removed lists")
         void shouldHandleSameToolInBothLists() {
-            validMessage.setAddedTools(Arrays.asList("conflicting-tool", "added-tool"));
-            validMessage.setRemovedTools(Arrays.asList("conflicting-tool", "removed-tool"));
+            validMessage.setAddedTools(createToolInfoList("conflicting-tool", "added-tool"));
+            validMessage.setRemovedTools(createToolInfoList("conflicting-tool", "removed-tool"));
             boolean result = handler.handleToolUpdates(validMessage);
             assertThat(result).isTrue();
         }
@@ -354,7 +375,7 @@ class ToolUpdateMessageHandlerTest {
         @DisplayName("Should handle very long tool names")
         void shouldHandleVeryLongToolNames() {
             String longToolName = "a".repeat(100); // 100 character tool name
-            validMessage.setAddedTools(Arrays.asList(longToolName));
+            validMessage.setAddedTools(createToolInfoList(longToolName));
             boolean result = handler.validateMessage(validMessage);
             assertThat(result).isTrue();
         }
@@ -362,7 +383,7 @@ class ToolUpdateMessageHandlerTest {
         @Test
         @DisplayName("Should handle single character tool names")
         void shouldHandleSingleCharacterToolNames() {
-            validMessage.setAddedTools(Arrays.asList("a", "b", "1", "2"));
+            validMessage.setAddedTools(createToolInfoList("a", "b", "1", "2"));
             boolean result = handler.validateMessage(validMessage);
             assertThat(result).isTrue();
         }
@@ -370,7 +391,7 @@ class ToolUpdateMessageHandlerTest {
         @Test
         @DisplayName("Should handle tool names with only numbers")
         void shouldHandleToolNamesWithOnlyNumbers() {
-            validMessage.setAddedTools(Arrays.asList("123", "456789"));
+            validMessage.setAddedTools(createToolInfoList("123", "456789"));
             boolean result = handler.validateMessage(validMessage);
             assertThat(result).isTrue();
         }
@@ -378,7 +399,7 @@ class ToolUpdateMessageHandlerTest {
         @Test
         @DisplayName("Should handle tool names with only underscores and hyphens")
         void shouldHandleToolNamesWithOnlyUnderscoresAndHyphens() {
-            validMessage.setAddedTools(Arrays.asList("_", "-", "__", "--", "_-_", "-_-"));
+            validMessage.setAddedTools(createToolInfoList("_", "-", "__", "--", "_-_", "-_-"));
             boolean result = handler.validateMessage(validMessage);
             assertThat(result).isTrue();
         }

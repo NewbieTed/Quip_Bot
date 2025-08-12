@@ -43,20 +43,20 @@ public class ToolUpdateMessage {
     private OffsetDateTime timestamp;
 
     /**
-     * List of tool names that have been added to the agent's available tools.
+     * List of tools that have been added to the agent's available tools.
      * Can be empty if no tools were added.
      */
     @JsonProperty("addedTools")
     @NotNull(message = "Added tools list cannot be null")
-    private List<String> addedTools;
+    private List<ToolInfo> addedTools;
 
     /**
-     * List of tool names that have been removed from the agent's available tools.
+     * List of tools that have been removed from the agent's available tools.
      * Can be empty if no tools were removed.
      */
     @JsonProperty("removedTools")
     @NotNull(message = "Removed tools list cannot be null")
-    private List<String> removedTools;
+    private List<ToolInfo> removedTools;
 
     /**
      * Source of this message, typically "agent".
@@ -78,45 +78,28 @@ public class ToolUpdateMessage {
     }
 
     /**
-     * Validates that all tool names in the message are valid.
+     * Validates that all tools in the message are valid.
      * Tool names should be non-null, non-blank, and contain only alphanumeric characters,
      * hyphens, and underscores.
      * 
-     * @return true if all tool names are valid, false otherwise
+     * @return true if all tools are valid, false otherwise
      */
     public boolean hasValidToolNames() {
-        return isValidToolNameList(addedTools) && isValidToolNameList(removedTools);
+        return isValidToolInfoList(addedTools) && isValidToolInfoList(removedTools);
     }
 
     /**
-     * Helper method to validate a list of tool names.
+     * Helper method to validate a list of tool info objects.
      * 
-     * @param toolNames the list of tool names to validate
-     * @return true if all tool names in the list are valid, false otherwise
+     * @param toolInfos the list of tool info objects to validate
+     * @return true if all tools in the list are valid, false otherwise
      */
-    private boolean isValidToolNameList(List<String> toolNames) {
-        if (toolNames == null) {
+    private boolean isValidToolInfoList(List<ToolInfo> toolInfos) {
+        if (toolInfos == null) {
             return true; // null lists are considered valid (empty)
         }
         
-        return toolNames.stream()
-                .allMatch(this::isValidToolName);
-    }
-
-    /**
-     * Validates a single tool name.
-     * Tool names must be non-null, non-blank, and contain only alphanumeric characters,
-     * hyphens, and underscores.
-     * 
-     * @param toolName the tool name to validate
-     * @return true if the tool name is valid, false otherwise
-     */
-    private boolean isValidToolName(String toolName) {
-        if (toolName == null || toolName.trim().isEmpty()) {
-            return false;
-        }
-        
-        // Tool names should contain only alphanumeric characters, hyphens, and underscores
-        return toolName.matches("^[a-zA-Z0-9_-]+$");
+        return toolInfos.stream()
+                .allMatch(toolInfo -> toolInfo != null && toolInfo.hasValidToolName());
     }
 }

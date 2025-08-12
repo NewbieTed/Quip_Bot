@@ -41,8 +41,13 @@ class ToolUpdateMessageTest {
             {
                 "messageId": "test-uuid-123",
                 "timestamp": "2025-01-28T10:30:00Z",
-                "addedTools": ["tool1", "tool2"],
-                "removedTools": ["tool3"],
+                "addedTools": [
+                    {"name": "tool1", "mcpServerName": "built-in"},
+                    {"name": "geo-data-weather", "mcpServerName": "geo-data"}
+                ],
+                "removedTools": [
+                    {"name": "tool3", "mcpServerName": "built-in"}
+                ],
                 "source": "agent"
             }
             """;
@@ -52,8 +57,14 @@ class ToolUpdateMessageTest {
         assertNotNull(message);
         assertEquals("test-uuid-123", message.getMessageId());
         assertNotNull(message.getTimestamp());
-        assertEquals(Arrays.asList("tool1", "tool2"), message.getAddedTools());
-        assertEquals(Arrays.asList("tool3"), message.getRemovedTools());
+        assertEquals(2, message.getAddedTools().size());
+        assertEquals("tool1", message.getAddedTools().get(0).getName());
+        assertEquals("built-in", message.getAddedTools().get(0).getMcpServerName());
+        assertEquals("geo-data-weather", message.getAddedTools().get(1).getName());
+        assertEquals("geo-data", message.getAddedTools().get(1).getMcpServerName());
+        assertEquals(1, message.getRemovedTools().size());
+        assertEquals("tool3", message.getRemovedTools().get(0).getName());
+        assertEquals("built-in", message.getRemovedTools().get(0).getMcpServerName());
         assertEquals("agent", message.getSource());
     }
 
@@ -81,8 +92,13 @@ class ToolUpdateMessageTest {
         ToolUpdateMessage message = ToolUpdateMessage.builder()
                 .messageId("test-uuid-123")
                 .timestamp(OffsetDateTime.now())
-                .addedTools(Arrays.asList("tool1", "tool2"))
-                .removedTools(Arrays.asList("tool3"))
+                .addedTools(Arrays.asList(
+                    ToolInfo.builder().name("tool1").mcpServerName("built-in").build(),
+                    ToolInfo.builder().name("geo-data-weather").mcpServerName("geo-data").build()
+                ))
+                .removedTools(Arrays.asList(
+                    ToolInfo.builder().name("tool3").mcpServerName("built-in").build()
+                ))
                 .source("agent")
                 .build();
 
@@ -167,7 +183,9 @@ class ToolUpdateMessageTest {
     @Test
     void testHasChanges_WithAddedTools() {
         ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .addedTools(Arrays.asList("tool1"))
+                .addedTools(Arrays.asList(
+                    ToolInfo.builder().name("tool1").mcpServerName("built-in").build()
+                ))
                 .removedTools(Collections.emptyList())
                 .build();
 
@@ -178,7 +196,9 @@ class ToolUpdateMessageTest {
     void testHasChanges_WithRemovedTools() {
         ToolUpdateMessage message = ToolUpdateMessage.builder()
                 .addedTools(Collections.emptyList())
-                .removedTools(Arrays.asList("tool1"))
+                .removedTools(Arrays.asList(
+                    ToolInfo.builder().name("tool1").mcpServerName("built-in").build()
+                ))
                 .build();
 
         assertTrue(message.hasChanges());
@@ -187,8 +207,12 @@ class ToolUpdateMessageTest {
     @Test
     void testHasChanges_WithBothAddedAndRemovedTools() {
         ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .addedTools(Arrays.asList("tool1"))
-                .removedTools(Arrays.asList("tool2"))
+                .addedTools(Arrays.asList(
+                    ToolInfo.builder().name("tool1").mcpServerName("built-in").build()
+                ))
+                .removedTools(Arrays.asList(
+                    ToolInfo.builder().name("tool2").mcpServerName("geo-data").build()
+                ))
                 .build();
 
         assertTrue(message.hasChanges());
@@ -217,8 +241,16 @@ class ToolUpdateMessageTest {
     @Test
     void testHasValidToolNames_ValidNames() {
         ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .addedTools(Arrays.asList("tool1", "tool-2", "tool_3", "Tool123"))
-                .removedTools(Arrays.asList("another-tool", "another_tool"))
+                .addedTools(Arrays.asList(
+                    ToolInfo.builder().name("tool1").mcpServerName("built-in").build(),
+                    ToolInfo.builder().name("tool-2").mcpServerName("built-in").build(),
+                    ToolInfo.builder().name("tool_3").mcpServerName("geo-data").build(),
+                    ToolInfo.builder().name("Tool123").mcpServerName("aws-docs").build()
+                ))
+                .removedTools(Arrays.asList(
+                    ToolInfo.builder().name("another-tool").mcpServerName("built-in").build(),
+                    ToolInfo.builder().name("another_tool").mcpServerName("geo-data").build()
+                ))
                 .build();
 
         assertTrue(message.hasValidToolNames());
@@ -227,8 +259,13 @@ class ToolUpdateMessageTest {
     @Test
     void testHasValidToolNames_InvalidNames() {
         ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .addedTools(Arrays.asList("tool with spaces", "tool@invalid"))
-                .removedTools(Arrays.asList("valid-tool"))
+                .addedTools(Arrays.asList(
+                    ToolInfo.builder().name("tool with spaces").mcpServerName("built-in").build(),
+                    ToolInfo.builder().name("tool@invalid").mcpServerName("built-in").build()
+                ))
+                .removedTools(Arrays.asList(
+                    ToolInfo.builder().name("valid-tool").mcpServerName("built-in").build()
+                ))
                 .build();
 
         assertFalse(message.hasValidToolNames());
@@ -237,7 +274,10 @@ class ToolUpdateMessageTest {
     @Test
     void testHasValidToolNames_EmptyToolName() {
         ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .addedTools(Arrays.asList("valid-tool", ""))
+                .addedTools(Arrays.asList(
+                    ToolInfo.builder().name("valid-tool").mcpServerName("built-in").build(),
+                    ToolInfo.builder().name("").mcpServerName("built-in").build()
+                ))
                 .removedTools(Collections.emptyList())
                 .build();
 
@@ -245,9 +285,12 @@ class ToolUpdateMessageTest {
     }
 
     @Test
-    void testHasValidToolNames_NullToolName() {
+    void testHasValidToolNames_NullToolInfo() {
         ToolUpdateMessage message = ToolUpdateMessage.builder()
-                .addedTools(Arrays.asList("valid-tool", null))
+                .addedTools(Arrays.asList(
+                    ToolInfo.builder().name("valid-tool").mcpServerName("built-in").build(),
+                    null
+                ))
                 .removedTools(Collections.emptyList())
                 .build();
 
@@ -272,5 +315,83 @@ class ToolUpdateMessageTest {
                 .build();
 
         assertTrue(message.hasValidToolNames());
+    }
+
+    @Test
+    void testMcpServerNameHandling_BuiltInTools() {
+        ToolUpdateMessage message = ToolUpdateMessage.builder()
+                .messageId("test-uuid-123")
+                .timestamp(OffsetDateTime.now())
+                .addedTools(Arrays.asList(
+                    ToolInfo.builder().name("builtin-tool1").mcpServerName("built-in").build(),
+                    ToolInfo.builder().name("builtin-tool2").mcpServerName("built-in").build()
+                ))
+                .removedTools(Collections.emptyList())
+                .source("agent")
+                .build();
+
+        assertEquals(2, message.getAddedTools().size());
+        message.getAddedTools().forEach(tool -> {
+            assertEquals("built-in", tool.getMcpServerName());
+            assertTrue(tool.getName().startsWith("builtin-tool"));
+        });
+    }
+
+    @Test
+    void testMcpServerNameHandling_McpTools() {
+        ToolUpdateMessage message = ToolUpdateMessage.builder()
+                .messageId("test-uuid-123")
+                .timestamp(OffsetDateTime.now())
+                .addedTools(Arrays.asList(
+                    ToolInfo.builder().name("geo-data-weather").mcpServerName("geo-data").build(),
+                    ToolInfo.builder().name("geo-data-location").mcpServerName("geo-data").build(),
+                    ToolInfo.builder().name("aws-docs-search").mcpServerName("aws-docs").build()
+                ))
+                .removedTools(Collections.emptyList())
+                .source("agent")
+                .build();
+
+        assertEquals(3, message.getAddedTools().size());
+        
+        // Verify geo-data tools
+        List<ToolInfo> geoDataTools = message.getAddedTools().stream()
+                .filter(tool -> "geo-data".equals(tool.getMcpServerName()))
+                .toList();
+        assertEquals(2, geoDataTools.size());
+        assertTrue(geoDataTools.stream().allMatch(tool -> tool.getName().startsWith("geo-data-")));
+        
+        // Verify aws-docs tools
+        List<ToolInfo> awsDocsTools = message.getAddedTools().stream()
+                .filter(tool -> "aws-docs".equals(tool.getMcpServerName()))
+                .toList();
+        assertEquals(1, awsDocsTools.size());
+        assertTrue(awsDocsTools.get(0).getName().startsWith("aws-docs-"));
+    }
+
+    @Test
+    void testMcpServerNameHandling_MixedTools() {
+        ToolUpdateMessage message = ToolUpdateMessage.builder()
+                .messageId("test-uuid-123")
+                .timestamp(OffsetDateTime.now())
+                .addedTools(Arrays.asList(
+                    ToolInfo.builder().name("builtin-tool").mcpServerName("built-in").build(),
+                    ToolInfo.builder().name("geo-data-weather").mcpServerName("geo-data").build()
+                ))
+                .removedTools(Arrays.asList(
+                    ToolInfo.builder().name("old-builtin-tool").mcpServerName("built-in").build(),
+                    ToolInfo.builder().name("aws-docs-old").mcpServerName("aws-docs").build()
+                ))
+                .source("agent")
+                .build();
+
+        // Verify added tools
+        assertEquals(2, message.getAddedTools().size());
+        assertEquals("built-in", message.getAddedTools().get(0).getMcpServerName());
+        assertEquals("geo-data", message.getAddedTools().get(1).getMcpServerName());
+        
+        // Verify removed tools
+        assertEquals(2, message.getRemovedTools().size());
+        assertEquals("built-in", message.getRemovedTools().get(0).getMcpServerName());
+        assertEquals("aws-docs", message.getRemovedTools().get(1).getMcpServerName());
     }
 }

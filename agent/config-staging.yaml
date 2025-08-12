@@ -1,0 +1,85 @@
+# Staging Environment Configuration for Agent
+# This configuration extends the base config.yaml for staging deployments
+
+# Agent Configuration
+app:
+  name: "agent"
+  version: "1.0.0"
+  description: "Agent Service for Quip Bot - Staging"
+
+# Backend API Configuration
+backend:
+  url: ${BACKEND_URL:http://quip-backend-staging:8080}
+
+# Logging Configuration - More verbose than production
+logging:
+  level: ${LOG_LEVEL:INFO}
+  format: ${LOG_FORMAT:"%(asctime)s - %(name)s - %(levelname)s - %(message)s"}
+  handlers:
+    - console
+    - file
+  file_path: ${LOG_FILE_PATH:logs/agent.log}
+  # Staging-specific log levels
+  loggers:
+    redis: ${LOG_LEVEL_REDIS:INFO}
+    tool_sync: ${LOG_LEVEL_TOOL_SYNC:INFO}
+    tool_discovery: ${LOG_LEVEL_TOOL_DISCOVERY:INFO}
+    mcp: ${LOG_LEVEL_MCP:INFO}
+
+# OpenAI Configuration
+openai:
+  model: "gpt-4o-mini"
+  temperature: 0
+  max_tokens: 4000
+
+# MCP Client Configuration
+mcp:
+  enabled: true
+  servers:
+    QuipMCPServer:
+      transport: "streamable_http"
+      reconnect_attempts: 3
+      reconnect_delay: 5
+
+# Agent Configuration
+agent:
+  prompts_dir: "src/agent/prompts"
+  prompts:
+    main_system: "main_system_prompt.txt"
+    human_confirmation: "human_confirmation_prompt.txt"
+    progress_report: "progress_report_prompt.txt"
+  max_iterations: 10
+  stream_mode:
+    - "updates"
+    - "messages" 
+    - "custom"
+
+# Redis Configuration - Staging settings
+redis:
+  host: ${REDIS_HOST:redis-staging}
+  port: ${REDIS_PORT:6379}
+  db: ${REDIS_DB:0}
+  password: ${REDIS_PASSWORD:}
+  retry:
+    max_attempts: ${REDIS_RETRY_MAX_ATTEMPTS:3}
+    base_delay: ${REDIS_RETRY_BASE_DELAY:1.0}
+    max_delay: ${REDIS_RETRY_MAX_DELAY:30.0}
+
+# Memory Configuration
+memory:
+  type: "in_memory"
+  checkpoint_interval: 100
+
+# Tool Synchronization Configuration - Staging settings
+tool_sync:
+  enabled: true
+  discovery_on_startup: true
+  http_server:
+    enabled: ${TOOL_SYNC_HTTP_ENABLED:true}
+    host: ${TOOL_SYNC_HTTP_HOST:0.0.0.0}
+    port: ${TOOL_SYNC_HTTP_PORT:5001}
+    timeout: ${TOOL_SYNC_HTTP_TIMEOUT:15}  # Longer timeout for staging debugging
+    discovery:
+      timeout: ${TOOL_DISCOVERY_TIMEOUT:15}  # Longer timeout for staging
+      retry_attempts: ${TOOL_DISCOVERY_RETRY_ATTEMPTS:2}
+      retry_delay: ${TOOL_DISCOVERY_RETRY_DELAY:1}

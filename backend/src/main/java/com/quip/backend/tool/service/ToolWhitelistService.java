@@ -10,20 +10,22 @@ import com.quip.backend.channel.service.ChannelService;
 import com.quip.backend.member.service.MemberService;
 import com.quip.backend.tool.enums.ToolWhitelistScope;
 import com.quip.backend.tool.mapper.database.ToolWhitelistMapper;
-import com.quip.backend.tool.mapper.dto.response.ToolWhitelistResponseDtoMapper;
 import com.quip.backend.tool.model.Tool;
 import com.quip.backend.tool.model.ToolWhitelist;
 import com.quip.backend.tool.dto.request.UpdateToolWhitelistRequestDto;
 import com.quip.backend.tool.dto.request.AddToolWhitelistRequestDto;
 import com.quip.backend.tool.dto.request.RemoveToolWhitelistRequestDto;
+import com.quip.backend.tool.dto.request.ConversationDto;
 import com.quip.backend.config.redis.CacheConfiguration;
 import com.quip.backend.common.exception.ConversationInProgressException;
+import com.quip.backend.common.exception.InterruptedToolConflictException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -80,7 +82,7 @@ public class ToolWhitelistService {
 //    private static final String MANAGE_TOOL_WHITELIST = "Tool Whitelist Management";
 //    private static final String CHECK_TOOL_PERMISSION = "Tool Permission Check";
 
-    // TODO: Update tool whitelist handler
+
 
     /**
      * Gets the list of whitelisted tool names for a specific member and server context.
@@ -211,6 +213,7 @@ public class ToolWhitelistService {
      *
      * @param updateRequest the update request containing new whitelist data
      */
+    @Transactional
     public void updateToolWhitelist(UpdateToolWhitelistRequestDto updateRequest) {
         Long memberId = updateRequest.getMemberId();
         Long channelId = updateRequest.getChannelId();
@@ -228,16 +231,28 @@ public class ToolWhitelistService {
         // Get server ID from authorization context
         Long serverId = authorizationContext.server().getId();
 
-        // Check if conversation state is fine to update the whitelist (conversation must be either not active, or not being processed).
-        // Being processing implies the conversation is both active and not interrupted
-        AssistantConversation assistantConversation = assistantConversationService.getActiveAssistantConversation(memberId, serverId);
-        if (assistantConversation != null && assistantConversation.getIsProcessing()) {
-            // Cannot perform change, abort
-            throw new ConversationInProgressException(
-                "Cannot update tool whitelist while conversation is being processed. " +
-                        "Please wait for the conversation to complete before making changes."
-            );
+        // Determine the highest scope in the update request and validate accordingly
+        ToolWhitelistScope highestScope = determineHighestScope(updateRequest);
+        
+        // Validate conversation state based on the highest scope and collect conversations to notify
+        List<AssistantConversation> conversationsToNotify = new ArrayList<>();
+        switch (highestScope) {
+            case GLOBAL -> {
+                // For global scope, check all servers where member has conversations
+                conversationsToNotify = validateNoProcessingConversationsGlobally(memberId);
+            }
+            case SERVER -> {
+                // For server scope, check only the current server
+                conversationsToNotify = validateNoProcessingConversationsInServer(memberId, serverId);
+            }
+            case CONVERSATION -> {
+                // For conversation scope, validate specific conversations
+                conversationsToNotify = validateConversationScopeUpdates(updateRequest, memberId, serverId);
+            }
         }
+
+        // Validate that no interrupted tool is being added to whitelist
+        validateNoInterruptedToolsBeingAdded(updateRequest.getAddRequests(), conversationsToNotify);
 
         // Process removal requests first (important for scope changes)
         if (updateRequest.getRemoveRequests() != null && !updateRequest.getRemoveRequests().isEmpty()) {
@@ -267,7 +282,10 @@ public class ToolWhitelistService {
                         .map(RemoveToolWhitelistRequestDto::getToolName)
                         .collect(Collectors.toList()) : new ArrayList<>();
         
-        notifyAgentOfWhitelistUpdate(memberId, serverId, addedToolNames, removedToolNames);
+        // Notify agent for all relevant conversations
+        if (!conversationsToNotify.isEmpty()) {
+            notifyAgentOfWhitelistUpdate(memberId, conversationsToNotify, addedToolNames, removedToolNames);
+        }
     }
 
     /**
@@ -495,54 +513,259 @@ public class ToolWhitelistService {
     }
 
     /**
-     * Notifies the agent service about tool whitelist updates.
+     * Determines the highest scope from all add and remove requests in the update.
+     * Scope hierarchy: GLOBAL > SERVER > CONVERSATION
+     *
+     * @param updateRequest the update request containing add and remove requests
+     * @return the highest scope found in the request
+     */
+    private ToolWhitelistScope determineHighestScope(UpdateToolWhitelistRequestDto updateRequest) {
+        ToolWhitelistScope highestScope = ToolWhitelistScope.CONVERSATION; // Start with the lowest scope
+        
+        // Check add requests
+        if (updateRequest.getAddRequests() != null) {
+            for (AddToolWhitelistRequestDto addRequest : updateRequest.getAddRequests()) {
+                if (addRequest.getScope() == ToolWhitelistScope.GLOBAL) {
+                    return ToolWhitelistScope.GLOBAL; // Global is highest, return immediately
+                } else if (addRequest.getScope() == ToolWhitelistScope.SERVER && highestScope == ToolWhitelistScope.CONVERSATION) {
+                    highestScope = ToolWhitelistScope.SERVER;
+                }
+            }
+        }
+        
+        // Check remove requests
+        if (updateRequest.getRemoveRequests() != null) {
+            for (RemoveToolWhitelistRequestDto removeRequest : updateRequest.getRemoveRequests()) {
+                if (removeRequest.getScope() == ToolWhitelistScope.GLOBAL) {
+                    return ToolWhitelistScope.GLOBAL; // Global is highest, return immediately
+                } else if (removeRequest.getScope() == ToolWhitelistScope.SERVER && highestScope == ToolWhitelistScope.CONVERSATION) {
+                    highestScope = ToolWhitelistScope.SERVER;
+                }
+            }
+        }
+        
+        return highestScope;
+    }
+
+    /**
+     * Validates that there are no processing conversations globally for the member.
+     * This is used for GLOBAL scope changes that affect all servers.
+     * Returns all conversations (both active and inactive) that may need notification.
+     *
+     * @param memberId the member ID to check
+     * @return list of all conversations for the member that may need notification
+     * @throws ConversationInProgressException if any processing conversations are found
+     */
+    private List<AssistantConversation> validateNoProcessingConversationsGlobally(Long memberId) {
+        // Get all conversations for the member across all servers (both active and inactive)
+        List<AssistantConversation> allConversations = assistantConversationService.getAllConversationsForMember(memberId);
+        
+        // Check for any processing conversations
+        for (AssistantConversation conversation : allConversations) {
+            if (conversation.getIsProcessing() != null && conversation.getIsProcessing()) {
+                throw new ConversationInProgressException(
+                    "Cannot update global tool whitelist while member has processing conversations. " +
+                    "Found processing conversation " + conversation.getId() + " in server " + conversation.getServerId() + 
+                    ". Please wait for all conversations to complete before making global changes."
+                );
+            }
+        }
+        
+        log.debug("Global validation passed: no processing conversations found for member {}", memberId);
+        return allConversations;
+    }
+
+    /**
+     * Validates that there are no processing conversations in the specific server.
+     * This is used for SERVER scope changes.
+     * Returns all conversations in the server that may need notification.
+     *
+     * @param memberId the member ID to check
+     * @param serverId the server ID to check
+     * @return list of conversations in the server that may need notification
+     * @throws ConversationInProgressException if any processing conversations are found
+     */
+    private List<AssistantConversation> validateNoProcessingConversationsInServer(Long memberId, Long serverId) {
+        // Get all conversations for the member in this specific server only
+        List<AssistantConversation> serverConversations =
+                assistantConversationService.getAllConversationsForMemberInServer(memberId, serverId);
+        
+        // Check for any processing conversations in this server
+        for (AssistantConversation conversation : serverConversations) {
+            if (conversation.getIsProcessing() != null && conversation.getIsProcessing()) {
+                throw new ConversationInProgressException(
+                    "Cannot update server tool whitelist while conversation " + conversation.getId() + 
+                    " is being processed. Please wait for the conversation to complete before making changes."
+                );
+            }
+        }
+        
+        log.debug("Server validation passed: no processing conversations found for member {} in server {}", memberId, serverId);
+        return serverConversations;
+    }
+
+    /**
+     * Validates conversation-specific updates by checking if the target conversations are processing.
+     * This is used for CONVERSATION scope changes.
+     *
+     * @param updateRequest the update request containing conversation-specific changes
+     * @param memberId the member ID
+     * @param serverId the server ID
+     * @return list of conversations that may need notification
+     * @throws ConversationInProgressException if any target conversations are processing
+     */
+    private List<AssistantConversation> validateConversationScopeUpdates(UpdateToolWhitelistRequestDto updateRequest, Long memberId, Long serverId) {
+        // For conversation scope, we need to validate specific conversations mentioned in the requests
+        Set<Long> conversationIds = new java.util.HashSet<>();
+        
+        // Collect conversation IDs from add requests
+        if (updateRequest.getAddRequests() != null) {
+            updateRequest.getAddRequests().stream()
+                .filter(req -> req.getScope() == ToolWhitelistScope.CONVERSATION && req.getAgentConversationId() != null)
+                .forEach(req -> conversationIds.add(req.getAgentConversationId()));
+        }
+        
+        // Collect conversation IDs from remove requests
+        if (updateRequest.getRemoveRequests() != null) {
+            updateRequest.getRemoveRequests().stream()
+                .filter(req -> req.getScope() == ToolWhitelistScope.CONVERSATION && req.getAgentConversationId() != null)
+                .forEach(req -> conversationIds.add(req.getAgentConversationId()));
+        }
+
+        // Use batch retrieval for better performance instead of individual queries
+        List<AssistantConversation> conversations = assistantConversationService.getConversationsByIds(
+            new java.util.ArrayList<>(conversationIds));
+        
+        // Validate that none of the target conversations are processing
+        for (AssistantConversation conversation : conversations) {
+            if (conversation != null && conversation.getIsProcessing() != null && conversation.getIsProcessing()) {
+                throw new ConversationInProgressException(
+                    "Cannot update conversation-scoped tool whitelist while conversation " + conversation.getId() + 
+                    " is being processed. Please wait for the conversation to complete."
+                );
+            }
+        }
+        
+        // Return the validated conversations for agent notification
+        log.debug("Conversation validation passed: no target conversations are processing for member {} in server {}", memberId, serverId);
+        return conversations;
+    }
+
+    /**
+     * Validates that no interrupted tools are being added to the whitelist.
+     * If a conversation is interrupted by a tool and that same tool is being added to the whitelist,
+     * this creates a conflicting state and should be rejected.
+     * All filtering is pushed to the database level for optimal performance.
+     *
+     * @param addRequest the add request
+     * @param conversationsToNotify list of conversations that would be affected
+     * @throws InterruptedToolConflictException if any interrupted tool is being added
+     */
+    private void validateNoInterruptedToolsBeingAdded(List<AddToolWhitelistRequestDto> addRequest, List<AssistantConversation> conversationsToNotify) {
+        // Only check if there are add requests and conversations
+        if (addRequest == null || addRequest.isEmpty() || conversationsToNotify.isEmpty()) {
+            log.debug("No add requests or conversations to validate, skipping interrupted tool validation");
+            return;
+        }
+
+        // Get list of tool names being added
+        List<String> addedToolNames = addRequest.stream()
+                .map(AddToolWhitelistRequestDto::getToolName)
+                .collect(Collectors.toList());
+
+        // Use database-level filtering to find conflicting tools
+        List<String> conflictingToolNames = assistantConversationService.getConflictingInterruptedToolNames(
+            conversationsToNotify, addedToolNames);
+
+        // If any conflicts found, throw exception with the first conflicting tool
+        if (!conflictingToolNames.isEmpty()) {
+            String conflictingToolName = conflictingToolNames.get(0);
+            
+            // Find a conversation that has this interrupted tool for better error message
+            AssistantConversation conflictingConversation = conversationsToNotify.stream()
+                    .filter(conv -> conv.getIsInterrupt() && conv.getInterruptedToolId() != null)
+                    .findFirst()
+                    .orElse(null);
+
+            throw new InterruptedToolConflictException(
+                "Cannot add tool '" + conflictingToolName + "' to whitelist while it is currently " +
+                "interrupting a conversation" + 
+                (conflictingConversation != null ? 
+                    " (conversation " + conflictingConversation.getId() + " in server " + conflictingConversation.getServerId() + ")" : "") +
+                ". Please resolve the interruption first before adding this tool to the whitelist." +
+                (conflictingToolNames.size() > 1 ? 
+                    " Additional conflicting tools: " + String.join(", ", conflictingToolNames.subList(1, conflictingToolNames.size())) : "")
+            );
+        }
+        
+        log.debug("Interrupted tool validation passed: no interrupted tools are being added to whitelist");
+    }
+
+
+    /**
+     * Notifies the agent service about tool whitelist updates for multiple conversations.
      * <p>
-     * This method sends a blocking HTTP request to the agent service to inform it about
-     * changes to a member's tool whitelist. The agent can then update its internal
-     * state or cache accordingly.
+     * This method sends a single HTTP request to the agent service with a list of all
+     * affected conversations. For global scope changes, this will include all servers
+     * where the member has active conversations.
      * </p>
      *
      * @param memberId the member ID whose whitelist was updated
-     * @param serverId the server ID where the update occurred
+     * @param conversations list of conversations to notify (each represents a server/conversation pair)
      * @param addedToolNames list of tool names that were added
      * @param removedToolNames list of tool names that were removed
      */
-    private void notifyAgentOfWhitelistUpdate(Long memberId, Long serverId, List<String> addedToolNames, List<String> removedToolNames) {
-        try {
-            // Prepare the request payload with only the changes
-            Map<String, Object> requestBody = Map.of(
-                "serverId", serverId,
-                "memberId", memberId,
+    private void notifyAgentOfWhitelistUpdate(Long memberId, List<AssistantConversation> conversations, List<String> addedToolNames, List<String> removedToolNames) {
+        if (conversations.isEmpty()) {
+            log.debug("No conversations to notify for member {}", memberId);
+            return;
+        }
+
+
+        // Convert AssistantConversation objects to DTOs
+        List<ConversationDto> conversationDtos = conversations.stream()
+                .map(conversation -> ConversationDto.builder()
+                        .conversationId(conversation.getId())
+                        .serverId(conversation.getServerId())
+                        .memberId(conversation.getMemberId())
+                        .build())
+                .toList();
+
+        // Prepare the request payload with the list of conversations
+        Map<String, Object> requestBody = Map.of(
+                "conversations", conversationDtos,
                 "addedTools", addedToolNames,
                 "removedTools", removedToolNames
-            );
-            
-            // Set up HTTP headers
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            
-            // Create HTTP entity with body and headers
-            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(requestBody, headers);
-            
+        );
+
+        // Set up HTTP headers
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        // Create HTTP entity with body and headers
+        HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(requestBody, headers);
+        String agentEndpoint = agentUrl + "/tool-whitelist/update";
+
+        try {
             // Send blocking HTTP POST request to agent
-            String agentEndpoint = agentUrl + "/tool-whitelist/update";
             ResponseEntity<String> response = restTemplate.postForEntity(agentEndpoint, requestEntity, String.class);
             
             if (response.getStatusCode().is2xxSuccessful()) {
-                log.info("Successfully notified agent of whitelist update for member {} in server {}: {}", 
-                        memberId, serverId, response.getBody());
+                log.info("Successfully notified agent of whitelist update for member {} across {} conversations: {}", 
+                        memberId, conversations.size(), response.getBody());
                 
-                // Agent notified successfully
-                log.debug("Agent response parsed successfully");
+                // Log individual conversations for debugging
+                conversations.forEach(conversation -> 
+                    log.debug("Notified conversation {} in server {}", conversation.getId(), conversation.getServerId()));
             } else {
-                log.warn("Agent notification returned non-success status {} for member {} in server {}: {}", 
-                        response.getStatusCode(), memberId, serverId, response.getBody());
+                log.warn("Agent notification returned non-success status {} for member {} across {} conversations: {}", 
+                        response.getStatusCode(), memberId, conversations.size(), response.getBody());
             }
                     
         } catch (Exception e) {
             // Don't let agent notification failures break the main operation
-            log.error("Failed to notify agent of whitelist update for member {} in server {}: {}", 
-                    memberId, serverId, e.getMessage(), e);
+            log.error("Failed to notify agent of whitelist update for member {} across {} conversations: {}", 
+                    memberId, conversations.size(), e.getMessage(), e);
         }
     }
 

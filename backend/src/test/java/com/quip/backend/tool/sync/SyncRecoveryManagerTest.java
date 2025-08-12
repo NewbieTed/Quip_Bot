@@ -1,8 +1,10 @@
 package com.quip.backend.tool.sync;
 
 import com.quip.backend.redis.service.RedisService;
+import com.quip.backend.tool.model.ToolInfo;
 import com.quip.backend.tool.model.ToolInventoryResponse;
 import com.quip.backend.tool.model.ToolResyncRequest;
+import com.quip.backend.tool.monitoring.ToolSyncMetricsService;
 import com.quip.backend.tool.service.ToolService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +41,9 @@ class SyncRecoveryManagerTest {
     @Mock
     private RestTemplate restTemplate;
 
+    @Mock
+    private ToolSyncMetricsService metricsService;
+
     @InjectMocks
     private SyncRecoveryManager syncRecoveryManager;
 
@@ -50,13 +55,20 @@ class SyncRecoveryManagerTest {
         ReflectionTestUtils.setField(syncRecoveryManager, "agentBaseUrl", AGENT_BASE_URL);
         ReflectionTestUtils.setField(syncRecoveryManager, "recoveryEnabled", true);
         ReflectionTestUtils.setField(syncRecoveryManager, "recoveryTimeoutMs", 10000);
+        ReflectionTestUtils.setField(syncRecoveryManager, "maxRetryAttempts", 3);
+        ReflectionTestUtils.setField(syncRecoveryManager, "initialRetryDelayMs", 1000L);
+        ReflectionTestUtils.setField(syncRecoveryManager, "resyncEndpoint", "/api/tools/resync");
     }
 
     @Test
     void triggerResync_Success_ShouldReturnTrue() {
         // Arrange
         String reason = "message_processing_failure";
-        List<String> tools = Arrays.asList("tool1", "tool2", "tool3");
+        List<ToolInfo> tools = Arrays.asList(
+            new ToolInfo("tool1", "built-in"),
+            new ToolInfo("tool2", "built-in"),
+            new ToolInfo("tool3", "QuipMCPServer")
+        );
         
         ToolInventoryResponse mockResponse = new ToolInventoryResponse();
         mockResponse.setRequestId("test-request-id");
@@ -68,6 +80,7 @@ class SyncRecoveryManagerTest {
         when(redisService.delete(TOOLS_UPDATES_KEY)).thenReturn(true);
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(ToolInventoryResponse.class)))
                 .thenReturn(new ResponseEntity<>(mockResponse, HttpStatus.OK));
+        doNothing().when(toolService).syncToolsFromInventoryWithServerInfo(anyList());
 
         // Act
         boolean result = syncRecoveryManager.triggerResync(reason);
@@ -106,7 +119,7 @@ class SyncRecoveryManagerTest {
                     // Simulate long-running operation
                     Thread.sleep(100);
                     ToolInventoryResponse response = new ToolInventoryResponse();
-                    response.setCurrentTools(Arrays.asList("tool1"));
+                    response.setCurrentTools(Arrays.asList(new ToolInfo("tool1", "built-in")));
                     return new ResponseEntity<>(response, HttpStatus.OK);
                 });
 
@@ -201,7 +214,10 @@ class SyncRecoveryManagerTest {
     void triggerResync_ValidatesHttpRequest() {
         // Arrange
         String reason = "validation_test";
-        List<String> tools = Arrays.asList("tool1", "tool2");
+        List<ToolInfo> tools = Arrays.asList(
+            new ToolInfo("tool1", "built-in"),
+            new ToolInfo("tool2", "built-in")
+        );
         
         ToolInventoryResponse mockResponse = new ToolInventoryResponse();
         mockResponse.setCurrentTools(tools);
@@ -241,7 +257,7 @@ class SyncRecoveryManagerTest {
     void triggerResync_RetryLogic_ShouldRetryOnFailure() {
         // Arrange
         String reason = "retry_test";
-        List<String> tools = Arrays.asList("tool1");
+        List<ToolInfo> tools = Arrays.asList(new ToolInfo("tool1", "built-in"));
         
         ToolInventoryResponse mockResponse = new ToolInventoryResponse();
         mockResponse.setCurrentTools(tools);

@@ -119,6 +119,9 @@ app:
       recovery-timeout: ${REDIS_CB_RECOVERY_TIMEOUT:30000}  # Recovery timeout in ms
   # Tool synchronization configuration
   tool-sync:
+    # TESTING: Configuration for forcing failures to test resync feature
+    test:
+      force-failure: ${TOOL_SYNC_TEST_FORCE_FAILURE:false}   # Force tool sync failures for testing
     consumer:
       enabled: ${TOOL_SYNC_CONSUMER_ENABLED:true}           # Enable/disable tool update consumer
       polling-timeout: ${TOOL_SYNC_POLLING_TIMEOUT:30}      # Redis polling timeout in seconds

@@ -70,7 +70,7 @@ public class CacheWarmingService {
             List<Server> servers = serverMapper.selectList(null);
             
             if (servers == null || servers.isEmpty()) {
-                log.debug("No servers found, skipping problem categories cache warming");
+                log.debug("No discord servers found, skipping problem categories cache warming");
                 return;
             }
             
