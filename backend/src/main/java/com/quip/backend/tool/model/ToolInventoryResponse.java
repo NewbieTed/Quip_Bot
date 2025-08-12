@@ -27,7 +27,7 @@ public class ToolInventoryResponse {
 
     @NotNull(message = "Current tools list cannot be null")
     @JsonProperty("currentTools")
-    private List<String> currentTools;
+    private List<ToolInfo> currentTools;
 
     @NotNull(message = "Discovery timestamp cannot be null")
     @JsonProperty("discoveryTimestamp")
@@ -37,7 +37,7 @@ public class ToolInventoryResponse {
         // Default constructor for JSON deserialization
     }
 
-    public ToolInventoryResponse(String requestId, Instant timestamp, List<String> currentTools, Instant discoveryTimestamp) {
+    public ToolInventoryResponse(String requestId, Instant timestamp, List<ToolInfo> currentTools, Instant discoveryTimestamp) {
         this.requestId = requestId;
         this.timestamp = timestamp;
         this.currentTools = currentTools;
@@ -60,11 +60,11 @@ public class ToolInventoryResponse {
         this.timestamp = timestamp;
     }
 
-    public List<String> getCurrentTools() {
+    public List<ToolInfo> getCurrentTools() {
         return currentTools;
     }
 
-    public void setCurrentTools(List<String> currentTools) {
+    public void setCurrentTools(List<ToolInfo> currentTools) {
         this.currentTools = currentTools;
     }
 

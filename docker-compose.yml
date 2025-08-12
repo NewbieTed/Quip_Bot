@@ -124,6 +124,8 @@ services:
       MCP_SERVER_URL_QUIPMCPSERVER: ${MCP_SERVER_URL_QUIPMCPSERVER}
       MCP_SERVER_URL: ${MCP_SERVER_URL}  # Global fallback
       BACKEND_URL: http://quip-backend-app:8080
+      # Set the internal port to match the exposed port
+      PORT: 5001
       # Redis Configuration
       REDIS_HOST: quip-redis
       REDIS_PORT: ${REDIS_PORT:-6379}

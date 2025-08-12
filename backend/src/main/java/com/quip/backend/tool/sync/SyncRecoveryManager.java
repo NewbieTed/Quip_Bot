@@ -1,10 +1,12 @@
 package com.quip.backend.tool.sync;
 
 import com.quip.backend.redis.service.RedisService;
+import com.quip.backend.tool.model.ToolInfo;
 import com.quip.backend.tool.model.ToolInventoryResponse;
 import com.quip.backend.tool.model.ToolResyncRequest;
 import com.quip.backend.tool.monitoring.ToolSyncMetricsService;
 import com.quip.backend.tool.service.ToolService;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,8 +20,10 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 /**
  * Service responsible for managing sync recovery operations when Redis message processing fails.
@@ -53,7 +57,14 @@ public class SyncRecoveryManager {
     
     @Value("${app.tool-sync.recovery.agent.base-url:http://localhost:5001}")
     private String agentBaseUrl;
-    
+
+    /**
+     * -- GETTER --
+     *  Gets the current configuration status of sync recovery.
+     *
+     * @return true if sync recovery is enabled, false otherwise
+     */
+    @Getter
     @Value("${app.tool-sync.recovery.enabled:true}")
     private boolean recoveryEnabled;
     
@@ -305,12 +316,19 @@ public class SyncRecoveryManager {
             log.info("Processing sync response - requestId: {}, tools count: {}", 
                     response.getRequestId(), response.getCurrentTools().size());
             
-            // Delegate to ToolService for database synchronization
-            // This will be implemented in task 14
-            // For now, just log the operation
-            log.info("Tool inventory sync would process {} tools: {}", 
-                    response.getCurrentTools().size(), response.getCurrentTools());
+            // Filter valid tool info objects from the response
+            List<ToolInfo> currentToolInfos = response.getCurrentTools().stream()
+                    .filter(toolInfo -> toolInfo != null && toolInfo.getName() != null && toolInfo.getMcpServerName() != null)
+                    .collect(java.util.stream.Collectors.toList());
             
+            log.info("Tool inventory sync processing {} tools with server info: {}", 
+                    currentToolInfos.size(), 
+                    currentToolInfos.stream().map(t -> t.getName() + "(" + t.getMcpServerName() + ")").collect(java.util.stream.Collectors.toList()));
+            
+            // Delegate to ToolService for database synchronization
+            toolService.syncToolsFromInventoryWithServerInfo(currentToolInfos);
+            
+            log.info("Successfully synchronized tool inventory with database");
             return true;
             
         } catch (Exception e) {
@@ -328,12 +346,4 @@ public class SyncRecoveryManager {
         return recoveryInProgress.get();
     }
 
-    /**
-     * Gets the current configuration status of sync recovery.
-     *
-     * @return true if sync recovery is enabled, false otherwise
-     */
-    public boolean isRecoveryEnabled() {
-        return recoveryEnabled;
-    }
 }

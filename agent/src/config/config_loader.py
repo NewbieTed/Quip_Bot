@@ -32,6 +32,27 @@ class Config:
     DB_USER = os.getenv("DB_USER", "postgres")
     DB_PASSWORD = os.getenv("DB_PASSWORD")
     
+    # Redis Configuration
+    REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+    REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+    REDIS_RETRY_MAX_ATTEMPTS = int(os.getenv("REDIS_RETRY_MAX_ATTEMPTS", "3"))
+    REDIS_RETRY_BASE_DELAY = float(os.getenv("REDIS_RETRY_BASE_DELAY", "1.0"))
+    REDIS_RETRY_MAX_DELAY = float(os.getenv("REDIS_RETRY_MAX_DELAY", "30.0"))
+    
+    # Tool Sync HTTP Server Configuration
+    TOOL_SYNC_HTTP_ENABLED = os.getenv("TOOL_SYNC_HTTP_ENABLED", "true").lower() == "true"
+    TOOL_SYNC_HTTP_HOST = os.getenv("TOOL_SYNC_HTTP_HOST", "0.0.0.0")
+    TOOL_SYNC_HTTP_PORT = int(os.getenv("TOOL_SYNC_HTTP_PORT", "5001"))
+    TOOL_SYNC_HTTP_TIMEOUT = int(os.getenv("TOOL_SYNC_HTTP_TIMEOUT", "10"))
+    
+    # Tool Discovery Configuration
+    TOOL_DISCOVERY_TIMEOUT = int(os.getenv("TOOL_DISCOVERY_TIMEOUT", "10"))
+    TOOL_DISCOVERY_RETRY_ATTEMPTS = int(os.getenv("TOOL_DISCOVERY_RETRY_ATTEMPTS", "2"))
+    TOOL_DISCOVERY_RETRY_DELAY = float(os.getenv("TOOL_DISCOVERY_RETRY_DELAY", "1"))
+
+    
     @classmethod
     def load_yaml_config(cls) -> Dict[str, Any]:
         """Load configuration from YAML file"""
@@ -121,3 +142,46 @@ class Config:
         return config.get("backend", {
             "url": cls.BACKEND_URL
         })
+    
+    @classmethod
+    def get_redis_config(cls) -> Dict[str, Any]:
+        """Get Redis configuration with environment variables taking precedence over YAML"""
+        config = cls.load_yaml_config()
+        yaml_redis = config.get("redis", {})
+        
+        # Environment variables take precedence over YAML config
+        return {
+            "host": cls.REDIS_HOST,
+            "port": cls.REDIS_PORT,
+            "db": cls.REDIS_DB,
+            "password": cls.REDIS_PASSWORD,
+            "retry": {
+                "max_attempts": cls.REDIS_RETRY_MAX_ATTEMPTS,
+                "base_delay": cls.REDIS_RETRY_BASE_DELAY,
+                "max_delay": cls.REDIS_RETRY_MAX_DELAY
+            }
+        }
+    
+    @classmethod
+    def get_tool_sync_config(cls) -> Dict[str, Any]:
+        """Get tool synchronization configuration with environment variables taking precedence over YAML"""
+        config = cls.load_yaml_config()
+        yaml_tool_sync = config.get("tool_sync", {})
+        
+        # Environment variables take precedence over YAML config
+        return {
+            "enabled": yaml_tool_sync.get("enabled", True),
+            "discovery_on_startup": yaml_tool_sync.get("discovery_on_startup", True),
+            "http_server": {
+                "enabled": cls.TOOL_SYNC_HTTP_ENABLED,
+                "host": cls.TOOL_SYNC_HTTP_HOST,
+                "port": cls.TOOL_SYNC_HTTP_PORT,
+                "timeout": cls.TOOL_SYNC_HTTP_TIMEOUT,
+                "discovery": {
+                    "timeout": cls.TOOL_DISCOVERY_TIMEOUT,
+                    "retry_attempts": cls.TOOL_DISCOVERY_RETRY_ATTEMPTS,
+                    "retry_delay": cls.TOOL_DISCOVERY_RETRY_DELAY
+                }
+            }
+        }
+    

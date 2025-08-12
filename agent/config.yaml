@@ -55,10 +55,10 @@ agent:
 
 # Redis Configuration
 redis:
-  host: "localhost"  # Can be overridden by REDIS_HOST env var
-  port: 6379         # Can be overridden by REDIS_PORT env var
-  db: 0              # Can be overridden by REDIS_DB env var
-  password: null     # Can be overridden by REDIS_PASSWORD env var
+  host: "quip-redis"  # Can be overridden by REDIS_HOST env var
+  port: 6379          # Can be overridden by REDIS_PORT env var
+  db: 0               # Can be overridden by REDIS_DB env var
+  password: null      # Can be overridden by REDIS_PASSWORD env var
   retry:
     max_attempts: 3    # Can be overridden by REDIS_RETRY_MAX_ATTEMPTS env var
     base_delay: 1.0    # Can be overridden by REDIS_RETRY_BASE_DELAY env var
@@ -75,12 +75,12 @@ tool_sync:
   discovery_on_startup: true
   # HTTP server configuration for sync recovery
   http_server:
-    enabled: ${TOOL_SYNC_HTTP_ENABLED:true}                # Enable/disable HTTP sync endpoints
-    host: ${TOOL_SYNC_HTTP_HOST:0.0.0.0}                   # HTTP server host
-    port: ${TOOL_SYNC_HTTP_PORT:5001}                      # HTTP server port
-    timeout: ${TOOL_SYNC_HTTP_TIMEOUT:10}                  # Request timeout in seconds
+    enabled: true                # Enable/disable HTTP sync endpoints (overridden by TOOL_SYNC_HTTP_ENABLED)
+    host: "0.0.0.0"             # HTTP server host (overridden by TOOL_SYNC_HTTP_HOST)
+    port: 5001                  # HTTP server port (overridden by TOOL_SYNC_HTTP_PORT)
+    timeout: 10                 # Request timeout in seconds (overridden by TOOL_SYNC_HTTP_TIMEOUT)
     # Tool discovery configuration for resync requests
     discovery:
-      timeout: ${TOOL_DISCOVERY_TIMEOUT:10}                # Tool discovery timeout in seconds
-      retry_attempts: ${TOOL_DISCOVERY_RETRY_ATTEMPTS:2}   # Retry attempts for failed discovery
-      retry_delay: ${TOOL_DISCOVERY_RETRY_DELAY:1}         # Delay between retries in seconds
+      timeout: 10               # Tool discovery timeout in seconds (overridden by TOOL_DISCOVERY_TIMEOUT)
+      retry_attempts: 2         # Retry attempts for failed discovery (overridden by TOOL_DISCOVERY_RETRY_ATTEMPTS)
+      retry_delay: 1            # Delay between retries in seconds (overridden by TOOL_DISCOVERY_RETRY_DELAY)

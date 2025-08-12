@@ -1,5 +1,6 @@
 package com.quip.backend.tool.handler;
 
+import com.quip.backend.tool.model.ToolInfo;
 import com.quip.backend.tool.model.ToolUpdateMessage;
 import com.quip.backend.tool.service.ToolService;
 import com.quip.backend.tool.monitoring.ToolSyncMetricsService;
@@ -253,16 +254,28 @@ public class ToolUpdateMessageHandler {
      * @param type the type of tools (added/removed) for logging
      * @param messageId the message ID for context
      */
-    private void logInvalidToolNames(List<String> toolNames, String type, String messageId) {
-        if (toolNames == null) {
+    private void logInvalidToolNames(List<ToolInfo> toolInfos, String type, String messageId) {
+        if (toolInfos == null) {
             return;
         }
 
-        for (String toolName : toolNames) {
+        for (ToolInfo toolInfo : toolInfos) {
+            if (toolInfo == null) {
+                log.warn("Invalid {} tool: null tool info, messageId={}", type, messageId);
+                continue;
+            }
+            
+            String toolName = toolInfo.getName();
             if (toolName == null || toolName.trim().isEmpty()) {
                 log.warn("Invalid {} tool name: null or empty, messageId={}", type, messageId);
             } else if (!toolName.matches("^[a-zA-Z0-9_-]+$")) {
                 log.warn("Invalid {} tool name: '{}' (contains invalid characters), messageId={}", 
+                        type, toolName, messageId);
+            }
+            
+            String mcpServerName = toolInfo.getMcpServerName();
+            if (mcpServerName == null || mcpServerName.trim().isEmpty()) {
+                log.warn("Invalid {} tool MCP server name: null or empty for tool '{}', messageId={}", 
                         type, toolName, messageId);
             }
         }
@@ -312,26 +325,32 @@ public class ToolUpdateMessageHandler {
      * @param messageId the message ID for logging context
      * @return true if all tools were processed successfully, false otherwise
      */
-    private boolean processAddedTools(List<String> addedTools, String messageId) {
+    private boolean processAddedTools(List<ToolInfo> addedTools, String messageId) {
         boolean allSuccess = true;
         long startTime = System.currentTimeMillis();
 
-        for (String toolName : addedTools) {
+        for (ToolInfo toolInfo : addedTools) {
             long toolStartTime = System.currentTimeMillis();
             try {
-                log.info("Processing added tool: '{}', messageId={}", toolName, messageId);
+                String toolName = toolInfo.getName();
+                String mcpServerName = toolInfo.getMcpServerName();
                 
-                // Call ToolService to create or update the tool
-                toolService.createOrUpdateToolFromAgent(toolName);
+                log.info("Processing added tool: '{}' from MCP server '{}', messageId={}", 
+                        toolName, mcpServerName, messageId);
+                
+                // Call ToolService to create or update the tool with MCP server info
+                toolService.createOrUpdateToolFromAgent(toolName, mcpServerName);
                 
                 long toolProcessingTime = System.currentTimeMillis() - toolStartTime;
-                log.info("Successfully processed added tool: '{}', messageId={}, processingTime={}ms", 
-                        toolName, messageId, toolProcessingTime);
+                log.info("Successfully processed added tool: '{}' from MCP server '{}', messageId={}, processingTime={}ms", 
+                        toolName, mcpServerName, messageId, toolProcessingTime);
                 
             } catch (Exception e) {
                 long toolProcessingTime = System.currentTimeMillis() - toolStartTime;
-                log.error("Failed to process added tool: '{}', messageId={}, processingTime={}ms", 
-                        toolName, messageId, toolProcessingTime, e);
+                String toolName = toolInfo != null ? toolInfo.getName() : "unknown";
+                String mcpServerName = toolInfo != null ? toolInfo.getMcpServerName() : "unknown";
+                log.error("Failed to process added tool: '{}' from MCP server '{}', messageId={}, processingTime={}ms", 
+                        toolName, mcpServerName, messageId, toolProcessingTime, e);
                 allSuccess = false;
             }
         }
@@ -361,26 +380,32 @@ public class ToolUpdateMessageHandler {
      * @param messageId the message ID for logging context
      * @return true if all tools were processed successfully, false otherwise
      */
-    private boolean processRemovedTools(List<String> removedTools, String messageId) {
+    private boolean processRemovedTools(List<ToolInfo> removedTools, String messageId) {
         boolean allSuccess = true;
         long startTime = System.currentTimeMillis();
 
-        for (String toolName : removedTools) {
+        for (ToolInfo toolInfo : removedTools) {
             long toolStartTime = System.currentTimeMillis();
             try {
-                log.info("Processing removed tool: '{}', messageId={}", toolName, messageId);
+                String toolName = toolInfo.getName();
+                String mcpServerName = toolInfo.getMcpServerName();
+                
+                log.info("Processing removed tool: '{}' from MCP server '{}', messageId={}", 
+                        toolName, mcpServerName, messageId);
                 
                 // Call ToolService to disable the tool
                 toolService.disableToolFromAgent(toolName);
                 
                 long toolProcessingTime = System.currentTimeMillis() - toolStartTime;
-                log.info("Successfully processed removed tool: '{}', messageId={}, processingTime={}ms", 
-                        toolName, messageId, toolProcessingTime);
+                log.info("Successfully processed removed tool: '{}' from MCP server '{}', messageId={}, processingTime={}ms", 
+                        toolName, mcpServerName, messageId, toolProcessingTime);
                 
             } catch (Exception e) {
                 long toolProcessingTime = System.currentTimeMillis() - toolStartTime;
-                log.error("Failed to process removed tool: '{}', messageId={}, processingTime={}ms", 
-                        toolName, messageId, toolProcessingTime, e);
+                String toolName = toolInfo != null ? toolInfo.getName() : "unknown";
+                String mcpServerName = toolInfo != null ? toolInfo.getMcpServerName() : "unknown";
+                log.error("Failed to process removed tool: '{}' from MCP server '{}', messageId={}, processingTime={}ms", 
+                        toolName, mcpServerName, messageId, toolProcessingTime, e);
                 allSuccess = false;
             }
         }

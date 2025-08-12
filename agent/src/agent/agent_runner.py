@@ -13,6 +13,8 @@ from langchain_core.tools import BaseTool
 # Import prompt loader
 from src.agent.utils.prompt_loader import load_prompt
 
+# Tool discovery and Redis publishing is now handled in graph.py
+
 # Configure logger for this module
 logger = logging.getLogger(__name__)
 
@@ -72,8 +74,8 @@ async def _setup_agent(
         tool_whitelist: List[str]
 ) -> Tuple[CompiledStateGraph, Dict[str, Any], Dict[str, Any]]:
     """Common setup for agent runs."""
-    # Get the cached graph (recompile only if tools changed)
-    logger.debug("Retrieving cached graph")
+    # Get the cached graph (includes unified tool discovery and Redis publishing)
+    logger.debug("Retrieving cached graph with integrated tool discovery")
     graph: CompiledStateGraph = await get_cached_graph()
 
     # Log available tools for debugging
@@ -82,14 +84,7 @@ async def _setup_agent(
     logger.info("Agent has access to %d local tools: %s", len(tools), [tool.name for tool in tools])
 
     # Create config with thread ID and other context
-    config: Dict[str, Any] = {
-        "configurable": {
-            "thread_id": str(member_id) + str(server_id) + str(conversation_id),
-            "member_id": member_id,
-            "server_id:": server_id,
-            "conversation_id": conversation_id
-        }
-    }
+    config: Dict[str, Any] = _build_graph_config(member_id, server_id, conversation_id)
 
     # Prepare messages with system prompt and user message
     system_message: str = load_system_prompt()
@@ -113,7 +108,7 @@ async def _setup_agent(
         "conversation_id": conversation_id,
         "tool_whitelist": set(tool_whitelist)
     }
-    
+
     return graph, config, initial_state
 
 
@@ -148,7 +143,7 @@ async def _process_stream(
 
             if mode == "updates":
                 logger.debug("Received update stream chunk %s", chunk)
-                # Check for interrupt message (only in run_new_agent)
+                # Check for interrupt message
                 if isinstance(chunk, dict) and '__interrupt__' in chunk:
                     interrupt_obj = chunk['__interrupt__'][0]
                     request_value = interrupt_obj.value.get('request')
@@ -257,6 +252,116 @@ async def run_new_agent(
     _log_agent_complete(member_id)
 
 
-def update_tool_whitelist(server_id: int, member_id: int, tool_whitelist: List[str]):
 
-    pass
+
+
+def _build_graph_config(member_id: int, server_id: int, conversation_id: int) -> Dict[str, Any]:
+    """Build graph configuration for a specific conversation."""
+    return {
+        "configurable": {
+            "thread_id": str(member_id) + str(server_id) + str(conversation_id),
+            "member_id": member_id,
+            "server_id": server_id,
+            "conversation_id": conversation_id
+        }
+    }
+
+
+async def update_tool_whitelist(
+        member_id: int,
+        conversations: List[Dict[str, Any]],
+        added_tools: List[str],
+        removed_tools: List[str]
+) -> Dict[str, Any]:
+    """
+    Update tool whitelist for multiple conversations.
+    
+    Args:
+        member_id: The member whose tool whitelist is being updated
+        conversations: List of conversation objects with conversationId, serverId, memberId
+        added_tools: List of tool names that were added to the whitelist
+        removed_tools: List of tool names that were removed from the whitelist
+    
+    Returns:
+        Dictionary with update results and statistics
+    """
+    logger.info("Updating tool whitelist for member %s across %d conversations",
+                member_id, len(conversations))
+
+    # Get the cached graph
+    graph: CompiledStateGraph = await get_cached_graph()
+
+    updated_conversations = []
+    failed_conversations = []
+
+    for conversation in conversations:
+        conversation_id: int = conversation["conversationId"]
+        server_id: int = conversation["serverId"]
+        conv_member_id: int = conversation["memberId"]
+
+        # Build config for this specific conversation
+        config: dict[str, Any] = _build_graph_config(conv_member_id, server_id, conversation_id)
+
+        # Get current state
+        current_state: dict[str, Any] = graph.get_state(config).values
+
+        if current_state is None:
+            logger.warning("No state found for conversation %s, skipping", conversation_id)
+            failed_conversations.append({
+                "conversationId": conversation_id,
+                "serverId": server_id,
+                "error": "No state found"
+            })
+            continue
+
+        # Get current tool whitelist from state, or initialize empty set
+        current_whitelist: set = set(current_state.get("tool_whitelist", []))
+
+        # Apply changes (no need to copy as current_state is a SnapShot, not the original thing
+        updated_whitelist = current_whitelist
+        for tool in added_tools:
+            updated_whitelist.add(tool)
+            logger.debug("Added tool '%s' to conversation %s", tool, conversation_id)
+        for tool in removed_tools:
+            updated_whitelist.discard(tool)
+            logger.debug("Removed tool '%s' from conversation %s", tool, conversation_id)
+
+        # Update graph
+        try:
+            graph.update_state(config, {"tool_whitelist": updated_whitelist})
+            updated_conversations.append({
+                "conversationId": conversation_id,
+                "serverId": server_id,
+                "previousToolCount": len(current_whitelist),
+                "newToolCount": len(updated_whitelist),
+                "addedTools": added_tools,
+                "removedTools": removed_tools
+            })
+            logger.info("Successfully updated tool whitelist for conversation %s (server %s): %d -> %d tools",
+                        conversation_id, server_id, len(current_whitelist), len(updated_whitelist))
+        except Exception as e:
+            logger.error("Failed to update tool whitelist for conversation %s (server %s): %s",
+                         conversation_id, server_id, str(e))
+            failed_conversations.append({
+                "conversationId": conversation_id,
+                "serverId": server_id,
+                "error": str(e)
+            })
+
+    # Log summary
+    success_count = len(updated_conversations)
+    failure_count = len(failed_conversations)
+
+    logger.info("Tool whitelist update completed for member %s: %d successful, %d failed",
+                member_id, success_count, failure_count)
+
+    return {
+        "memberId": member_id,
+        "totalConversations": len(conversations),
+        "successfulUpdates": success_count,
+        "failedUpdates": failure_count,
+        "updatedConversations": updated_conversations,
+        "failedConversations": failed_conversations,
+        "addedTools": added_tools,
+        "removedTools": removed_tools
+    }

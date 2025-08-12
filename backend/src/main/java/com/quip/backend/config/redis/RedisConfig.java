@@ -125,7 +125,8 @@ public class RedisConfig {
         // Create a copy of the ObjectMapper for Redis-specific configuration
         ObjectMapper redisObjectMapper = objectMapper.copy();
         redisObjectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
-        redisObjectMapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance, ObjectMapper.DefaultTyping.NON_FINAL);
+        // Remove default typing to handle plain JSON from external sources (like the agent)
+        // redisObjectMapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance, ObjectMapper.DefaultTyping.NON_FINAL);
 
         // Configure JSON serializer for values with ObjectMapper
         GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer(redisObjectMapper);

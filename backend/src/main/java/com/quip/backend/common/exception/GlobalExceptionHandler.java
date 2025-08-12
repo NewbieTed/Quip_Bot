@@ -5,6 +5,7 @@ import com.quip.backend.common.exception.ValidationException;
 import com.quip.backend.dto.BaseResponse;
 import com.quip.backend.common.exception.EntityNotFoundException;
 import com.quip.backend.common.exception.ConversationInProgressException;
+import com.quip.backend.common.exception.InterruptedToolConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -113,6 +114,17 @@ public class GlobalExceptionHandler {
     public BaseResponse<String> handleConversationInProgressException(ConversationInProgressException ex) {
         String errorMessage = ex.getMessage();
         logger.error("ConversationInProgressException: {}", errorMessage, ex);
+        return BaseResponse.failure(HttpStatus.CONFLICT.value(), errorMessage);
+    }
+
+    /**
+     * Handles interrupted tool conflict exceptions.
+     * Returns a conflict status when operations cannot be completed due to tool interruption conflicts.
+     */
+    @ExceptionHandler(InterruptedToolConflictException.class)
+    public BaseResponse<String> handleInterruptedToolConflictException(InterruptedToolConflictException ex) {
+        String errorMessage = ex.getMessage();
+        logger.error("InterruptedToolConflictException: {}", errorMessage, ex);
         return BaseResponse.failure(HttpStatus.CONFLICT.value(), errorMessage);
     }
 

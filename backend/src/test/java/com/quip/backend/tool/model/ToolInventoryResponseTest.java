@@ -35,7 +35,11 @@ class ToolInventoryResponseTest {
         // Given
         String requestId = "550e8400-e29b-41d4-a716-446655440000";
         Instant timestamp = Instant.now();
-        List<String> currentTools = Arrays.asList("tool1", "tool2", "tool3");
+        List<ToolInfo> currentTools = Arrays.asList(
+            ToolInfo.builder().name("tool1").mcpServerName("built-in").build(),
+            ToolInfo.builder().name("geo-data-weather").mcpServerName("geo-data").build(),
+            ToolInfo.builder().name("tool3").mcpServerName("built-in").build()
+        );
         Instant discoveryTimestamp = Instant.now().minusSeconds(5);
         
         ToolInventoryResponse response = new ToolInventoryResponse(requestId, timestamp, currentTools, discoveryTimestamp);
@@ -56,7 +60,10 @@ class ToolInventoryResponseTest {
         // Given
         String invalidRequestId = "invalid-uuid";
         Instant timestamp = Instant.now();
-        List<String> currentTools = Arrays.asList("tool1", "tool2");
+        List<ToolInfo> currentTools = Arrays.asList(
+            ToolInfo.builder().name("tool1").mcpServerName("built-in").build(),
+            ToolInfo.builder().name("tool2").mcpServerName("built-in").build()
+        );
         Instant discoveryTimestamp = Instant.now();
         
         ToolInventoryResponse response = new ToolInventoryResponse(invalidRequestId, timestamp, currentTools, discoveryTimestamp);
@@ -74,7 +81,10 @@ class ToolInventoryResponseTest {
         // Given
         String blankRequestId = "";
         Instant timestamp = Instant.now();
-        List<String> currentTools = Arrays.asList("tool1", "tool2");
+        List<ToolInfo> currentTools = Arrays.asList(
+            ToolInfo.builder().name("tool1").mcpServerName("built-in").build(),
+            ToolInfo.builder().name("tool2").mcpServerName("built-in").build()
+        );
         Instant discoveryTimestamp = Instant.now();
         
         ToolInventoryResponse response = new ToolInventoryResponse(blankRequestId, timestamp, currentTools, discoveryTimestamp);
@@ -92,7 +102,10 @@ class ToolInventoryResponseTest {
         // Given
         String requestId = "550e8400-e29b-41d4-a716-446655440000";
         Instant timestamp = null;
-        List<String> currentTools = Arrays.asList("tool1", "tool2");
+        List<ToolInfo> currentTools = Arrays.asList(
+            ToolInfo.builder().name("tool1").mcpServerName("built-in").build(),
+            ToolInfo.builder().name("tool2").mcpServerName("built-in").build()
+        );
         Instant discoveryTimestamp = Instant.now();
         
         ToolInventoryResponse response = new ToolInventoryResponse(requestId, timestamp, currentTools, discoveryTimestamp);
@@ -110,7 +123,7 @@ class ToolInventoryResponseTest {
         // Given
         String requestId = "550e8400-e29b-41d4-a716-446655440000";
         Instant timestamp = Instant.now();
-        List<String> currentTools = null;
+        List<ToolInfo> currentTools = null;
         Instant discoveryTimestamp = Instant.now();
         
         ToolInventoryResponse response = new ToolInventoryResponse(requestId, timestamp, currentTools, discoveryTimestamp);
@@ -128,7 +141,10 @@ class ToolInventoryResponseTest {
         // Given
         String requestId = "550e8400-e29b-41d4-a716-446655440000";
         Instant timestamp = Instant.now();
-        List<String> currentTools = Arrays.asList("tool1", "tool2");
+        List<ToolInfo> currentTools = Arrays.asList(
+            ToolInfo.builder().name("tool1").mcpServerName("built-in").build(),
+            ToolInfo.builder().name("tool2").mcpServerName("built-in").build()
+        );
         Instant discoveryTimestamp = null;
         
         ToolInventoryResponse response = new ToolInventoryResponse(requestId, timestamp, currentTools, discoveryTimestamp);
@@ -146,7 +162,7 @@ class ToolInventoryResponseTest {
         // Given
         String requestId = "550e8400-e29b-41d4-a716-446655440000";
         Instant timestamp = Instant.now();
-        List<String> currentTools = Arrays.asList(); // Empty list should be valid
+        List<ToolInfo> currentTools = Arrays.asList(); // Empty list should be valid
         Instant discoveryTimestamp = Instant.now();
         
         ToolInventoryResponse response = new ToolInventoryResponse(requestId, timestamp, currentTools, discoveryTimestamp);
@@ -163,7 +179,11 @@ class ToolInventoryResponseTest {
         // Given
         String requestId = "550e8400-e29b-41d4-a716-446655440000";
         Instant timestamp = Instant.parse("2025-01-28T10:30:00Z");
-        List<String> currentTools = Arrays.asList("tool1", "tool2", "tool3");
+        List<ToolInfo> currentTools = Arrays.asList(
+            ToolInfo.builder().name("tool1").mcpServerName("built-in").build(),
+            ToolInfo.builder().name("geo-data-weather").mcpServerName("geo-data").build(),
+            ToolInfo.builder().name("tool3").mcpServerName("built-in").build()
+        );
         Instant discoveryTimestamp = Instant.parse("2025-01-28T10:29:55Z");
         
         ToolInventoryResponse response = new ToolInventoryResponse(requestId, timestamp, currentTools, discoveryTimestamp);
@@ -175,7 +195,13 @@ class ToolInventoryResponseTest {
         // Then
         assertEquals(response.getRequestId(), deserializedResponse.getRequestId());
         assertEquals(response.getTimestamp(), deserializedResponse.getTimestamp());
-        assertEquals(response.getCurrentTools(), deserializedResponse.getCurrentTools());
+        assertEquals(response.getCurrentTools().size(), deserializedResponse.getCurrentTools().size());
+        for (int i = 0; i < response.getCurrentTools().size(); i++) {
+            assertEquals(response.getCurrentTools().get(i).getName(), 
+                        deserializedResponse.getCurrentTools().get(i).getName());
+            assertEquals(response.getCurrentTools().get(i).getMcpServerName(), 
+                        deserializedResponse.getCurrentTools().get(i).getMcpServerName());
+        }
         assertEquals(response.getDiscoveryTimestamp(), deserializedResponse.getDiscoveryTimestamp());
     }
 
@@ -184,7 +210,10 @@ class ToolInventoryResponseTest {
         // Given
         String requestId = "550e8400-e29b-41d4-a716-446655440000";
         Instant timestamp = Instant.now();
-        List<String> currentTools = Arrays.asList("tool1", "tool2");
+        List<ToolInfo> currentTools = Arrays.asList(
+            ToolInfo.builder().name("tool1").mcpServerName("built-in").build(),
+            ToolInfo.builder().name("tool2").mcpServerName("built-in").build()
+        );
         Instant discoveryTimestamp = Instant.now();
         
         ToolInventoryResponse response1 = new ToolInventoryResponse(requestId, timestamp, currentTools, discoveryTimestamp);
@@ -203,7 +232,10 @@ class ToolInventoryResponseTest {
         // Given
         String requestId = "550e8400-e29b-41d4-a716-446655440000";
         Instant timestamp = Instant.now();
-        List<String> currentTools = Arrays.asList("tool1", "tool2");
+        List<ToolInfo> currentTools = Arrays.asList(
+            ToolInfo.builder().name("tool1").mcpServerName("built-in").build(),
+            ToolInfo.builder().name("tool2").mcpServerName("built-in").build()
+        );
         Instant discoveryTimestamp = Instant.now();
         
         ToolInventoryResponse response = new ToolInventoryResponse(requestId, timestamp, currentTools, discoveryTimestamp);
@@ -216,5 +248,94 @@ class ToolInventoryResponseTest {
         assertTrue(toString.contains(requestId));
         assertTrue(toString.contains("tool1"));
         assertTrue(toString.contains("tool2"));
+    }
+
+    @Test
+    void testMcpServerNameHandling_BuiltInTools() {
+        // Given
+        String requestId = "550e8400-e29b-41d4-a716-446655440000";
+        Instant timestamp = Instant.now();
+        List<ToolInfo> currentTools = Arrays.asList(
+            ToolInfo.builder().name("builtin-tool1").mcpServerName("built-in").build(),
+            ToolInfo.builder().name("builtin-tool2").mcpServerName("built-in").build(),
+            ToolInfo.builder().name("builtin-tool3").mcpServerName("built-in").build()
+        );
+        Instant discoveryTimestamp = Instant.now();
+        
+        ToolInventoryResponse response = new ToolInventoryResponse(requestId, timestamp, currentTools, discoveryTimestamp);
+        
+        // When/Then
+        assertEquals(3, response.getCurrentTools().size());
+        response.getCurrentTools().forEach(tool -> {
+            assertEquals("built-in", tool.getMcpServerName());
+            assertTrue(tool.getName().startsWith("builtin-tool"));
+        });
+    }
+
+    @Test
+    void testMcpServerNameHandling_McpTools() {
+        // Given
+        String requestId = "550e8400-e29b-41d4-a716-446655440000";
+        Instant timestamp = Instant.now();
+        List<ToolInfo> currentTools = Arrays.asList(
+            ToolInfo.builder().name("geo-data-weather").mcpServerName("geo-data").build(),
+            ToolInfo.builder().name("geo-data-location").mcpServerName("geo-data").build(),
+            ToolInfo.builder().name("aws-docs-search").mcpServerName("aws-docs").build()
+        );
+        Instant discoveryTimestamp = Instant.now();
+        
+        ToolInventoryResponse response = new ToolInventoryResponse(requestId, timestamp, currentTools, discoveryTimestamp);
+        
+        // When/Then
+        assertEquals(3, response.getCurrentTools().size());
+        
+        // Verify geo-data tools
+        List<ToolInfo> geoDataTools = response.getCurrentTools().stream()
+                .filter(tool -> "geo-data".equals(tool.getMcpServerName()))
+                .toList();
+        assertEquals(2, geoDataTools.size());
+        assertTrue(geoDataTools.stream().allMatch(tool -> tool.getName().startsWith("geo-data-")));
+        
+        // Verify aws-docs tools
+        List<ToolInfo> awsDocsTools = response.getCurrentTools().stream()
+                .filter(tool -> "aws-docs".equals(tool.getMcpServerName()))
+                .toList();
+        assertEquals(1, awsDocsTools.size());
+        assertTrue(awsDocsTools.get(0).getName().startsWith("aws-docs-"));
+    }
+
+    @Test
+    void testMcpServerNameHandling_MixedTools() {
+        // Given
+        String requestId = "550e8400-e29b-41d4-a716-446655440000";
+        Instant timestamp = Instant.now();
+        List<ToolInfo> currentTools = Arrays.asList(
+            ToolInfo.builder().name("builtin-tool1").mcpServerName("built-in").build(),
+            ToolInfo.builder().name("builtin-tool2").mcpServerName("built-in").build(),
+            ToolInfo.builder().name("geo-data-weather").mcpServerName("geo-data").build(),
+            ToolInfo.builder().name("geo-data-location").mcpServerName("geo-data").build(),
+            ToolInfo.builder().name("aws-docs-search").mcpServerName("aws-docs").build()
+        );
+        Instant discoveryTimestamp = Instant.now();
+        
+        ToolInventoryResponse response = new ToolInventoryResponse(requestId, timestamp, currentTools, discoveryTimestamp);
+        
+        // When/Then
+        assertEquals(5, response.getCurrentTools().size());
+        
+        // Count tools by server type
+        long builtInCount = response.getCurrentTools().stream()
+                .filter(tool -> "built-in".equals(tool.getMcpServerName()))
+                .count();
+        long geoDataCount = response.getCurrentTools().stream()
+                .filter(tool -> "geo-data".equals(tool.getMcpServerName()))
+                .count();
+        long awsDocsCount = response.getCurrentTools().stream()
+                .filter(tool -> "aws-docs".equals(tool.getMcpServerName()))
+                .count();
+        
+        assertEquals(2, builtInCount);
+        assertEquals(2, geoDataCount);
+        assertEquals(1, awsDocsCount);
     }
 }

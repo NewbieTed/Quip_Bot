@@ -1,6 +1,7 @@
 import os
 import hashlib
 import logging
+import time
 from langchain_openai import ChatOpenAI
 from langgraph.config import get_stream_writer
 from langgraph.constants import END
@@ -19,6 +20,11 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from typing import Annotated, Literal, Set, List
 
+# Import tool discovery and publisher services
+from src.agent.tools.discovery import get_tool_discovery_service
+from src.agent.redis.tool_publisher import get_tool_publisher_service
+from src.agent.monitoring.metrics_service import get_metrics_service
+
 # Configure logger for this module
 logger = logging.getLogger(__name__)
 
@@ -29,7 +35,6 @@ class AgentState(TypedDict):
     channel_id: int
     member_id: int
     conversation_id: int
-    decision: NotRequired[str]
     tool_call_ids: List[str]
     tool_whitelist: Set[str]
 
@@ -76,12 +81,12 @@ class HumanConfirmationNode:
         messages = state.get("messages", [])
         if not messages:
             logger.debug("No messages in state, returning unchanged")
-            return Command(goto="reject_action", update={"decision": "rejected"})
+            return Command(goto="reject_action")
 
         last_message = messages[-1]
         if not hasattr(last_message, "tool_calls") or not last_message.tool_calls:
             logger.debug("No tool calls in last message, returning unchanged")
-            return Command(goto="reject_action", update={"decision": "rejected"})
+            return Command(goto="reject_action")
 
         tool_whitelist: Set[str] = state["tool_whitelist"]
         for tool_call in last_message.tool_calls:
@@ -114,15 +119,14 @@ class HumanConfirmationNode:
                 logger.info("Rejecting all tool calls")
                 tool_call_ids = [tool_call["id"] for tool_call in last_message.tool_calls]
 
+                # No need to update tool whitelist if rejected
                 return Command(goto="reject_action",
                                update={
-                                    "decision": "rejected",
-                                    "tool_call_ids": tool_call_ids,
-                                    "tool_whitelist": tool_whitelist
+                                    "tool_call_ids": tool_call_ids
                                     }
                                )
 
-        return Command(goto="progress_report", update={"decision": "approved", "tool_whitelist": tool_whitelist})
+        return Command(goto="progress_report", update={"tool_whitelist": tool_whitelist})
 
 
 class ProgressReportNode:
@@ -281,12 +285,6 @@ async def setup_graph(tools=None, memory_saver=None) -> CompiledStateGraph:
         {"human_confirmation": "human_confirmation", END: END},
     )
 
-    graph_builder.add_conditional_edges(
-        "human_confirmation",
-        lambda state: state["decision"],
-        {"approved": "progress_report", "rejected": "reject_action"}
-    )
-
     graph_builder.add_edge("progress_report", "context_injection")
     graph_builder.add_edge("context_injection", "tools")
     graph_builder.add_edge("tools", "agent")
@@ -327,62 +325,60 @@ class GraphCache:
         return hashlib.md5(tools_string.encode()).hexdigest()
 
     async def get_graph(self):
-        """Get graph, recompiling only if tools have changed."""
-        # Get local tools with force_reload in development mode
-        local_tools = get_all_tools(force_reload=True)
-        logger.info("Loaded %d local tools: %s", len(local_tools), [tool.name for tool in local_tools])
-
-        # Create MCP client and get MCP tools
-        mcp_tools = []
-        mcp_config = Config.get_mcp_config()
-        mcp_enabled = mcp_config.get("enabled", True)
-
-        if mcp_enabled and self.client is None:
-            logger.info("Creating MCP client connection")
-            servers_config = {}
-            for server_name, server_config in mcp_config.get("servers", {}).items():
-                server_url = server_config.get("url", Config.MCP_SERVER_URL)
-                servers_config[server_name] = {
-                    "url": server_url,
-                    "transport": server_config.get("transport", "streamable_http")
-                }
-                logger.info("Configured MCP server '%s' with URL: %s", server_name, server_url)
-
-            if servers_config:
-                self.client = MultiServerMCPClient(servers_config)
-                mcp_tools: List[BaseTool] = await self.client.get_tools()
-
-                logger.info("Loaded %d MCP tools: %s", len(mcp_tools), [tool.name for tool in mcp_tools])
+        """Get graph, recompiling only if tools have changed, and publish tool changes to Redis."""
+        start_time = time.time()
+        
+        # Use the unified tool discovery service
+        discovery_service = get_tool_discovery_service()
+        metrics_service = get_metrics_service()
+        
+        # Discover all tools (local + MCP with fallback)
+        logger.debug("Starting unified tool discovery for graph compilation")
+        discovery_start_time = time.time()
+        all_tools = await discovery_service.discover_tools()
+        discovery_time = (time.time() - discovery_start_time) * 1000
+        
+        # Get tool changes and update cached inventory
+        added_tools, removed_tools = discovery_service.get_tool_changes(all_tools)
+        
+        # Record metrics for tool discovery and changes
+        local_tools = [tool for tool in all_tools if not hasattr(tool, '_mcp_server')]
+        mcp_tools = [tool for tool in all_tools if hasattr(tool, '_mcp_server')]
+        mcp_failed = discovery_service._mcp_connection_failed
+        
+        metrics_service.record_tool_discovery(
+            discovery_time, len(local_tools), len(mcp_tools), mcp_failed
+        )
+        metrics_service.record_tool_changes(len(added_tools), len(removed_tools))
+        
+        # Publish changes to Redis if tools were added/removed
+        if added_tools or removed_tools:
+            added_names = [tool["name"] for tool in added_tools]
+            removed_names = [tool["name"] for tool in removed_tools]
+            logger.info("Tool changes detected during graph compilation - Added: %s, Removed: %s", 
+                       added_names, removed_names)
+            
+            publisher_service = get_tool_publisher_service()
+            publish_success = publisher_service.publish_tool_changes(added_tools, removed_tools)
+            
+            # Record Redis publish metrics
+            metrics_service.record_redis_publish(publish_success)
+            
+            if publish_success:
+                logger.info("Successfully published tool changes to Redis")
             else:
-                logger.info("No MCP servers configured, using local tools only")
-
-            # TODO: Tool name conflicts?
-
-        elif mcp_enabled and self.client:
-            mcp_tools = await self.client.get_tools()
-            logger.debug("Retrieved %d MCP tools from existing client", len(mcp_tools))
-
-        elif not mcp_enabled:
-            logger.info("MCP disabled in configuration, using local tools only")
-
-        # Combine local and MCP tools
-        all_tools = local_tools + mcp_tools
-        # Check for duplicate tool names
-        name_counts = {}
-        for tool in all_tools:
-            name_counts[tool.name] = name_counts.get(tool.name, 0) + 1
-        duplicate_names = [name for name, count in name_counts.items() if count > 1]
-        if duplicate_names:
-            logger.warning("Duplicate tool names detected: %s", duplicate_names)
-            raise ValueError(f"Duplicate tool names detected: {duplicate_names}")
-
+                logger.warning("Failed to publish tool changes to Redis")
+        else:
+            logger.debug("No tool changes detected, cached inventory updated")
+        
+        # Compute tools hash for graph recompilation detection
         current_tools_hash = self._compute_tools_hash(all_tools)
         tool_names = [tool.name for tool in all_tools]
 
-        # Check if we need to recompile
+        # Check if we need to recompile the graph
         if self.graph is None:
-            logger.info("Initial graph compilation with %d total tools (%d local + %d MCP): %s",
-                        len(all_tools), len(local_tools), len(mcp_tools), tool_names)
+            logger.info("Initial graph compilation with %d total tools: %s",
+                        len(all_tools), tool_names)
             logger.debug("Tools hash: %s", current_tools_hash)
             self.graph = await setup_graph(all_tools, self.memory_saver)
             self.tools_hash = current_tools_hash
@@ -390,7 +386,7 @@ class GraphCache:
         elif current_tools_hash != self.tools_hash:
             logger.warning("Tools changed! Recompiling graph...")
             logger.info("Previous hash: %s, New hash: %s", self.tools_hash, current_tools_hash)
-            logger.info("New tools (%d local + %d MCP): %s", len(local_tools), len(mcp_tools), tool_names)
+            logger.info("New tools: %s", tool_names)
             logger.info("Preserving conversation memory across recompilation")
 
             # Recompile with the SAME memory saver to preserve history
@@ -399,6 +395,15 @@ class GraphCache:
 
         else:
             logger.debug("Using cached graph (tools unchanged, hash: %s)", current_tools_hash)
+
+        total_time = (time.time() - start_time) * 1000
+        logger.debug("Graph compilation completed", extra={
+            "event_type": "graph_compilation_complete",
+            "total_time_ms": total_time,
+            "discovery_time_ms": discovery_time,
+            "tool_count": len(all_tools),
+            "changes_detected": len(added_tools) + len(removed_tools) > 0
+        })
 
         return self.graph
 

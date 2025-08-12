@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quip.backend.redis.service.RedisService;
 import com.quip.backend.tool.handler.ToolUpdateMessageHandler;
+import com.quip.backend.tool.model.ToolInfo;
 import com.quip.backend.tool.model.ToolUpdateMessage;
 import com.quip.backend.tool.monitoring.ToolSyncMetricsService;
 import org.junit.jupiter.api.BeforeEach;
@@ -93,8 +94,8 @@ class ToolUpdateConsumerTest {
         ToolUpdateMessage testMessage = ToolUpdateMessage.builder()
                 .messageId("test-message-123")
                 .timestamp(OffsetDateTime.now())
-                .addedTools(List.of("new-tool"))
-                .removedTools(List.of("old-tool"))
+                .addedTools(List.of(ToolInfo.builder().name("new-tool").mcpServerName("test-server").build()))
+                .removedTools(List.of(ToolInfo.builder().name("old-tool").mcpServerName("test-server").build()))
                 .source("agent")
                 .build();
 
@@ -117,7 +118,10 @@ class ToolUpdateConsumerTest {
         ToolUpdateMessage testMessage = ToolUpdateMessage.builder()
                 .messageId("test-message-456")
                 .timestamp(OffsetDateTime.now())
-                .addedTools(List.of("tool1", "tool2"))
+                .addedTools(List.of(
+                        ToolInfo.builder().name("tool1").mcpServerName("test-server").build(),
+                        ToolInfo.builder().name("tool2").mcpServerName("test-server").build()
+                ))
                 .removedTools(List.of())
                 .source("agent")
                 .build();
@@ -141,7 +145,10 @@ class ToolUpdateConsumerTest {
                 .messageId("test-message-789")
                 .timestamp(OffsetDateTime.now())
                 .addedTools(List.of())
-                .removedTools(List.of("old-tool1", "old-tool2"))
+                .removedTools(List.of(
+                        ToolInfo.builder().name("old-tool1").mcpServerName("test-server").build(),
+                        ToolInfo.builder().name("old-tool2").mcpServerName("test-server").build()
+                ))
                 .source("agent")
                 .build();
 
@@ -188,7 +195,7 @@ class ToolUpdateConsumerTest {
         ToolUpdateMessage testMessage = ToolUpdateMessage.builder()
                 .messageId("test-message-fail")
                 .timestamp(OffsetDateTime.now())
-                .addedTools(List.of("tool1"))
+                .addedTools(List.of(ToolInfo.builder().name("tool1").mcpServerName("test-server").build()))
                 .removedTools(List.of())
                 .source("agent")
                 .build();
@@ -314,7 +321,7 @@ class ToolUpdateConsumerTest {
         ToolUpdateMessage testMessage = ToolUpdateMessage.builder()
                 .messageId("test-123")
                 .timestamp(OffsetDateTime.now())
-                .addedTools(List.of("tool1"))
+                .addedTools(List.of(ToolInfo.builder().name("tool1").mcpServerName("test-server").build()))
                 .removedTools(List.of())
                 .source("agent")
                 .build();

@@ -413,6 +413,32 @@ CREATE TABLE reaction_role (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE mcp_server (
+    id BIGSERIAL PRIMARY KEY,
+    discord_server_id BIGINT REFERENCES server(id) ON DELETE CASCADE,
+    server_name TEXT UNIQUE NOT NULL,
+    server_url TEXT NOT NULL,
+    description TEXT,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE tool (
+    id BIGSERIAL PRIMARY KEY,
+    mcp_server_id BIGINT NOT NULL REFERENCES mcp_server(id) ON DELETE CASCADE,
+    tool_name TEXT NOT NULL UNIQUE,
+    description TEXT,
+    enabled BOOLEAN DEFAULT FALSE NOT NULL,
+
+    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE assistant_conversation (
     id BIGSERIAL PRIMARY KEY,
     server_id BIGINT NOT NULL REFERENCES server(id) ON DELETE CASCADE,
@@ -442,32 +468,6 @@ CREATE TABLE assistant_conversation (
 CREATE UNIQUE INDEX uniq_active_conversation_per_member_server
 ON assistant_conversation (member_id, server_id)
 WHERE is_active = true;
-
-CREATE TABLE mcp_server (
-    id BIGSERIAL PRIMARY KEY,
-    discord_server_id BIGINT REFERENCES server(id) ON DELETE CASCADE,
-    server_name TEXT NOT NULL,
-    server_url TEXT NOT NULL,
-    description TEXT,
-
-    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE tool (
-    id BIGSERIAL PRIMARY KEY,
-    mcp_server_id BIGINT NOT NULL REFERENCES mcp_server(id) ON DELETE CASCADE,
-    tool_name TEXT NOT NULL UNIQUE,
-    description TEXT,
-    enabled BOOLEAN DEFAULT FALSE NOT NULL,
-
-    created_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
-    updated_by BIGINT REFERENCES member(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
 
 CREATE TYPE tool_whitelist_scope AS ENUM ('global', 'server', 'conversation');
 

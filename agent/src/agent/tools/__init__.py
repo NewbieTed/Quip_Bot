@@ -14,8 +14,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Import discovery service
+from .discovery import get_tool_discovery_service
+
 # Export all tools for easy import
-__all__ = ['get_all_tools']
+__all__ = ['get_all_tools', 'get_tool_discovery_service']
 
 _cached_tools = None
 
