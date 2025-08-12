@@ -2,6 +2,7 @@ package com.quip.backend.assistant.controller;
 
 import com.quip.backend.assistant.dto.request.AssistantRequestDto;
 import com.quip.backend.assistant.service.AssistantService;
+import com.quip.backend.dto.BaseResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -43,5 +44,12 @@ public class AssistantController {
     @PostMapping(value = "/invoke", produces = MediaType.TEXT_PLAIN_VALUE)
     public Flux<String> invokeAssistant(@Valid @RequestBody AssistantRequestDto assistantRequestDto) {
         return assistantService.invokeAssistant(assistantRequestDto);
+    }
+
+
+    @PostMapping(value = "/approve")
+    public BaseResponse<Boolean> processDecision(@Valid @RequestBody AssistantRequestDto assistantRequestDto) {
+        assistantService.invokeAssistant(assistantRequestDto);
+        return BaseResponse.success();
     }
 }

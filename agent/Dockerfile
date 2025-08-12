@@ -22,7 +22,7 @@ COPY . .
 RUN mkdir -p logs
 
 # Expose port
-EXPOSE 5000
+EXPOSE 5001
 
-# Run the application
-CMD ["uvicorn", "src.agent.main:app", "--host", "0.0.0.0", "--port", "5000"]
+# Run the application - use environment variable for port
+CMD ["sh", "-c", "uvicorn src.agent.main:app --host 0.0.0.0 --port ${PORT:-5001}"]

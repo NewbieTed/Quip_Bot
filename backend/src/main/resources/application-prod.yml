@@ -1,0 +1,98 @@
+# Production Environment Configuration
+spring:
+  # Production Redis Configuration
+  redis:
+    enabled: true
+    host: ${REDIS_HOST:redis-cluster.production.local}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD}  # Required in production
+    database: ${REDIS_DATABASE:0}
+    timeout: 3000ms
+    connect-timeout: 3000ms
+    # SSL configuration for production
+    ssl: ${REDIS_SSL_ENABLED:true}
+    lettuce:
+      pool:
+        max-active: 16       # Larger pool for production load
+        max-idle: 8
+        min-idle: 2
+        max-wait: 1000ms
+        time-between-eviction-runs: 60s
+      shutdown-timeout: 200ms
+  
+  # Production Cache Configuration
+  cache:
+    redis:
+      time-to-live: 3600000  # 1 hour default
+      cache-null-values: false
+      enable-statistics: true
+      # Production-optimized serialization
+      value-serializer: org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer
+
+# Production-specific Redis settings
+app:
+  redis:
+    default-ttl: 3600        # 1 hour
+    health-check-interval: 30000  # 30 seconds
+    cache-ttl:
+      tool-whitelist: 7200   # 2 hours (more stable in production)
+      problem-categories: 86400  # 24 hours
+      server-data: 21600     # 6 hours
+      member-data: 3600      # 1 hour
+      assistant-session: 7200 # 2 hours
+      temporary-data: 300    # 5 minutes
+    retry:
+      max-attempts: 5        # More retries in production
+      delay: 2000
+    circuit-breaker:
+      failure-threshold: 10  # Higher threshold for production stability
+      recovery-timeout: 60000
+
+# Production-specific tool sync configuration
+app:
+  tool-sync:
+    recovery:
+      enabled: true
+      timeout: 10000              # Standard timeout for production
+      max-retries: 3              # Standard retries for production
+      initial-delay: 1000         # Standard delay for production
+      failure-threshold:
+        consecutive-failures: 5   # Higher threshold for production stability
+        invalid-messages: 10      # Higher threshold for production
+        time-window: 60000        # Standard time window
+      agent:
+        base-url: ${TOOL_SYNC_AGENT_URL:http://agent-service:5001}  # Production service name
+        connect-timeout: 5000
+        read-timeout: 10000
+
+# Production logging - less verbose, environment variable overrides
+logging:
+  level:
+    com.quip.backend.redis: ${LOG_LEVEL_REDIS:INFO}
+    com.quip.backend.cache: ${LOG_LEVEL_CACHE:INFO}
+    com.quip.backend.tool.sync: ${LOG_LEVEL_TOOL_SYNC:INFO}
+    com.quip.backend.tool.consumer: ${LOG_LEVEL_TOOL_CONSUMER:INFO}
+    com.quip.backend.tool.handler: ${LOG_LEVEL_TOOL_HANDLER:INFO}
+    org.springframework.cache: ${LOG_LEVEL_SPRING_CACHE:WARN}
+    io.lettuce.core: ${LOG_LEVEL_LETTUCE:WARN}
+    com.quip.backend: ${LOG_LEVEL_QUIP_BACKEND:INFO}
+    org.springframework: ${LOG_LEVEL_SPRING:WARN}
+    org.mybatis: ${LOG_LEVEL_MYBATIS:WARN}
+
+# Production management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  health:
+    redis:
+      enabled: true

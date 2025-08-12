@@ -1,9 +1,11 @@
 package com.quip.backend.problem.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.quip.backend.authorization.constants.AuthorizationConstants;
 import com.quip.backend.authorization.context.AuthorizationContext;
 import com.quip.backend.authorization.service.AuthorizationService;
 import com.quip.backend.common.exception.ValidationException;
+import com.quip.backend.config.redis.CacheConfiguration;
 import com.quip.backend.problem.dto.request.CreateProblemCategoryRequestDto;
 import com.quip.backend.problem.dto.request.GetProblemCategoryRequestDto;
 import com.quip.backend.problem.dto.response.GetProblemCategoryResponseDto;
@@ -14,6 +16,8 @@ import com.quip.backend.problem.mapper.dto.response.GetProblemCategoryResponseDt
 import com.quip.backend.problem.model.ProblemCategory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -47,16 +51,19 @@ public class ProblemCategoryService {
     private static final String GET_PROBLEM_CATEGORIES = "Problem Category Retrieval";
 
     /**
-     * Retrieves all problem categories for a server.
+     * Retrieves all problem categories for a server with caching.
      * <p>
      * This method first validates that the requesting member has permission to view problem categories
      * in the specified channel, then retrieves all problem categories associated with the server.
+     * Results are cached to improve performance for frequently accessed static data.
      * </p>
      *
      * @param getProblemCategoryRequestDto DTO containing member ID and channel ID
      * @return List of problem category response DTOs
      * @throws ValidationException If the member lacks proper authorization
      */
+    @Cacheable(value = CacheConfiguration.PROBLEM_CATEGORIES_CACHE, 
+               key = "#getProblemCategoryRequestDto.channelId")
     public List<GetProblemCategoryResponseDto> getServerProblemCategories(GetProblemCategoryRequestDto getProblemCategoryRequestDto) {
         // Check member authorization for viewing problem categories in this channel
         AuthorizationContext authorizationContext = authorizationService.validateAuthorization(
@@ -66,8 +73,11 @@ public class ProblemCategoryService {
                 GET_PROBLEM_CATEGORIES
         );
 
+        log.debug("Retrieving problem categories from database for serverId to return dto: {}", authorizationContext.server().getId());
+
         // Retrieve all categories for the server and convert to DTOs
-        List<ProblemCategory> problemCategories = problemCategoryMapper.selectByServerId(authorizationContext.server().getId());
+        List<ProblemCategory> problemCategories = problemCategoryMapper.selectList(new QueryWrapper<ProblemCategory>()
+                .eq("server_id", authorizationContext.server().getId()));
         List<GetProblemCategoryResponseDto> getProblemCategoryResponseDtos = new ArrayList<>();
         for (ProblemCategory problemCategory : problemCategories) {
             getProblemCategoryResponseDtos.add(getProblemCategoryResponseDtoMapper.toProblemCategoryDto(problemCategory));
@@ -77,16 +87,37 @@ public class ProblemCategoryService {
     }
 
     /**
-     * Adds a new problem category to the system.
+     * Retrieves problem categories by server ID with caching.
+     * <p>
+     * This method provides direct access to problem categories by server ID
+     * with caching support for improved performance.
+     * </p>
+     *
+     * @param serverId the server ID
+     * @return List of problem categories for the server
+     */
+    @Cacheable(value = CacheConfiguration.PROBLEM_CATEGORIES_CACHE, 
+               key = "#serverId")
+    public List<ProblemCategory> getProblemCategoriesByServerId(Long serverId) {
+        log.debug("Retrieving problem categories from database for serverId: {}", serverId);
+        return problemCategoryMapper.selectList(new QueryWrapper<ProblemCategory>()
+                .eq("server_id", serverId));
+    }
+
+    /**
+     * Adds a new problem category to the system and evicts related cache.
      * <p>
      * This method creates a new problem category in the database after validating
      * the input data and ensuring that the requesting member has proper authorization
-     * to manage problem categories in the specified channel.
+     * to manage problem categories in the specified channel. Cache is evicted to
+     * ensure consistency.
      * </p>
      *
      * @param createProblemCategoryRequestDto DTO containing the category data to be created
      * @throws ValidationException If the input data is invalid or the member lacks proper authorization
      */
+    @CacheEvict(value = CacheConfiguration.PROBLEM_CATEGORIES_CACHE, 
+                allEntries = true)
     public void addProblemCategory(CreateProblemCategoryRequestDto createProblemCategoryRequestDto) {
         // Check if member has permission to manage problem categories
         AuthorizationContext authorizationContext = authorizationService.validateAuthorization(
@@ -105,14 +136,17 @@ public class ProblemCategoryService {
 
         // Persist the new category
         problemCategoryMapper.insert(problemCategory);
+        
+        log.debug("Added new problem category and evicted cache for serverId: {}", authorizationContext.server().getId());
     }
 
 
     /**
-     * Validates that a problem category exists for a given operation.
+     * Validates that a problem category exists for a given operation with caching.
      * <p>
      * This method checks if the provided problem category ID is valid and refers to an existing category.
      * It's used during operations that require a valid problem category reference.
+     * Results are cached to improve performance for frequently validated categories.
      * </p>
      *
      * @param problemCategoryId The ID of the problem category to validate
@@ -121,6 +155,8 @@ public class ProblemCategoryService {
      * @throws ValidationException If the category ID is null or refers to a non-existent category
      * @throws IllegalArgumentException If the operation parameter is null
      */
+    @Cacheable(value = CacheConfiguration.PROBLEM_CATEGORIES_CACHE, 
+               key = "'category:' + #problemCategoryId")
     public ProblemCategory validateProblemCategory(Long problemCategoryId, String operation) {
         // Check for required parameters
         if (problemCategoryId == null) {
@@ -130,6 +166,8 @@ public class ProblemCategoryService {
             throw new IllegalArgumentException("Parameter 'operation' must not be null.");
         }
 
+        log.debug("Validating problem category from database for problemCategoryId: {}", problemCategoryId);
+
         // Verify the category exists in the database
         ProblemCategory problemCategory = problemCategoryMapper.selectById(problemCategoryId);
         if (problemCategory == null) {
@@ -137,6 +175,34 @@ public class ProblemCategoryService {
         }
         log.info("Validated problemCategoryId: {}", problemCategoryId);
         return problemCategory;
+    }
+
+    /**
+     * Evicts problem categories cache for a specific server.
+     * <p>
+     * This method removes cached problem category data for a server,
+     * typically called when category data is modified.
+     * </p>
+     *
+     * @param serverId the server ID to evict cache for
+     */
+    @CacheEvict(value = CacheConfiguration.PROBLEM_CATEGORIES_CACHE, 
+                key = "#serverId")
+    public void evictProblemCategoriesCache(Long serverId) {
+        log.debug("Evicting problem categories cache for serverId: {}", serverId);
+    }
+
+    /**
+     * Evicts all problem categories cache entries.
+     * <p>
+     * This method removes all cached problem category data,
+     * typically called during bulk operations or system maintenance.
+     * </p>
+     */
+    @CacheEvict(value = CacheConfiguration.PROBLEM_CATEGORIES_CACHE, 
+                allEntries = true)
+    public void evictAllProblemCategoriesCache() {
+        log.debug("Evicting all problem categories cache entries");
     }
 
     /**

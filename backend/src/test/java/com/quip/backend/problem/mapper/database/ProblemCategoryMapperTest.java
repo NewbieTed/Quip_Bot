@@ -64,44 +64,7 @@ public class ProblemCategoryMapperTest extends BaseTest {
         verify(problemCategoryMapper).selectById(categoryId);
     }
 
-    @Test
-    @DisplayName("Should call selectByServerId method")
-    void shouldCallSelectByServerId_Method() {
-        // Given
-        Long serverId = 1L;
-        List<ProblemCategory> expectedCategories = new ArrayList<>();
-        ProblemCategory category1 = new ProblemCategory();
-        category1.setId(1L);
-        category1.setServerId(serverId);
-        expectedCategories.add(category1);
-        
-        when(problemCategoryMapper.selectByServerId(serverId)).thenReturn(expectedCategories);
 
-        // When
-        List<ProblemCategory> results = problemCategoryMapper.selectByServerId(serverId);
-
-        // Then
-        assertNotNull(results);
-        assertEquals(1, results.size());
-        assertEquals(serverId, results.get(0).getServerId());
-        verify(problemCategoryMapper).selectByServerId(serverId);
-    }
-
-    @Test
-    @DisplayName("Should handle empty list from selectByServerId")
-    void shouldHandleEmptyList_FromSelectByServerId() {
-        // Given
-        Long serverId = 999L;
-        when(problemCategoryMapper.selectByServerId(serverId)).thenReturn(new ArrayList<>());
-
-        // When
-        List<ProblemCategory> results = problemCategoryMapper.selectByServerId(serverId);
-
-        // Then
-        assertNotNull(results);
-        assertEquals(0, results.size());
-        verify(problemCategoryMapper).selectByServerId(serverId);
-    }
 
     @Test
     @DisplayName("Should call insert method")

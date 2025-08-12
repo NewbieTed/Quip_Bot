@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 
+  ToolWhitelistMapper.xml - MyBatis mapper for tool whitelist
+  
+  This mapper provides SQL queries and mappings for the ToolWhitelist entity,
+  handling database operations related to tool whitelist permissions in the system.
+-->
+<mapper namespace="com.quip.backend.tool.mapper.database.ToolWhitelistMapper">
+
+    <resultMap id="ToolWhitelistResultMap" type="com.quip.backend.tool.model.ToolWhitelist">
+        <result property="memberId" column="member_id"/>
+        <result property="toolId" column="tool_id"/>
+        <result property="serverId" column="server_id"/>
+        <result property="agentConversationId" column="agent_conversation_id"/>
+        <result property="scope" column="scope" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+
+    <select id="selectActiveByMemberIdAndServerId" resultMap="ToolWhitelistResultMap">
+        SELECT member_id, tool_id, server_id, agent_conversation_id, scope, expires_at, created_by, updated_by, created_at, updated_at
+        FROM tool_whitelist
+        WHERE member_id = #{memberId}
+        AND server_id = #{serverId}
+        AND (expires_at IS NULL OR expires_at > #{currentTime})
+    </select>
+
+
+    <select id="selectActiveByMemberAndServerForNewConversation" resultMap="ToolWhitelistResultMap">
+        SELECT member_id, tool_id, server_id, agent_conversation_id, scope, expires_at, created_by, updated_by, created_at, updated_at
+        FROM tool_whitelist
+        WHERE member_id = #{memberId}
+        AND server_id = #{serverId}
+        AND scope IN ('GLOBAL', 'SERVER')
+        AND (expires_at IS NULL OR expires_at > #{currentTime})
+    </select>
+
+</mapper>

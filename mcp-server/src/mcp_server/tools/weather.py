@@ -7,7 +7,7 @@ from src.mcp_server.app import mcp
 logger = logging.getLogger(__name__)
 
 
-@mcp.tool(name="weather_tool")
+@mcp.tool(name="QuipMCPServer-weather_tool")
 async def weather_tool(city: str, context: Context) -> str:
     """Fetches current weather for a city."""
     logger.info("Weather tool called for city: %s", city)

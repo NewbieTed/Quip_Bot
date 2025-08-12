@@ -1,0 +1,83 @@
+# Test Environment Configuration
+spring:
+  # Test Redis Configuration - Disabled by default
+  redis:
+    enabled: false  # Disable Redis for unit tests to prevent actual connections
+    # For integration tests that need Redis, use embedded Redis
+    host: localhost
+    port: 6370      # Different port to avoid conflicts
+    password: ""
+    database: 15    # Use different database for tests
+    timeout: 1000ms
+    lettuce:
+      pool:
+        max-active: 2
+        max-idle: 2
+        min-idle: 0
+        max-wait: 500ms
+  
+  # Test Cache Configuration
+  cache:
+    type: none      # Disable caching for unit tests
+    # For integration tests, use:
+    # type: redis
+    redis:
+      time-to-live: 60000  # 1 minute for fast test execution
+      cache-null-values: false
+      key-prefix: "test:quip:backend:"
+  
+  # Test Database Configuration
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+
+# Test-specific Redis settings
+app:
+  redis:
+    default-ttl: 60          # 1 minute for tests
+    key-prefix: "test:quip:backend:"
+    health-check-interval: 5000  # 5 seconds for tests
+    cache-ttl:
+      tool-whitelist: 60     # 1 minute
+      problem-categories: 120 # 2 minutes
+      server-data: 60        # 1 minute
+      member-data: 30        # 30 seconds
+      assistant-session: 60  # 1 minute
+      temporary-data: 10     # 10 seconds
+    retry:
+      max-attempts: 1        # No retries in tests
+      delay: 100
+    circuit-breaker:
+      failure-threshold: 2   # Low threshold for fast test feedback
+      recovery-timeout: 5000
+
+# Test logging configuration
+logging:
+  level:
+    com.quip.backend: DEBUG
+    com.quip.backend.redis: DEBUG
+    com.quip.backend.cache: DEBUG
+    org.springframework: WARN
+    org.springframework.cache: DEBUG
+    org.mybatis: WARN
+    org.hibernate: WARN
+    io.lettuce.core: WARN
+
+# Test management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  health:
+    redis:
+      enabled: false  # Disable Redis health check in tests

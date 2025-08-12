@@ -64,39 +64,7 @@ public class AuthorizationTypeMapperTest extends BaseTest {
         verify(authorizationTypeMapper).selectById(typeId);
     }
 
-    @Test
-    @DisplayName("Should call selectByAuthorizationTypeName method")
-    void shouldCallSelectByAuthorizationTypeName_Method() {
-        // Given
-        String typeName = "READ_PERMISSION";
-        AuthorizationType expectedType = new AuthorizationType();
-        expectedType.setId(1L);
-        expectedType.setAuthorizationTypeName(typeName);
-        
-        when(authorizationTypeMapper.selectByAuthorizationTypeName(typeName)).thenReturn(expectedType);
 
-        // When
-        AuthorizationType result = authorizationTypeMapper.selectByAuthorizationTypeName(typeName);
-
-        // Then
-        assertNotNull(result);
-        assertEquals(typeName, result.getAuthorizationTypeName());
-        verify(authorizationTypeMapper).selectByAuthorizationTypeName(typeName);
-    }
-
-    @Test
-    @DisplayName("Should handle null return from selectByAuthorizationTypeName")
-    void shouldHandleNullReturn_FromSelectByAuthorizationTypeName() {
-        // Given
-        String typeName = "NONEXISTENT_PERMISSION";
-        when(authorizationTypeMapper.selectByAuthorizationTypeName(typeName)).thenReturn(null);
-
-        // When
-        AuthorizationType result = authorizationTypeMapper.selectByAuthorizationTypeName(typeName);
-
-        // Then
-        verify(authorizationTypeMapper).selectByAuthorizationTypeName(typeName);
-    }
 
     @Test
     @DisplayName("Should call insert method")

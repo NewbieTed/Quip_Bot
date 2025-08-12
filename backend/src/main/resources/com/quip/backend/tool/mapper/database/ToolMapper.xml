@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 
+  ToolMapper.xml - MyBatis mapper for tools
+  
+  This mapper provides SQL queries and mappings for the Tool entity,
+  handling database operations related to tools in the system.
+-->
+<mapper namespace="com.quip.backend.tool.mapper.database.ToolMapper">
+
+    <resultMap id="ToolResultMap" type="com.quip.backend.tool.model.Tool">
+        <id property="id" column="id"/>
+        <result property="mcpServerId" column="mcp_server_id"/>
+        <result property="toolName" column="tool_name"/>
+        <result property="description" column="description"/>
+        <result property="enabled" column="enabled"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+</mapper>

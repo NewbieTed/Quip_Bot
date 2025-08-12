@@ -1,0 +1,87 @@
+# Staging Environment Configuration
+spring:
+  # Staging Redis Configuration (similar to production but with relaxed settings)
+  redis:
+    enabled: true
+    host: ${REDIS_HOST:redis-staging.local}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD}
+    database: ${REDIS_DATABASE:0}
+    timeout: 4000ms
+    connect-timeout: 4000ms
+    lettuce:
+      pool:
+        max-active: 12       # Medium pool size for staging
+        max-idle: 6
+        min-idle: 1
+        max-wait: 1500ms
+        time-between-eviction-runs: 45s
+      shutdown-timeout: 150ms
+  
+  # Staging Cache Configuration
+  cache:
+    redis:
+      time-to-live: 1800000  # 30 minutes for staging testing
+      cache-null-values: false
+      enable-statistics: true
+
+# Staging-specific Redis settings
+app:
+  redis:
+    default-ttl: 1800        # 30 minutes for staging
+    health-check-interval: 20000  # 20 seconds
+    cache-ttl:
+      tool-whitelist: 3600   # 1 hour
+      problem-categories: 43200  # 12 hours
+      server-data: 10800     # 3 hours
+      member-data: 1800      # 30 minutes
+      assistant-session: 3600 # 1 hour
+      temporary-data: 300    # 5 minutes
+    retry:
+      max-attempts: 3
+      delay: 1000
+    circuit-breaker:
+      failure-threshold: 5
+      recovery-timeout: 30000
+
+# Staging-specific tool sync configuration
+app:
+  tool-sync:
+    recovery:
+      enabled: true
+      timeout: 15000              # Longer timeout for staging debugging
+      max-retries: 2              # Fewer retries for faster feedback
+      initial-delay: 500          # Shorter delay for staging
+      failure-threshold:
+        consecutive-failures: 3   # Lower threshold for faster testing
+        invalid-messages: 5       # Lower threshold for staging
+        time-window: 30000        # Shorter time window for staging
+      agent:
+        base-url: ${TOOL_SYNC_AGENT_URL:http://quip-agent-staging:5001}
+        connect-timeout: 3000
+        read-timeout: 15000
+
+# Staging logging - more verbose than production
+logging:
+  level:
+    com.quip.backend.redis: ${LOG_LEVEL_REDIS:INFO}
+    com.quip.backend.cache: ${LOG_LEVEL_CACHE:INFO}
+    com.quip.backend.tool.sync: ${LOG_LEVEL_TOOL_SYNC:DEBUG}
+    com.quip.backend.tool.consumer: ${LOG_LEVEL_TOOL_CONSUMER:DEBUG}
+    com.quip.backend.tool.handler: ${LOG_LEVEL_TOOL_HANDLER:DEBUG}
+    org.springframework.cache: ${LOG_LEVEL_SPRING_CACHE:INFO}
+    io.lettuce.core: ${LOG_LEVEL_LETTUCE:INFO}
+    com.quip.backend: ${LOG_LEVEL_QUIP_BACKEND:INFO}
+    org.springframework: ${LOG_LEVEL_SPRING:WARN}
+    org.mybatis: ${LOG_LEVEL_MYBATIS:WARN}
+
+# Staging management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,configprops,env
+  endpoint:
+    health:
+      show-details: always
+      show-components: always

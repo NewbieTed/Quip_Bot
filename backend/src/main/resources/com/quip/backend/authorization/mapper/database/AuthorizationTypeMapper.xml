@@ -17,9 +17,4 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <select id="selectByAuthorizationTypeName" resultMap="AuthorizationTypeResultMap">
-        SELECT id, authorization_type_name, created_by, updated_by, created_at, updated_at
-        FROM authorization_type
-        WHERE authorization_type_name = #{authorizationTypeName}
-    </select>
 </mapper>
