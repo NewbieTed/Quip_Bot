@@ -39,7 +39,11 @@ mcp:
 
 # Agent Configuration
 agent:
-  system_prompt_path: "src/agent/prompts/system_prompt.txt"
+  prompts_dir: "src/agent/prompts"
+  prompts:
+    main_system: "main_system_prompt.txt"
+    human_confirmation: "human_confirmation_prompt.txt"
+    progress_report: "progress_report_prompt.txt"
   max_iterations: 10
   stream_mode:
     - "updates"
@@ -50,3 +54,19 @@ agent:
 memory:
   type: "in_memory"
   checkpoint_interval: 100
+
+# Tool Synchronization Configuration
+tool_sync:
+  enabled: true
+  discovery_on_startup: true
+  # HTTP server configuration for sync recovery
+  http_server:
+    enabled: true                                           # Enable/disable HTTP sync endpoints
+    host: "0.0.0.0"                                        # HTTP server host
+    port: 5001                                             # HTTP server port
+    timeout: 10                                            # Request timeout in seconds
+    # Tool discovery configuration for resync requests
+    discovery:
+      timeout: 10                                          # Tool discovery timeout in seconds
+      retry_attempts: 2                                    # Retry attempts for failed discovery
+      retry_delay: 1                                       # Delay between retries in seconds

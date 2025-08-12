@@ -22,20 +22,20 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CreateProblemCategoryRequestDto {
     /**
-     * ID of the channel where this category is being created.
-     * Used for authorization checks.
-     */
-    @NotNull(message = "Channel ID cannot be null")
-    @PositiveOrZero(message = "Channel ID must be a non negative number")
-    private Long channelId;
-
-    /**
      * ID of the member creating this category.
      * Used for authorization checks.
      */
     @NotNull(message = "Member ID cannot be null")
     @PositiveOrZero(message = "Member ID must be a non negative number")
     private Long memberId;
+
+    /**
+     * ID of the channel where this category is being created.
+     * Used for authorization checks.
+     */
+    @NotNull(message = "Channel ID cannot be null")
+    @PositiveOrZero(message = "Channel ID must be a non negative number")
+    private Long channelId;
 
     /**
      * Name of the problem category.

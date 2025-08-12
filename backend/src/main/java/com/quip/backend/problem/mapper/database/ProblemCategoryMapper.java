@@ -17,11 +17,5 @@ import java.util.List;
  */
 @Mapper
 public interface ProblemCategoryMapper extends BaseMapper<ProblemCategory> {
-    /**
-     * Retrieves all problem categories belonging to a specific server.
-     *
-     * @param serverId The ID of the server to filter by
-     * @return A list of ProblemCategory entities in the specified server
-     */
-    List<ProblemCategory> selectByServerId(@Param("serverId") Long serverId);
+
 }

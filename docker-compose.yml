@@ -18,25 +18,93 @@ services:
     networks:
       - quip-network
 
+  quip-redis:
+    image: redis:7-alpine
+    container_name: quip-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    environment:
+      # Redis configuration via environment variables
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command: >
+      sh -c "
+        if [ -n \"$$REDIS_PASSWORD\" ]; then
+          redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes --appendfsync everysec --maxmemory 256mb --maxmemory-policy allkeys-lru
+        else
+          redis-server --appendonly yes --appendfsync everysec --maxmemory 256mb --maxmemory-policy allkeys-lru
+        fi
+      "
+    volumes:
+      - quip_redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - quip-network
+    restart: unless-stopped
+
   quip-backend-app:
     build: ./backend
     container_name: quip-backend-app
     ports:
       - "8080:8080"
     environment:
+      # Database Configuration
       DB_HOST: quip-db
       DB_PORT: ${DB_PORT}
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DATABASE_URL: ${DATABASE_URL}
+      # Redis Configuration
+      REDIS_HOST: quip-redis
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DATABASE: ${REDIS_DATABASE:-0}
+      REDIS_TIMEOUT: ${REDIS_TIMEOUT:-5000}
+      REDIS_CONNECT_TIMEOUT: ${REDIS_CONNECT_TIMEOUT:-5000}
+      # Redis Pool Configuration (Development)
+      REDIS_POOL_MAX_ACTIVE: ${REDIS_POOL_MAX_ACTIVE:-4}
+      REDIS_POOL_MAX_IDLE: ${REDIS_POOL_MAX_IDLE:-4}
+      REDIS_POOL_MIN_IDLE: ${REDIS_POOL_MIN_IDLE:-1}
+      REDIS_POOL_MAX_WAIT: ${REDIS_POOL_MAX_WAIT:-2000}
+      # Tool Sync Configuration
+      TOOL_SYNC_CONSUMER_ENABLED: ${TOOL_SYNC_CONSUMER_ENABLED:-true}
+      TOOL_SYNC_POLLING_TIMEOUT: ${TOOL_SYNC_POLLING_TIMEOUT:-30}
+      # Tool Sync Recovery Configuration
+      TOOL_SYNC_RECOVERY_ENABLED: ${TOOL_SYNC_RECOVERY_ENABLED:-true}
+      TOOL_SYNC_RECOVERY_TIMEOUT: ${TOOL_SYNC_RECOVERY_TIMEOUT:-15000}
+      TOOL_SYNC_RECOVERY_MAX_RETRIES: ${TOOL_SYNC_RECOVERY_MAX_RETRIES:-2}
+      TOOL_SYNC_RECOVERY_INITIAL_DELAY: ${TOOL_SYNC_RECOVERY_INITIAL_DELAY:-500}
+      # Tool Sync Failure Detection (Development thresholds)
+      TOOL_SYNC_FAILURE_CONSECUTIVE: ${TOOL_SYNC_FAILURE_CONSECUTIVE:-3}
+      TOOL_SYNC_FAILURE_INVALID_MESSAGES: ${TOOL_SYNC_FAILURE_INVALID_MESSAGES:-5}
+      TOOL_SYNC_FAILURE_TIME_WINDOW: ${TOOL_SYNC_FAILURE_TIME_WINDOW:-30000}
+      # Agent HTTP Endpoint Configuration
+      TOOL_SYNC_AGENT_URL: ${TOOL_SYNC_AGENT_URL:-http://quip-agent:5001}
+      TOOL_SYNC_AGENT_RESYNC_ENDPOINT: ${TOOL_SYNC_AGENT_RESYNC_ENDPOINT:-/api/tools/resync}
+      TOOL_SYNC_AGENT_CONNECT_TIMEOUT: ${TOOL_SYNC_AGENT_CONNECT_TIMEOUT:-3000}
+      TOOL_SYNC_AGENT_READ_TIMEOUT: ${TOOL_SYNC_AGENT_READ_TIMEOUT:-15000}
+      # Logging Configuration (Development)
+      LOG_LEVEL_TOOL_SYNC: ${LOG_LEVEL_TOOL_SYNC:-DEBUG}
+      LOG_LEVEL_TOOL_CONSUMER: ${LOG_LEVEL_TOOL_CONSUMER:-DEBUG}
+      LOG_LEVEL_TOOL_HANDLER: ${LOG_LEVEL_TOOL_HANDLER:-DEBUG}
+      LOG_LEVEL_REDIS: ${LOG_LEVEL_REDIS:-DEBUG}
+      LOG_LEVEL_CACHE: ${LOG_LEVEL_CACHE:-DEBUG}
+      # Other Configuration
       AGENT_URL: ${AGENT_URL}
     depends_on:
       quip-db:
         condition: service_healthy
+      quip-redis:
+        condition: service_healthy
     command: java -jar /app/build/libs/app.jar
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -48,12 +116,45 @@ services:
     build: ./agent
     container_name: quip-agent
     ports:
-      - "5001:5000"
+      - "5001:5001"  # Updated to expose port 5001 for tool sync HTTP server
     environment:
-      MCP_SERVER_URL: ${MCP_SERVER_URL}
+      # API Keys
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # MCP Server Configuration (Multi-server support)
+      MCP_SERVER_URL_QUIPMCPSERVER: ${MCP_SERVER_URL_QUIPMCPSERVER}
+      MCP_SERVER_URL: ${MCP_SERVER_URL}  # Global fallback
       BACKEND_URL: http://quip-backend-app:8080
+      # Set the internal port to match the exposed port
+      PORT: 5001
+      # Redis Configuration
+      REDIS_HOST: quip-redis
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_RETRY_MAX_ATTEMPTS: ${REDIS_RETRY_MAX_ATTEMPTS:-3}
+      REDIS_RETRY_BASE_DELAY: ${REDIS_RETRY_BASE_DELAY:-1.0}
+      REDIS_RETRY_MAX_DELAY: ${REDIS_RETRY_MAX_DELAY:-30.0}
+      # Tool Sync HTTP Server Configuration
+      TOOL_SYNC_HTTP_ENABLED: ${TOOL_SYNC_HTTP_ENABLED:-true}
+      TOOL_SYNC_HTTP_HOST: ${TOOL_SYNC_HTTP_HOST:-0.0.0.0}
+      TOOL_SYNC_HTTP_PORT: ${TOOL_SYNC_HTTP_PORT:-5001}
+      TOOL_SYNC_HTTP_TIMEOUT: ${TOOL_SYNC_HTTP_TIMEOUT:-15}
+      # Tool Discovery Configuration (Development)
+      TOOL_DISCOVERY_TIMEOUT: ${TOOL_DISCOVERY_TIMEOUT:-15}
+      TOOL_DISCOVERY_RETRY_ATTEMPTS: ${TOOL_DISCOVERY_RETRY_ATTEMPTS:-1}
+      TOOL_DISCOVERY_RETRY_DELAY: ${TOOL_DISCOVERY_RETRY_DELAY:-0.5}
+      # Logging Configuration (Development)
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_LEVEL_TOOL_SYNC: ${LOG_LEVEL_TOOL_SYNC:-DEBUG}
+      LOG_LEVEL_TOOL_DISCOVERY: ${LOG_LEVEL_TOOL_DISCOVERY:-DEBUG}
+      LOG_LEVEL_REDIS: ${LOG_LEVEL_REDIS:-DEBUG}
+      LOG_LEVEL_MCP: ${LOG_LEVEL_MCP:-INFO}
+      # Add additional MCP server URLs as needed:
+      # MCP_SERVER_URL_WEATHERMCPSERVER: ${MCP_SERVER_URL_WEATHERMCPSERVER}
     depends_on:
       quip-backend-app:
+        condition: service_healthy
+      quip-redis:
         condition: service_healthy
     networks:
       - quip-network
@@ -87,6 +188,7 @@ services:
 
 volumes:
   quip_db_data:
+  quip_redis_data:
 
 networks:
   quip-network: {}

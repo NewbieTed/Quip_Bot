@@ -15,12 +15,6 @@ import org.apache.ibatis.annotations.Param;
  */
 @Mapper
 public interface AuthorizationTypeMapper extends BaseMapper<AuthorizationType> {
-    /**
-     * Retrieves an authorization type by its name.
-     *
-     * @param authorizationTypeName The name of the authorization type to look up
-     * @return The AuthorizationType entity with the specified name, or null if not found
-     */
-    AuthorizationType selectByAuthorizationTypeName(@Param("authorizationTypeName") String authorizationTypeName);
+
 
 }

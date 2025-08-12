@@ -8,7 +8,7 @@
 -->
 <mapper namespace="com.quip.backend.authorization.mapper.database.MemberChannelAuthorizationMapper">
 
-    <resultMap id="MemberChannelPermissionResultMap" type="com.quip.backend.authorization.model.MemberChannelAuthorization">
+    <resultMap id="MemberChannelAuthorizationResultMap" type="com.quip.backend.authorization.model.MemberChannelAuthorization">
         <result property="memberId" column="member_id"/>
         <result property="channelId" column="channel_id"/>
         <result property="authorizationTypeId" column="authorization_type_id"/>
@@ -18,12 +18,4 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-
-    <select id="selectByIds" resultMap="MemberChannelPermissionResultMap">
-        SELECT member_id, channel_id, authorization_type_id, created_by, updated_by, created_at, updated_at
-        FROM member_channel_authorization
-        WHERE member_id = #{memberId}
-        AND channel_id = #{channelId}
-        AND authorization_type_id = #{authorizationTypeId}
-    </select>
 </mapper>

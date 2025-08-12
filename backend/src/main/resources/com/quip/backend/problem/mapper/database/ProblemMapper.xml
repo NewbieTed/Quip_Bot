@@ -22,11 +22,4 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <select id="selectByProblemCategoryId" resultMap="ProblemResultMap">
-        SELECT id, question, server_id, media_file_id, contributor_id, problem_category_id, is_valid, created_by, updated_by, created_at, updated_at
-        FROM problem
-        WHERE problem_category_id = #{problemCategoryId}
-    </select>
-
-
 </mapper>

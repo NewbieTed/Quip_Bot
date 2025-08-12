@@ -21,7 +21,7 @@ public class AssistantRequestDto {
     @PositiveOrZero(message = "Channel ID must be a non negative number")
     private Long channelId;
 
-    @NotNull(message = "memberId ID cannot be null")
-    @PositiveOrZero(message = "memberId ID must be a non negative number")
+    @NotNull(message = "Member ID cannot be null")
+    @PositiveOrZero(message = "Member ID must be a non negative number")
     private Long memberId;
 }

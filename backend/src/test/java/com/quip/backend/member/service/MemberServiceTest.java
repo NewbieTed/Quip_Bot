@@ -127,6 +127,76 @@ public class MemberServiceTest extends BaseTest {
 
 
     /**
+     * Tests for the getMemberById method which retrieves a member by ID.
+     * This nested class contains tests that verify the method returns the correct member
+     * and handles various scenarios appropriately.
+     */
+    @Nested
+    @DisplayName("getMemberById() Tests")
+    class GetMemberByIdTests {
+        
+        @Test
+        @DisplayName("Should return member when member exists")
+        void shouldReturnMember_WhenMemberExists() {
+            // Given
+            when(memberMapper.selectById(VALID_MEMBER_ID)).thenReturn(validMember);
+
+            // When
+            Member result = memberService.getMemberById(VALID_MEMBER_ID);
+
+            // Then
+            assertNotNull(result);
+            assertEquals(validMember, result);
+            verify(memberMapper).selectById(VALID_MEMBER_ID);
+        }
+
+        @Test
+        @DisplayName("Should return null when member does not exist")
+        void shouldReturnNull_WhenMemberDoesNotExist() {
+            // Given
+            Long nonExistentMemberId = 999L;
+            when(memberMapper.selectById(nonExistentMemberId)).thenReturn(null);
+
+            // When
+            Member result = memberService.getMemberById(nonExistentMemberId);
+
+            // Then
+            assertNull(result);
+            verify(memberMapper).selectById(nonExistentMemberId);
+        }
+
+        @Test
+        @DisplayName("Should handle null memberId parameter")
+        void shouldHandleNullMemberId() {
+            // Given
+            when(memberMapper.selectById(null)).thenReturn(null);
+
+            // When
+            Member result = memberService.getMemberById(null);
+
+            // Then
+            assertNull(result);
+            verify(memberMapper).selectById(null);
+        }
+
+        @ParameterizedTest
+        @ValueSource(longs = {1L, 2L, 100L, 999L})
+        @DisplayName("Should call mapper with correct memberId")
+        void shouldCallMapperWithCorrectMemberId(Long memberId) {
+            // Given
+            Member expectedMember = createMember();
+            when(memberMapper.selectById(memberId)).thenReturn(expectedMember);
+
+            // When
+            Member result = memberService.getMemberById(memberId);
+
+            // Then
+            assertEquals(expectedMember, result);
+            verify(memberMapper).selectById(memberId);
+        }
+    }
+
+    /**
      * Creates a simple Member entity for testing.
      * 
      * @return A basic Member instance for test cases

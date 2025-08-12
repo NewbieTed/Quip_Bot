@@ -13,6 +13,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -64,44 +65,7 @@ public class ProblemMapperTest extends BaseTest {
         verify(problemMapper).selectById(problemId);
     }
 
-    @Test
-    @DisplayName("Should call selectByProblemCategoryId method")
-    void shouldCallSelectByProblemCategoryId_Method() {
-        // Given
-        Long categoryId = 1L;
-        List<Problem> expectedProblems = new ArrayList<>();
-        Problem problem1 = new Problem();
-        problem1.setId(1L);
-        problem1.setProblemCategoryId(categoryId);
-        expectedProblems.add(problem1);
-        
-        when(problemMapper.selectByProblemCategoryId(categoryId)).thenReturn(expectedProblems);
 
-        // When
-        List<Problem> results = problemMapper.selectByProblemCategoryId(categoryId);
-
-        // Then
-        assertNotNull(results);
-        assertEquals(1, results.size());
-        assertEquals(categoryId, results.get(0).getProblemCategoryId());
-        verify(problemMapper).selectByProblemCategoryId(categoryId);
-    }
-
-    @Test
-    @DisplayName("Should handle empty list from selectByProblemCategoryId")
-    void shouldHandleEmptyList_FromSelectByProblemCategoryId() {
-        // Given
-        Long categoryId = 999L;
-        when(problemMapper.selectByProblemCategoryId(categoryId)).thenReturn(new ArrayList<>());
-
-        // When
-        List<Problem> results = problemMapper.selectByProblemCategoryId(categoryId);
-
-        // Then
-        assertNotNull(results);
-        assertEquals(0, results.size());
-        verify(problemMapper).selectByProblemCategoryId(categoryId);
-    }
 
     @Test
     @DisplayName("Should call insert method")

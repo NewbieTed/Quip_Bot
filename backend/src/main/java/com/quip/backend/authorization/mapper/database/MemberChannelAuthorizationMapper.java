@@ -17,20 +17,15 @@ import org.apache.ibatis.annotations.Param;
 public interface MemberChannelAuthorizationMapper extends BaseMapper<MemberChannelAuthorization> {
 
     /**
-     * Retrieves a member's authorization for a specific channel and authorization type.
-     * <p>
-     * This method is used to check if a member has a specific permission in a channel.
-     * </p>
+     * Selects member channel authorization by member ID, channel ID, and authorization type ID.
      *
-     * @param memberId The ID of the member
-     * @param channelId The ID of the channel
-     * @param authorizationTypeId The ID of the authorization type
-     * @return The MemberChannelAuthorization entity if found, or null if the member doesn't have the authorization
+     * @param memberId the member ID
+     * @param channelId the channel ID
+     * @param authorizationTypeId the authorization type ID
+     * @return the member channel authorization or null if not found
      */
-    MemberChannelAuthorization selectByIds(
-            @Param("memberId") Long memberId,
-            @Param("channelId") Long channelId,
-            @Param("authorizationTypeId") Long authorizationTypeId
-    );
+    MemberChannelAuthorization selectByIds(@Param("memberId") Long memberId, 
+                                          @Param("channelId") Long channelId, 
+                                          @Param("authorizationTypeId") Long authorizationTypeId);
 
 }
