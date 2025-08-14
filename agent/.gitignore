@@ -17,3 +17,5 @@ ENV/
 
 # Poetry cache
 .pyproject_hash
+
+*.png
