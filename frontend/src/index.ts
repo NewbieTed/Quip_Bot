@@ -10,8 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
-import { logger } from './utils/logger';
-logger.info('OPENAI_API_KEY configured: ' + (process.env.OPENAI_API_KEY ? 'Yes' : 'No'));        
+import { logger } from './utils/logger';        
 import { Client, Collection, GatewayIntentBits, SlashCommandBuilder, CommandInteraction, Events, ChatInputCommandInteraction } from 'discord.js';
 import { token } from '../config.json';
 
@@ -66,6 +65,35 @@ for (const file of eventFiles) {
 }
 
 
+
+// Import tool approval handler for cleanup
+import { ToolApprovalHandler } from './services/tool-approval-handler';
+// Import health monitoring service
+import { healthMonitoringService } from './services/health-monitoring-service';
+
+// Initialize tool approval handler for periodic cleanup
+const toolApprovalHandler = new ToolApprovalHandler();
+
+// Set up periodic cleanup of expired approvals (every 5 minutes)
+setInterval(() => {
+    toolApprovalHandler.cleanupExpiredApprovals();
+}, 5 * 60 * 1000);
+
+// Start health monitoring
+healthMonitoringService.startMonitoring();
+
+// Graceful shutdown handling
+process.on('SIGINT', () => {
+    logger.info('Received SIGINT, shutting down gracefully');
+    healthMonitoringService.stopMonitoring();
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    logger.info('Received SIGTERM, shutting down gracefully');
+    healthMonitoringService.stopMonitoring();
+    process.exit(0);
+});
 
 // Log in to Discord with the bot's token
 client.login(token).then(() => {

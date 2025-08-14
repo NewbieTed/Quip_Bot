@@ -79,6 +79,7 @@ const args = { "-d": ["guild", "global"] };
             }
         }
     }
+    console.log(`Loaded commands: ${commands.map(cmd => cmd.name).join(', ')}`);
     // Initialize the REST module with the bot's token
     const rest = new discord_js_1.REST().setToken(config_json_1.token);
     // Handle the command deletion argument
@@ -100,6 +101,7 @@ const args = { "-d": ["guild", "global"] };
     // Deploy the loaded commands
     try {
         console.log(`Started refreshing ${commands.length} application (/) commands.`);
+        console.log(`Deploying to GUILD: ${config_json_1.guildId} with CLIENT: ${config_json_1.clientId}`);
         // The put method is used to fully refresh all commands in the guild with the current set
         const data = await rest.put(discord_js_1.Routes.applicationGuildCommands(config_json_1.clientId, config_json_1.guildId), { body: commands }); // Cast to any[] for now to resolve type errors
         console.log(`Successfully reloaded ${data.length} application (/) commands.`);

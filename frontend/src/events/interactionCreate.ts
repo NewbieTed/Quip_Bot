@@ -2,6 +2,10 @@ import { Events, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, Inte
 import fetch from 'node-fetch';
 import { verifiedRoleId, rulesChannelId } from '../../config.json';
 import { redis } from '../redis';
+import { ToolApprovalHandler } from '../services/tool-approval-handler';
+
+// Initialize tool approval handler
+const toolApprovalHandler = new ToolApprovalHandler();
 
 module.exports = {
     name: Events.InteractionCreate,
@@ -23,6 +27,26 @@ module.exports = {
 
         // Only proceed if interaction is a button click
         if (!interaction.isButton()) return;
+
+        // Handle tool approval buttons
+        if (interaction.customId.startsWith('tool_approval_')) {
+            try {
+                await toolApprovalHandler.handleApprovalResponse(interaction);
+            } catch (error) {
+                console.error('Error handling tool approval:', error);
+            }
+            return;
+        }
+
+        // Handle help command buttons
+        if (interaction.customId.startsWith('help_')) {
+            try {
+                await handleHelpButtons(interaction);
+            } catch (error) {
+                console.error('Error handling help button:', error);
+            }
+            return;
+        }
 
         const userId = interaction.user.id;
 
@@ -274,3 +298,33 @@ module.exports = {
         }
     }
 };
+
+/**
+ * Handle help command button interactions
+ */
+async function handleHelpButtons(interaction: MessageComponentInteraction) {
+    if (!interaction.isButton()) return;
+
+    switch (interaction.customId) {
+        case 'help_status_button':
+            await interaction.reply({
+                content: '📊 Use `/lenza-status` to check bot health and backend connectivity status.',
+                ephemeral: true
+            });
+            break;
+        
+        case 'help_tools_button':
+            await interaction.reply({
+                content: '🔧 Use `/lenza-tools` to manage your tool whitelist. You can view, add, remove, or clear whitelisted tools that Lenza can use automatically.',
+                ephemeral: true
+            });
+            break;
+        
+        default:
+            await interaction.reply({
+                content: '❓ Unknown help button. Please try again.',
+                ephemeral: true
+            });
+            break;
+    }
+}

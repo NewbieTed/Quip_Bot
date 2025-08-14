@@ -36,8 +36,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const dotenv = __importStar(require("dotenv"));
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
+dotenv.config({ path: node_path_1.default.resolve(__dirname, '../.env') });
 const discord_js_1 = require("discord.js");
 const config_json_1 = require("../config.json");
 // Initialize the Discord client with necessary intents so the bot can respond to commands and events
@@ -86,6 +88,14 @@ for (const file of eventFiles) {
         }
     });
 }
+// Import tool approval handler for cleanup
+const tool_approval_handler_1 = require("./services/tool-approval-handler");
+// Initialize tool approval handler for periodic cleanup
+const toolApprovalHandler = new tool_approval_handler_1.ToolApprovalHandler();
+// Set up periodic cleanup of expired approvals (every 5 minutes)
+setInterval(() => {
+    toolApprovalHandler.cleanupExpiredApprovals();
+}, 5 * 60 * 1000);
 // Log in to Discord with the bot's token
 client.login(config_json_1.token).then(() => {
     console.log('Bot logged in successfully');
