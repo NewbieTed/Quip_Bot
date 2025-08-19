@@ -199,24 +199,75 @@ public class AssistantConversationService {
             throw new IllegalArgumentException("Updated by cannot be null");
         }
 
-        // TODO: Call other service method
+        AssistantConversation activeConversation = findActiveConversation(memberId, serverId);
+        if (activeConversation == null) {
+            log.warn("No active conversation found to update processing status for member: {} in server: {}",
+                    memberId, serverId);
+            return false;
+        }
 
-//        AssistantConversation activeConversation = assistantConversationMapper.findActiveConversation(memberId, serverId);
-//        if (activeConversation == null) {
-//            log.warn("No active conversation found to update processing status for member: {} in server: {}",
-//                    memberId, serverId);
-//            return false;
-//        }
-//
-//        int updated = assistantConversationMapper.updateProcessingStatus(activeConversation.getId(), isProcessing, updatedBy);
-//
-//        if (updated > 0) {
-//            log.debug("Updated processing status to {} for conversation {} (member: {}, server: {})",
-//                     isProcessing, activeConversation.getId(), memberId, serverId);
-//            return true;
-//        }
+        int updated = assistantConversationMapper.update(null,
+                new UpdateWrapper<AssistantConversation>()
+                        .set("is_processing", isProcessing)
+                        .set("updated_by", updatedBy)
+                        .eq("id", activeConversation.getId()));
+
+        if (updated > 0) {
+            log.debug("Updated processing status to {} for conversation {} (member: {}, server: {})",
+                     isProcessing, activeConversation.getId(), memberId, serverId);
+            return true;
+        }
         
         return false;
+    }
+
+    /**
+     * Attempts to set processing status to true, but only if not already processing.
+     * This provides concurrent protection against multiple simultaneous requests.
+     *
+     * @param memberId the member ID
+     * @param serverId the server ID
+     * @param updatedBy the user updating the status
+     * @return true if successfully set to processing, false if already processing or no active conversation
+     * @throws IllegalArgumentException if any parameter is null
+     */
+    @CacheEvict(value = CacheConfiguration.ASSISTANT_CONVERSATION_CACHE, 
+                key = "#serverId + ':member:' + #memberId + ':active'")
+    public boolean trySetProcessing(Long memberId, Long serverId, Long updatedBy) {
+        if (memberId == null) {
+            throw new IllegalArgumentException("Member ID cannot be null");
+        }
+        if (serverId == null) {
+            throw new IllegalArgumentException("Server ID cannot be null");
+        }
+        if (updatedBy == null) {
+            throw new IllegalArgumentException("Updated by cannot be null");
+        }
+
+        AssistantConversation activeConversation = findActiveConversation(memberId, serverId);
+        if (activeConversation == null) {
+            log.warn("No active conversation found to set processing for member: {} in server: {}",
+                    memberId, serverId);
+            return false;
+        }
+
+        // Only update if currently not processing - this provides concurrent protection
+        int updated = assistantConversationMapper.update(null,
+                new UpdateWrapper<AssistantConversation>()
+                        .set("is_processing", true)
+                        .set("updated_by", updatedBy)
+                        .eq("id", activeConversation.getId())
+                        .eq("is_processing", false)); // Only update if currently false
+
+        if (updated > 0) {
+            log.debug("Successfully set processing status for conversation {} (member: {}, server: {})",
+                     activeConversation.getId(), memberId, serverId);
+            return true;
+        } else {
+            log.warn("Failed to set processing status - conversation {} already processing (member: {}, server: {})",
+                    activeConversation.getId(), memberId, serverId);
+            return false;
+        }
     }
 
     /**
@@ -242,22 +293,73 @@ public class AssistantConversationService {
             throw new IllegalArgumentException("Updated by cannot be null");
         }
 
-        // TODO: Call other service method
+        AssistantConversation activeConversation = findActiveConversation(memberId, serverId);
+        if (activeConversation == null) {
+            log.warn("No active conversation found to mark as interrupted for member: {} in server: {}",
+                    memberId, serverId);
+            return false;
+        }
 
-//        AssistantConversation activeConversation = assistantConversationMapper.findActiveConversation(memberId, serverId);
-//        if (activeConversation == null) {
-//            log.warn("No active conversation found to mark as interrupted for member: {} in server: {}",
-//                    memberId, serverId);
-//            return false;
-//        }
-//
-//        int updated = assistantConversationMapper.markAsInterrupted(activeConversation.getId(), updatedBy);
-//
-//        if (updated > 0) {
-//            log.info("Marked conversation {} as interrupted for member: {} in server: {}",
-//                    activeConversation.getId(), memberId, serverId);
-//            return true;
-//        }
+        // Mark as interrupted and stop processing (per state invariant)
+        int updated = assistantConversationMapper.update(null,
+                new UpdateWrapper<AssistantConversation>()
+                        .set("is_interrupt", true)
+                        .set("is_processing", false)
+                        .set("updated_by", updatedBy)
+                        .eq("id", activeConversation.getId()));
+
+        if (updated > 0) {
+            log.info("Marked conversation {} as interrupted for member: {} in server: {}",
+                    activeConversation.getId(), memberId, serverId);
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Clears the interrupt status of an active conversation.
+     * Evicts the cache entry since the conversation data has changed.
+     *
+     * @param memberId the member ID
+     * @param serverId the server ID
+     * @param updatedBy the user clearing the interrupt status
+     * @return true if the interrupt status was cleared, false otherwise
+     * @throws IllegalArgumentException if any parameter is null
+     */
+    @CacheEvict(value = CacheConfiguration.ASSISTANT_CONVERSATION_CACHE, 
+                key = "#serverId + ':member:' + #memberId + ':active'")
+    public boolean clearInterruptStatus(Long memberId, Long serverId, Long updatedBy) {
+        if (memberId == null) {
+            throw new IllegalArgumentException("Member ID cannot be null");
+        }
+        if (serverId == null) {
+            throw new IllegalArgumentException("Server ID cannot be null");
+        }
+        if (updatedBy == null) {
+            throw new IllegalArgumentException("Updated by cannot be null");
+        }
+
+        AssistantConversation activeConversation = findActiveConversation(memberId, serverId);
+        if (activeConversation == null) {
+            log.warn("No active conversation found to clear interrupt status for member: {} in server: {}",
+                    memberId, serverId);
+            return false;
+        }
+
+        // Clear interrupt status and reset interrupted tool ID
+        int updated = assistantConversationMapper.update(null,
+                new UpdateWrapper<AssistantConversation>()
+                        .set("is_interrupt", false)
+                        .set("interrupted_tool_id", null)
+                        .set("updated_by", updatedBy)
+                        .eq("id", activeConversation.getId()));
+
+        if (updated > 0) {
+            log.info("Cleared interrupt status for conversation {} (member: {}, server: {})",
+                    activeConversation.getId(), memberId, serverId);
+            return true;
+        }
         
         return false;
     }

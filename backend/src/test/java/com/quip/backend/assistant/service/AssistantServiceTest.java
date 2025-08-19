@@ -40,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 /**
  * Unit tests for {@link AssistantService}.
@@ -313,6 +314,16 @@ public class AssistantServiceTest extends BaseTest {
                     INVOKE_ASSISTANT_OPERATION
             )).thenReturn(mockAuthorizationContext);
 
+            // Setup assistant conversation service mock
+            AssistantConversation mockConversation = AssistantConversation.builder()
+                    .id(1L)
+                    .isInterrupt(false)
+                    .build();
+            when(assistantConversationService.validateAssistantConversation(VALID_MEMBER_ID, VALID_SERVER_ID))
+                .thenReturn(mockConversation);
+            when(assistantConversationService.trySetProcessing(VALID_MEMBER_ID, VALID_SERVER_ID, VALID_MEMBER_ID))
+                .thenReturn(true);
+
             // Expect a NullPointerException due to Map.of() not accepting null values
             assertThatThrownBy(() -> assistantService.invokeAssistant(requestWithNullMessage))
                     .isInstanceOf(NullPointerException.class);
@@ -477,7 +488,13 @@ public class AssistantServiceTest extends BaseTest {
         @DisplayName("Should include approved=false in payload when conversation is interrupted")
         void shouldIncludeApprovedFalseInPayload_WhenConversationIsInterrupted() {
             // Given
-            setupCommonMocks();
+            // Setup authorization service mock
+            when(authorizationService.validateAuthorization(
+                    VALID_MEMBER_ID,
+                    VALID_CHANNEL_ID,
+                    AuthorizationConstants.INVOKE_ASSISTANT,
+                    INVOKE_ASSISTANT_OPERATION
+            )).thenReturn(mockAuthorizationContext);
             
             // Mock interrupted conversation
             AssistantConversation interruptedConversation = AssistantConversation.builder()
@@ -486,6 +503,14 @@ public class AssistantServiceTest extends BaseTest {
                     .build();
             when(assistantConversationService.validateAssistantConversation(VALID_MEMBER_ID, VALID_SERVER_ID))
                     .thenReturn(interruptedConversation);
+            
+            // Mock the processing status methods
+            when(assistantConversationService.trySetProcessing(VALID_MEMBER_ID, VALID_SERVER_ID, VALID_MEMBER_ID))
+                .thenReturn(true);
+            when(assistantConversationService.clearInterruptStatus(VALID_MEMBER_ID, VALID_SERVER_ID, VALID_MEMBER_ID))
+                .thenReturn(true);
+            when(assistantConversationService.updateProcessingStatus(VALID_MEMBER_ID, VALID_SERVER_ID, false, VALID_MEMBER_ID))
+                .thenReturn(true);
             
             setupWebClientMocks();
             when(responseSpec.bodyToFlux(DataBuffer.class)).thenReturn(Flux.empty());
@@ -503,6 +528,7 @@ public class AssistantServiceTest extends BaseTest {
             expectedPayload.put("approved", false);
             
             verify(requestBodySpec).bodyValue(expectedPayload);
+            verify(assistantConversationService).clearInterruptStatus(VALID_MEMBER_ID, VALID_SERVER_ID, VALID_MEMBER_ID);
         }
 
         @Test
@@ -903,6 +929,21 @@ public class AssistantServiceTest extends BaseTest {
                 INVOKE_ASSISTANT_OPERATION
         )).thenReturn(mockAuthorizationContext);
 
+        // Setup new conversation creation mock
+        AssistantConversation newConversation = AssistantConversation.builder()
+                .id(2L)
+                .isInterrupt(false)
+                .isProcessing(false)
+                .build();
+        when(assistantConversationService.createActiveConversation(VALID_MEMBER_ID, VALID_SERVER_ID, VALID_MEMBER_ID))
+                .thenReturn(newConversation);
+        
+        // Mock the processing status methods (lenient to avoid unnecessary stubbing warnings)
+        lenient().when(assistantConversationService.updateProcessingStatus(VALID_MEMBER_ID, VALID_SERVER_ID, true, VALID_MEMBER_ID))
+                .thenReturn(true);
+        lenient().when(assistantConversationService.updateProcessingStatus(VALID_MEMBER_ID, VALID_SERVER_ID, false, VALID_MEMBER_ID))
+                .thenReturn(true);
+
         when(toolWhitelistService.getWhitelistedToolNamesForNewConversation(VALID_MEMBER_ID, VALID_SERVER_ID))
                 .thenReturn(Arrays.asList("tool1", "tool2"));
         setupWebClientMocks();
@@ -945,6 +986,12 @@ public class AssistantServiceTest extends BaseTest {
                 .build();
         when(assistantConversationService.validateAssistantConversation(VALID_MEMBER_ID, VALID_SERVER_ID))
             .thenReturn(mockConversation);
+        
+        // Mock the new processing status methods (lenient to avoid unnecessary stubbing warnings)
+        lenient().when(assistantConversationService.trySetProcessing(VALID_MEMBER_ID, VALID_SERVER_ID, VALID_MEMBER_ID))
+            .thenReturn(true);
+        lenient().when(assistantConversationService.updateProcessingStatus(VALID_MEMBER_ID, VALID_SERVER_ID, false, VALID_MEMBER_ID))
+            .thenReturn(true);
     }
 
     private void setupCommonMocksWithWebClient() {

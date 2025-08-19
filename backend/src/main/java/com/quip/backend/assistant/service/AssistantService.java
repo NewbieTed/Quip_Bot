@@ -83,6 +83,11 @@ public class AssistantService {
         // Grab current active conversation
         AssistantConversation assistantConversation = assistantConversationService.validateAssistantConversation(memberId, serverId);
 
+        // Check for concurrent processing protection
+        if (!assistantConversationService.trySetProcessing(memberId, serverId, memberId)) {
+            return Flux.error(new ValidationException("Another request is already being processed for this conversation"));
+        }
+
         // Prepare the payload with all necessary context for the AI assistant
         Map<String, Object> payload = new HashMap<>(Map.of(
                 "message", assistantRequestDto.getMessage(),
@@ -95,6 +100,8 @@ public class AssistantService {
         // If message is sent while being interrupted, treat as rejecting operation
         if (assistantConversation.getIsInterrupt()) {
             payload.put("approved", false);
+            // Clear interrupt status when user responds
+            assistantConversationService.clearInterruptStatus(memberId, serverId, memberId);
         }
 
         log.info("Sending request to agent with payload: {}", payload);
@@ -118,8 +125,21 @@ public class AssistantService {
                 .map(this::extractContentFromAgentResponse)
                 .filter(content -> !content.isEmpty())
                 .doOnNext(content -> log.info("Extracted content: [{}]", content.replace("\n", "\\n").replace("\r", "\\r")))
-                .doOnError(error -> log.error("Error communicating with agent: {}", error.getMessage(), error))
-                .doOnComplete(() -> log.info("Agent response stream completed"));
+                .doOnError(error -> {
+                    log.error("Error communicating with agent: {}", error.getMessage(), error);
+                    // Clear processing status on error
+                    assistantConversationService.updateProcessingStatus(memberId, serverId, false, memberId);
+                })
+                .doOnComplete(() -> {
+                    log.info("Agent response stream completed");
+                    // Clear processing status on completion
+                    assistantConversationService.updateProcessingStatus(memberId, serverId, false, memberId);
+                })
+                .doFinally(signalType -> {
+                    // Ensure processing status is cleared regardless of how the stream ends
+                    log.debug("Stream ended with signal: {}, ensuring processing status is cleared", signalType);
+                    assistantConversationService.updateProcessingStatus(memberId, serverId, false, memberId);
+                });
     }
 
 
@@ -151,6 +171,14 @@ public class AssistantService {
         );
 
         Long serverId = authorizationContext.server().getId();
+
+        // For new conversations, we create a new conversation and set it as processing
+        AssistantConversation newConversation = assistantConversationService.createActiveConversation(memberId, serverId, memberId);
+        
+        // Set processing status for the new conversation
+        if (!assistantConversationService.updateProcessingStatus(memberId, serverId, true, memberId)) {
+            log.warn("Failed to set processing status for new conversation");
+        }
 
         // Get whitelisted tools for this member and server context
         List<String> whitelistedToolNames = toolWhitelistService.getWhitelistedToolNamesForNewConversation(memberId, serverId);
@@ -185,8 +213,21 @@ public class AssistantService {
                 .map(this::extractContentFromAgentResponse)
                 .filter(content -> !content.isEmpty())
                 .doOnNext(content -> log.info("Extracted content from new agent: [{}]", content.replace("\n", "\\n").replace("\r", "\\r")))
-                .doOnError(error -> log.error("Error communicating with agent: {}", error.getMessage(), error))
-                .doOnComplete(() -> log.info("New agent response stream completed"));
+                .doOnError(error -> {
+                    log.error("Error communicating with agent: {}", error.getMessage(), error);
+                    // Clear processing status on error
+                    assistantConversationService.updateProcessingStatus(memberId, serverId, false, memberId);
+                })
+                .doOnComplete(() -> {
+                    log.info("New agent response stream completed");
+                    // Clear processing status on completion
+                    assistantConversationService.updateProcessingStatus(memberId, serverId, false, memberId);
+                })
+                .doFinally(signalType -> {
+                    // Ensure processing status is cleared regardless of how the stream ends
+                    log.debug("New conversation stream ended with signal: {}, ensuring processing status is cleared", signalType);
+                    assistantConversationService.updateProcessingStatus(memberId, serverId, false, memberId);
+                });
     }
 
     /**
