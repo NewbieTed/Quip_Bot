@@ -105,7 +105,7 @@ public class AssistantService {
         }
 
         log.info("Sending request to agent with payload: {}", payload);
-
+        // TODO: Add update to interrupted state if it is indeed interrupted, this can be done via a API call from the agent to the backend
         // Make HTTP POST request to the agent and stream the response
         return webClient
                 .post()
