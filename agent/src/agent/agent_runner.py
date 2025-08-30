@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import json
 from typing import Dict, List, Any, Literal, Tuple, Optional
@@ -12,6 +13,9 @@ from langchain_core.tools import BaseTool
 
 # Import prompt loader
 from src.agent.utils.prompt_loader import load_prompt
+
+# Import interrupt service for publishing interrupt notifications
+from src.agent.services.interrupt_service import get_interrupt_service
 
 # Tool discovery and Redis publishing is now handled in graph.py
 
@@ -122,6 +126,32 @@ async def _process_stream(
         stream_mode = ["updates", "custom"]
 
     last_content: Optional[str] = None
+    
+    # Get interrupt service for publishing interrupt notifications
+    interrupt_service = get_interrupt_service()
+    
+    # Extract context from config for interrupt notifications
+    member_id = config.get("configurable", {}).get("member_id")
+    server_id = config.get("configurable", {}).get("server_id")
+    conversation_id = config.get("configurable", {}).get("conversation_id")
+
+    def _publish_interrupt(reason: str, tool_name: Optional[str] = None):
+        """Helper function to publish interrupt notifications."""
+        if member_id and server_id:
+            try:
+                interrupt_service.notify_conversation_interrupted(
+                    member_id=member_id,
+                    server_id=server_id,
+                    assistant_conversation_id=conversation_id,
+                    interrupted_tool_name=tool_name,
+                    reason=reason
+                )
+                logger.info("Published interrupt notification: reason=%s, member_id=%s, server_id=%s", 
+                          reason, member_id, server_id)
+            except Exception as e:
+                logger.error("Failed to publish interrupt notification: %s", str(e))
+        else:
+            logger.warning("Cannot publish interrupt notification - missing member_id or server_id")
 
     try:
         async for mode, chunk in graph.astream(state, config, stream_mode=stream_mode):
@@ -148,11 +178,18 @@ async def _process_stream(
                     interrupt_obj = chunk['__interrupt__'][0]
                     request_value = interrupt_obj.value.get('request')
                     if request_value:
-                        logger.info("Interrupt request: %s", request_value)
+                        logger.info("Interrupt detected: %s", request_value)
+                        
+                        # Extract tool name if available
+                        interrupted_tool_name = request_value.get('tool_name')
+                        
+                        # Publish interrupt notification to Redis
+                        _publish_interrupt("user_message", interrupted_tool_name)
+                        
                         # Yield the complete request object with content and tool_name
                         yield _format_json_response({
                             "content": request_value.get('content', str(request_value)),
-                            "tool_name": request_value.get('tool_name'),
+                            "tool_name": interrupted_tool_name,
                             "type": "interrupt"
                         })
                         last_content = request_value.get('content', str(request_value))
@@ -165,9 +202,21 @@ async def _process_stream(
                         yield _format_json_response({"content": last_content, "type": "update"})
                     continue
 
+    except asyncio.TimeoutError:
+        logger.warning("Agent processing timed out")
+        _publish_interrupt("timeout")
+        yield _format_json_response({"content": "Processing timed out"})
+        return
     except Exception as e:
-        logger.exception("Stream error occurred: %s", str(e))
-        yield _format_json_response({"content": f"Error: {str(e)}"})
+        # Check if it's actually a timeout error that wasn't caught above
+        if isinstance(e, asyncio.TimeoutError):
+            logger.warning("Agent processing timed out (caught as Exception)")
+            _publish_interrupt("timeout")
+            yield _format_json_response({"content": "Processing timed out"})
+        else:
+            logger.exception("Stream error occurred: %s", str(e))
+            _publish_interrupt("processing_error")
+            yield _format_json_response({"content": f"Error: {str(e)}"})
         return
 
     if not last_content:
