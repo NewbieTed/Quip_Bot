@@ -75,6 +75,8 @@ logging:
     com.quip.backend.tool.sync: ${LOG_LEVEL_TOOL_SYNC:INFO}
     com.quip.backend.tool.consumer: ${LOG_LEVEL_TOOL_CONSUMER:INFO}
     com.quip.backend.tool.handler: ${LOG_LEVEL_TOOL_HANDLER:INFO}
+    com.quip.backend.assistant.consumer: ${LOG_LEVEL_ASSISTANT_CONSUMER:INFO}
+    com.quip.backend.assistant.handler: ${LOG_LEVEL_ASSISTANT_HANDLER:INFO}
     org.springframework: ${LOG_LEVEL_SPRING:WARN}
     org.springframework.cache: ${LOG_LEVEL_SPRING_CACHE:WARN}
     org.mybatis: ${LOG_LEVEL_MYBATIS:WARN}
@@ -117,6 +119,12 @@ app:
     circuit-breaker:
       failure-threshold: ${REDIS_CB_FAILURE_THRESHOLD:5}    # Failures before opening circuit
       recovery-timeout: ${REDIS_CB_RECOVERY_TIMEOUT:30000}  # Recovery timeout in ms
+  # Assistant configuration
+  assistant:
+    # Interrupt message consumer configuration
+    interrupt-consumer:
+      enabled: ${ASSISTANT_INTERRUPT_CONSUMER_ENABLED:true}  # Enable/disable interrupt message consumer
+      polling-timeout: ${ASSISTANT_INTERRUPT_POLLING_TIMEOUT:5} # Redis polling timeout in seconds
   # Tool synchronization configuration
   tool-sync:
     # TESTING: Configuration for forcing failures to test resync feature
